@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UDP — ports, length &amp; checksum · packet-headers.sh</title>
+<meta name="description" content="Interactive UDP datagram explorer: source and destination ports, length, checksum, IPv4 and IPv6 pseudo-headers, port service lookup, and byte-accurate encoder/decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="ipv6.html">ipv6</a>
+      <a href="tcp.html">tcp</a>
+      <a href="udp.html" aria-current="page">udp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="udp.html" class="is-active" data-layer="L4">udp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">header layout</a></li>
+        <li><a href="#ports">ports</a></li>
+        <li><a href="#checksum">checksum</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>UDP is stateless.</b> No handshake, no ordering, no retransmission. The checksum is optional in IPv4 and mandatory in IPv6.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>udp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>UDP <span class="on">// RFC 768</span></h1>
+      <p class="lead">
+        The minimal transport protocol: two ports, a length and a checksum. UDP adds
+        multiplexing and error detection, then gets out of the way. It is the substrate for
+        DNS, DHCP, NTP, QUIC, WireGuard and most of the traffic that would rather have
+        low latency than a handshake.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 768</b> · UDP</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8200" target="_blank" rel="noopener">RFC 8200 · IPv6 checksum</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8085" target="_blank" rel="noopener">RFC 8085 · UDP usage</a>
+        <a class="badge" href="https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml" target="_blank" rel="noopener">IANA ports</a>
+        <span class="badge">8 B header</span>
+        <span class="badge">ports · length · checksum</span>
+        <span class="badge">pseudo-header</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L4 · transport</span>
+        <span><b>header</b> 8 B fixed</span>
+        <span><b>length</b> 8–65535 B</span>
+        <span><b>checksum</b> IPv4 optional · IPv6 mandatory</span>
+      </div>
+      <div class="stackbar" data-stack="udp"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#ports">ports</a></li>
+        <li><a href="#checksum">checksum</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Datagram layout</h2>
+        <span class="section__hint">eight bytes of header · then payload</span>
+      </div>
+      <p>
+        A UDP datagram is an 8-byte header followed by data. <strong>Source Port</strong> and
+        <strong>Destination Port</strong> identify the sending and receiving endpoints;
+        <strong>Length</strong> counts the header plus data; <strong>Checksum</strong> covers a
+        pseudo-header, the UDP header and the data. The IP layer supplies the source and
+        destination addresses used by the pseudo-header.
+      </p>
+
+      <div id="udp-diagram"></div>
+      <div class="field-detail" id="udp-inspector"></div>
+      <div id="udp-fields"></div>
+      <div id="udp-frame-lane"></div>
+      <div class="field-detail" id="udp-frame-inspector"></div>
+
+      <div class="callout">
+        <div class="callout__title">Length includes the header</div>
+        <p>A UDP datagram with no payload has <strong>Length = 8</strong>. The maximum is 65535,
+        and the data field is therefore at most 65527 bytes before IP-level limits. The IP
+        payload may be larger than the UDP Length only if there is trailing data, which is
+        malformed for ordinary UDP.</p>
+      </div>
+    </section>
+
+    <section class="section" id="ports">
+      <div class="section__head">
+        <h2><span class="num">02</span>Ports &amp; services</h2>
+        <span class="section__hint">16-bit endpoints · 0–65535</span>
+      </div>
+      <p>
+        A UDP connection is really a four-tuple: source address, source port, destination
+        address and destination port. The first 1023 ports are system or well-known ports;
+        1024–49151 are user/registered ports; 49152–65535 are dynamic or private ports. The
+        source port is often ephemeral, while the destination port names the service.
+      </p>
+
+      <div class="flag-box">
+        <div class="flag-box__head"><span>port classifier</span><span>service names and ranges</span></div>
+        <div class="flag-box__body">
+          <div class="field-grid">
+            <div class="form-field">
+              <label for="udp-port-src">source port <span class="units">0–65535</span></label>
+              <input type="number" id="udp-port-src" value="53000" min="0" max="65535" inputmode="numeric">
+              <div class="codec-help" id="udp-port-src-info">53000 · dynamic / private</div>
+            </div>
+            <div class="form-field">
+              <label for="udp-port-dst">destination port <span class="units">0–65535</span></label>
+              <input type="number" id="udp-port-dst" value="53" min="0" max="65535" inputmode="numeric">
+              <div class="codec-help" id="udp-port-dst-info">53 · DNS</div>
+            </div>
+          </div>
+          <div class="flag-readout">
+            <span>socket pair <b id="udp-port-pair">53000 → 53</b></span>
+            <span>destination service <b id="udp-port-service">DNS</b></span>
+          </div>
+          <p class="flag-box__note">Port names are conventions from the IANA service registry. They do not prove that the payload is valid for that service, and a server can bind any port it likes.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Port</th><th>Service</th><th>Typical use</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>53</code></td><td><b>DNS</b></td><td>Queries and responses</td><td>Also TCP/53 for large responses and zone transfers.</td></tr>
+            <tr><td><code>67/68</code></td><td><b>DHCP</b></td><td>Server / client</td><td>Broadcast before the client has an address.</td></tr>
+            <tr><td><code>69</code></td><td><b>TFTP</b></td><td>Trivial file transfer</td><td>The server replies from a new ephemeral port.</td></tr>
+            <tr><td><code>123</code></td><td><b>NTP</b></td><td>Time synchronization</td><td>Client source port is usually 123 as well.</td></tr>
+            <tr><td><code>137/138</code></td><td><b>NetBIOS</b></td><td>Name and datagram service</td><td>Legacy Windows local-network discovery.</td></tr>
+            <tr><td><code>161/162</code></td><td><b>SNMP</b></td><td>Poll / trap</td><td>Agents listen on 161, managers receive traps on 162.</td></tr>
+            <tr><td><code>500/4500</code></td><td><b>IKE / IPsec NAT-T</b></td><td>Key exchange</td><td>4500 is used when NAT-T encapsulation is active.</td></tr>
+            <tr><td><code>514</code></td><td><b>syslog</b></td><td>Log transport</td><td>UDP syslog is fire-and-forget; TCP/TLS add reliability.</td></tr>
+            <tr><td><code>520</code></td><td><b>RIP</b></td><td>Routing updates</td><td>Distance-vector routing over UDP/520.</td></tr>
+            <tr><td><code>546/547</code></td><td><b>DHCPv6</b></td><td>Client / server</td><td>IPv6 configuration; link-local multicast is common.</td></tr>
+            <tr><td><code>1900</code></td><td><b>SSDP</b></td><td>UPnP discovery</td><td>Multicast discovery on the local network.</td></tr>
+            <tr><td><code>4789</code></td><td><b>VXLAN</b></td><td>Overlay encapsulation</td><td>Carries Ethernet frames over UDP.</td></tr>
+            <tr><td><code>51820</code></td><td><a href="wireguard.html"><b>WireGuard</b></a></td><td>VPN transport</td><td>Default UDP port; the protocol is stateless on the wire.</td></tr>
+            <tr><td><code>5353</code></td><td><b>mDNS</b></td><td>Local name resolution</td><td>Multicast DNS, often paired with DNS-SD.</td></tr>
+            <tr><td><code>6081</code></td><td><b>Geneve</b></td><td>Overlay encapsulation</td><td>Extensible tunnel metadata over UDP.</td></tr>
+            <tr><td><code>33434+</code></td><td><b>traceroute</b></td><td>Path discovery</td><td>Classic Unix traceroute increments destination UDP ports.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">UDP is a reflection target</div>
+        <p>The source address is not authenticated. Any protocol that sends a large response to
+        a spoofed source can be used for amplification. Rate limiting, response-size checks and
+        ingress filtering are operational controls, not UDP features.</p>
+      </div>
+    </section>
+
+    <section class="section" id="checksum">
+      <div class="section__head">
+        <h2><span class="num">03</span>Length &amp; checksum</h2>
+        <span class="section__hint">pseudo-header · IPv4 vs IPv6</span>
+      </div>
+      <p>
+        The UDP checksum is the one's-complement sum of a pseudo-header, the UDP header and the
+        UDP data. The pseudo-header binds the datagram to its IP source and destination so a
+        misdelivered packet is rejected. IPv4 makes the checksum optional: a transmitted zero
+        means “no checksum.” IPv6 makes it mandatory, and a zero checksum is invalid.
+      </p>
+
+      <div id="udp-v4-pseudo-lane"></div>
+      <div class="field-detail" id="udp-v4-pseudo-inspector"></div>
+      <div id="udp-v6-pseudo-lane"></div>
+      <div class="field-detail" id="udp-v6-pseudo-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Context</th><th>Pseudo-header</th><th>Checksum rule</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><b>IPv4</b></td><td>Source 4 B + destination 4 B + zero 1 B + protocol 1 B (<code>17</code>) + UDP Length 2 B = <b>12 B</b></td><td>Optional. A checksum field of zero means the sender did not compute one. A computed zero is transmitted as <code>0xFFFF</code>.</td><td>RFC 768 · RFC 1071</td></tr>
+            <tr><td><b>IPv6</b></td><td>Source 16 B + destination 16 B + UDP Length 4 B + three zero bytes + next header 1 B (<code>17</code>) = <b>40 B</b></td><td>Mandatory. Zero is invalid; a computed zero is transmitted as <code>0xFFFF</code>.</td><td>RFC 8200 §8.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">the checksum is not a MAC</div>
+        <p>A valid UDP checksum proves that the pseudo-header, header and payload survived the
+        path without accidental corruption under the sender's computation. It does not prove who
+        sent the datagram, and NAT devices may need to rewrite it when they change addresses or
+        ports.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">length auto · checksum with IP context</span>
+      </div>
+      <p>
+        Build a UDP datagram and compute its checksum with an IPv4 or IPv6 pseudo-header.
+        The output can be the raw UDP datagram or a complete IP packet. The source and
+        destination addresses are context, not UDP header fields; they matter only for the
+        checksum and the optional wrapper.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>UDP parameters</h3><span class="tag">RFC 768</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid field-grid--three">
+              <div class="form-field">
+                <label for="udp-enc-src-port">source port <span class="units">0–65535</span></label>
+                <input type="number" id="udp-enc-src-port" value="53000" min="0" max="65535" inputmode="numeric">
+                <div class="codec-help" id="udp-enc-src-hint">53000 · dynamic / private</div>
+              </div>
+              <div class="form-field">
+                <label for="udp-enc-dst-port">destination port <span class="units">0–65535</span></label>
+                <input type="number" id="udp-enc-dst-port" value="53" min="0" max="65535" inputmode="numeric">
+                <div class="codec-help" id="udp-enc-dst-hint">53 · DNS</div>
+              </div>
+              <div class="form-field">
+                <label>presets</label>
+                <div class="presets">
+                  <button type="button" data-udp-preset="dns">DNS query</button>
+                  <button type="button" data-udp-preset="ntp">NTP</button>
+                  <button type="button" data-udp-preset="syslog">syslog</button>
+                  <button type="button" data-udp-preset="wireguard">WireGuard</button>
+                  <button type="button" data-udp-preset="empty">empty</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="udp-enc-ip-version">IP context</label>
+                <select id="udp-enc-ip-version">
+                  <option value="4">IPv4 · optional checksum</option>
+                  <option value="6">IPv6 · mandatory checksum</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="udp-enc-output-mode">output</label>
+                <select id="udp-enc-output-mode">
+                  <option value="ip">full IP packet</option>
+                  <option value="raw">raw UDP datagram</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="udp-enc-ttl">TTL / hop limit <span class="units">0–255</span></label>
+                <input type="number" id="udp-enc-ttl" value="64" min="0" max="255" inputmode="numeric">
+              </div>
+              <div class="form-field span-2" id="udp-enc-v4-fields">
+                <div class="field-grid">
+                  <div class="form-field">
+                    <label for="udp-enc-v4-src">IPv4 source</label>
+                    <input type="text" id="udp-enc-v4-src" value="192.0.2.10" spellcheck="false">
+                  </div>
+                  <div class="form-field">
+                    <label for="udp-enc-v4-dst">IPv4 destination</label>
+                    <input type="text" id="udp-enc-v4-dst" value="198.51.100.20" spellcheck="false">
+                  </div>
+                </div>
+              </div>
+              <div class="form-field span-2" id="udp-enc-v6-fields" hidden>
+                <div class="field-grid">
+                  <div class="form-field">
+                    <label for="udp-enc-v6-src">IPv6 source</label>
+                    <input type="text" id="udp-enc-v6-src" value="2001:db8::1" spellcheck="false">
+                  </div>
+                  <div class="form-field">
+                    <label for="udp-enc-v6-dst">IPv6 destination</label>
+                    <input type="text" id="udp-enc-v6-dst" value="2001:db8::2" spellcheck="false">
+                  </div>
+                </div>
+              </div>
+              <div class="form-field" id="udp-enc-zero-group">
+                <label>&nbsp;</label>
+                <label class="inline-checks" style="min-height:34px"><input type="checkbox" id="udp-enc-zero"> zero checksum (IPv4)</label>
+              </div>
+              <div class="form-field">
+                <label for="udp-enc-length">length <span class="units">auto</span></label>
+                <input type="text" id="udp-enc-length" value="8" disabled>
+              </div>
+              <div class="form-field">
+                <label for="udp-enc-checksum">checksum <span class="units">auto</span></label>
+                <input type="text" id="udp-enc-checksum" value="—" disabled>
+              </div>
+              <div class="form-field span-2">
+                <label for="udp-enc-data-mode">data encoding</label>
+                <select id="udp-enc-data-mode">
+                  <option value="ascii">ASCII / UTF-8</option>
+                  <option value="hex">hex bytes</option>
+                </select>
+              </div>
+              <div class="form-field span-2">
+                <label for="udp-enc-data" id="udp-enc-data-label">payload</label>
+                <textarea id="udp-enc-data" class="hex-input" rows="4" spellcheck="false"></textarea>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="udp-enc-build">Build UDP</button>
+              <button class="btn btn--ghost" type="button" id="udp-enc-example">Load DNS example</button>
+            </div>
+            <p class="form-note">The checksum is computed over the pseudo-header selected by the IP context, the full UDP header and the payload. Length is calculated as 8 + payload bytes. The full-packet output wraps the datagram in IPv4 or IPv6 using the addresses above.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="udp-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="udp-enc-status" role="status" aria-live="polite">Set the fields and press Build UDP.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">datagram / packet hex</div><button class="copy-btn" type="button" data-copy-target="#udp-enc-output">copy</button></div>
+              <pre id="udp-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="udp-enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">a checksum needs a context</div>
+              <p>The UDP header does not contain IP addresses. If you copy the raw datagram
+              without its source and destination, a receiver cannot recompute the checksum
+              from the bytes alone. Keep the IP context when you paste it into a lab tool.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">raw UDP · IPv4 · IPv6 · Ethernet</span>
+      </div>
+      <p>
+        Paste a raw UDP datagram, an IPv4 packet with Protocol <code>17</code>, an IPv6 packet
+        whose terminal Next Header is <code>17</code>, or an Ethernet frame carrying either.
+        The decoder validates the UDP checksum when it can see the IP context. Raw UDP is parsed
+        but its checksum is marked as not checkable.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 768 · checksum context</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2">
+              <label for="udp-decode-input">hex input <span class="units">UDP, IPv4/IPv6 packet or Ethernet frame</span></label>
+              <textarea id="udp-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="30 39 00 35 00 0c 45 78 de ad be ef"></textarea>
+            </div>
+            <div class="form-field">
+              <label for="udp-decode-kind">input type</label>
+              <select id="udp-decode-kind">
+                <option value="auto">auto-detect</option>
+                <option value="raw">raw UDP datagram</option>
+                <option value="ipv4">IPv4 packet / Ethernet</option>
+                <option value="ipv6">IPv6 packet / Ethernet</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="udp-decode">Decode UDP</button>
+            <button class="btn btn--ghost" type="button" id="udp-decode-v4-example">Load IPv4 DNS</button>
+            <button class="btn btn--ghost" type="button" id="udp-decode-v6-example">Load IPv6 DNS</button>
+            <button class="btn btn--ghost" type="button" id="udp-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="udp-decode-status" role="status" aria-live="polite">No UDP datagram decoded yet.</div>
+          <div id="udp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">minimal by design</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">UDP is a multiplexing layer, not a reliable transport</div>
+        <p>UDP provides ports and an optional checksum. It does not provide connection setup,
+        sequencing, retransmission, flow control or congestion control. Applications that need
+        reliability build it above UDP, as QUIC does, or use TCP instead.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Length counts the header.</strong> A zero-payload datagram has Length 8. If the IP payload is longer than the UDP Length, the extra bytes are not part of the UDP datagram; ordinary UDP should not include them.</li>
+        <li><strong>The checksum includes a pseudo-header.</strong> IPv4 uses a 12-byte pseudo-header; IPv6 uses 40 bytes. The UDP Length field participates, so rewriting lengths without updating the checksum breaks it.</li>
+        <li><strong>Zero checksum is context-dependent.</strong> In IPv4 it means “not computed.” In IPv6 it is invalid. A computed checksum of zero is transmitted as <code>0xFFFF</code>.</li>
+        <li><strong>NAT rewrites checksums.</strong> A NAT that changes an address or port must recompute the UDP checksum. Captures taken at different points on the path can legitimately disagree.</li>
+        <li><strong>Fragmentation is an IP concern.</strong> UDP has no fragment fields. IPv4 may fragment at routers; IPv6 uses a Fragment extension header and source-based fragmentation. A decoder needs the first fragment to see the UDP header.</li>
+        <li><strong>Port numbers are not authentication.</strong> A source port is a claim, not an identity. UDP reflection and spoofing are common because there is no handshake.</li>
+        <li><strong>UDP-Lite is different.</strong> UDP-Lite changes the length field semantics and allows partial checksum coverage. It uses IP protocol <code>136</code>, not UDP protocol <code>17</code>; do not parse it with a UDP assumption.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc768" target="_blank" rel="noopener">RFC 768</a><span>UDP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1071" target="_blank" rel="noopener">RFC 1071</a><span>Internet checksum</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8200" target="_blank" rel="noopener">RFC 8200</a><span>IPv6 and mandatory UDP checksum</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8085" target="_blank" rel="noopener">RFC 8085</a><span>UDP usage guidelines</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6936" target="_blank" rel="noopener">RFC 6936</a><span>UDP zero checksum</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3828" target="_blank" rel="noopener">RFC 3828</a><span>UDP-Lite</span></li>
+        <li><a href="https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml" target="_blank" rel="noopener">IANA registry</a><span>service names and ports</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="quic.html">QUIC headers &amp; frames -&gt;</a>
+      </div>
+    </section>
+
+
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="quic.html">quic</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ipv4.js"></script>
+<script src="assets/ipv6-codec.js"></script>
+<script src="assets/udp-codec.js"></script>
+<script src="assets/udp.js"></script>
+</body>
+</html>

@@ -1,8 +1,8 @@
 # packet-headers.sh
 
 A static, interactive field guide to network wire formats: IPv4 options, ICMP types, IPv6
-extension chains, TCP flags and TLVs, QUIC headers and frames, BGP path attributes, and
-WireGuard messages.
+extension chains, TCP flags and TLVs, UDP ports and checksums, QUIC headers and frames, BGP
+path attributes, and WireGuard messages.
 
 Everything is plain HTML, CSS and JavaScript. There is no build step, no package manager,
 and no network request after the page loads (external RFC links open only when clicked).
@@ -27,6 +27,7 @@ ipv6.html           IPv6 header, addresses, extension chain, jumbograms, encoder
 ethernet.html       Ethernet II frame, VLAN tags, FCS, encoder/decoder
 arp.html            ARP message, opcodes, Ethernet wrapper, encoder/decoder
 tcp.html            TCP header, flags, options, scan recipes, encoder/decoder
+udp.html            UDP ports, length, IPv4/IPv6 checksum, encoder/decoder
 quic.html           QUIC long/short headers, varints, frames, frame codec
 bgp.html            BGP message/UPDATE layout, path attributes, encoder/decoder
 wireguard.html      WireGuard message layouts, endianness, transport builder/decoder
@@ -39,6 +40,7 @@ assets/ethernet-codec.js Ethernet/802.1Q/FCS codec
 assets/arp-codec.js      ARP message codec
 assets/icmp-codec.js     ICMPv4 message/packet codec
 assets/ipv6-codec.js     IPv6 header, address and extension-chain codec
+assets/udp-codec.js      UDP datagram and pseudo-header checksum codec
 assets/*.js         per-protocol pure codecs and page wiring
 assets/search-index.js  static search index
 fonts/              JetBrains Mono source file (SIL OFL) + license; CSS embeds it for file:// use
@@ -47,7 +49,7 @@ fonts/              JetBrains Mono source file (SIL OFL) + license; CSS embeds i
 ## Organization
 
 Protocols are grouped with the TCP/IP model, with OSI numbers as orientation labels:
-Application/control (BGP), Transport (TCP, QUIC), Tunnels/overlays (WireGuard),
+Application/control (BGP), Transport (TCP, UDP, QUIC), Tunnels/overlays (WireGuard),
 Internet/IP (IPv4, ICMP, IPv6), Link (Ethernet, ARP), and cross-layer tools. The homepage renders the stack
 map from `assets/protocol-meta.js`; adding a protocol with a `modelLayer` value places it in
 the map automatically. Protocol pages also carry an encapsulation stack strip. URLs stay

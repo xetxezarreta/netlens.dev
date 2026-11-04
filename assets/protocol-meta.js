@@ -67,6 +67,23 @@ window.PH_PROTOCOLS = {
       { label: "Application", note: "L7" }
     ]
   },
+  udp: {
+    name: "UDP",
+    layer: "transport",
+    modelLayer: "transport",
+    modelNote: "ports · length · checksum",
+    tone: "a",
+    layerCode: "L4",
+    layerLabel: "Transport",
+    layerNote: "datagram delivery · RFC 768",
+    family: "transport",
+    path: [
+      { label: "Ethernet", note: "link" },
+      { label: "IPv4 / IPv6", note: "L3" },
+      { label: "UDP", href: "udp.html", note: "L4", current: true },
+      { label: "Application", note: "L7" }
+    ]
+  },
   quic: {
     name: "QUIC",
     layer: "transport",
@@ -80,7 +97,7 @@ window.PH_PROTOCOLS = {
     path: [
       { label: "Ethernet", note: "link" },
       { label: "IPv4 / IPv6", note: "L3" },
-      { label: "UDP", note: "L4" },
+      { label: "UDP", href: "udp.html", note: "L4" },
       { label: "QUIC", href: "quic.html", note: "L4+", current: true },
       { label: "TLS 1.3 · Application", note: "encrypted" }
     ]
@@ -116,7 +133,7 @@ window.PH_PROTOCOLS = {
     path: [
       { label: "Ethernet", note: "link" },
       { label: "IPv4 / IPv6", note: "L3" },
-      { label: "UDP/51820", note: "L4" },
+      { label: "UDP/51820", href: "udp.html", note: "L4" },
       { label: "WireGuard", href: "wireguard.html", note: "tunnel", current: true },
       { label: "Inner IPv4 / IPv6", note: "payload" }
     ]
@@ -182,8 +199,7 @@ window.PH_STACK = [
     key: "transport",
     code: "L4",
     name: "Transport",
-    note: "process-to-process delivery",
-    planned: ["UDP"]
+    note: "process-to-process delivery"
   },
   {
     key: "tunnel",

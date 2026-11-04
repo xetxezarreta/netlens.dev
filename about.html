@@ -23,6 +23,7 @@
       <a href="icmp.html">icmp</a>
       <a href="ipv6.html">ipv6</a>
       <a href="tcp.html">tcp</a>
+      <a href="udp.html">udp</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
       <a href="wireguard.html">wireguard</a>
@@ -63,6 +64,7 @@
         <li><a href="icmp.html" data-layer="L3">icmp</a></li>
         <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="udp.html" data-layer="L4">udp</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
         <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
@@ -97,7 +99,7 @@
       <section class="section" id="about">
         <h2>What this is</h2>
         <p>
-          Nine protocol pages — IPv4, ICMP, IPv6, TCP, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
+          Ten protocol pages — IPv4, ICMP, IPv6, TCP, UDP, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
           <a href="tools.html">toolbox</a>. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
@@ -143,7 +145,7 @@
 
         <h3>Byte order</h3>
         <p>
-          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, QUIC and BGP. WireGuard is the
+          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, QUIC and BGP. WireGuard is the
           exception: its integer fields are little-endian. The WireGuard page calls this out on
           every field and provides a converter. Bytes inside a field are always written in
           transmission order; only the interpretation of multi-byte integers changes.
@@ -165,7 +167,7 @@
             <thead><tr><th>Group</th><th>Layer labels</th><th>Protocols</th><th>Why</th></tr></thead>
             <tbody>
               <tr><td><b>Application / control</b></td><td><code>L7</code></td><td>BGP</td><td>Routing policy over TCP. BGP is an application protocol whose subject is the control plane.</td></tr>
-              <tr><td><b>Transport</b></td><td><code>L4</code> / <code>L4+</code></td><td>TCP, QUIC</td><td>Process-to-process delivery. QUIC also carries TLS and application framing.</td></tr>
+              <tr><td><b>Transport</b></td><td><code>L4</code> / <code>L4+</code></td><td>TCP, UDP, QUIC</td><td>Process-to-process delivery: streams over TCP, datagrams over UDP, and encrypted transport with QUIC.</td></tr>
               <tr><td><b>Tunnels / overlays</b></td><td><code>L3 tunnel</code></td><td>WireGuard</td><td>A cross-layer overlay that carries inner IP over UDP.</td></tr>
               <tr><td><b>Internet / IP</b></td><td><code>L3</code></td><td>IPv4, ICMP, IPv6</td><td>Addressing, fragmentation, checksums, errors, extension chains and path-MTU signalling.</td></tr>
               <tr><td><b>Link</b></td><td><code>L2</code> / <code>L2.5</code></td><td>Ethernet, ARP</td><td>Frames, MAC addressing, VLAN tags, FCS and IPv4-to-MAC resolution.</td></tr>
@@ -286,6 +288,15 @@
           <li><a href="https://www.rfc-editor.org/rfc/rfc9221" target="_blank" rel="noopener">RFC 9221</a><span>DATAGRAM</span></li>
           <li><a href="https://www.rfc-editor.org/rfc/rfc9369" target="_blank" rel="noopener">RFC 9369</a><span>QUIC v2</span></li>
         </ul>
+        <h3>UDP</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc768" target="_blank" rel="noopener">RFC 768</a><span>UDP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1071" target="_blank" rel="noopener">RFC 1071</a><span>Internet checksum</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8200" target="_blank" rel="noopener">RFC 8200</a><span>IPv6 UDP checksum</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8085" target="_blank" rel="noopener">RFC 8085</a><span>UDP usage guidelines</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6936" target="_blank" rel="noopener">RFC 6936</a><span>UDP zero checksum</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc3828" target="_blank" rel="noopener">RFC 3828</a><span>UDP-Lite</span></li>
+        </ul>
         <h3>BGP</h3>
         <ul class="rfc-list">
           <li><a href="https://www.rfc-editor.org/rfc/rfc4271" target="_blank" rel="noopener">RFC 4271</a><span>BGP-4</span></li>
@@ -334,7 +345,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="tools.html">tools</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="tools.html">tools</a></div>
   </div>
 </footer>
 
