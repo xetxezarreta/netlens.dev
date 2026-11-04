@@ -84,9 +84,54 @@
     }).bytes;
   }
 
+  function exampleTls() {
+    const hello = window.TLSCodec.buildClientHello({
+      sni: "example.com", alpn: ["h2", "http/1.1"]
+    }).bytes;
+    const tcp = window.TCPCodec.buildSegment({
+      sport: 50000, dport: 443, seq: 1, ack: 0, flags: 0x18, window: 64240,
+      urgent: 0, reserved: 0, src: "192.0.2.10", dst: "198.51.100.20",
+      options: "", payload: hello
+    });
+    const ip = window.IPv4Codec.buildHeader({
+      version: 4, dscp: 0, ecn: 0, id: 0x544c, ttl: 64, protocol: 6,
+      fragmentOffset: 0, payloadLength: tcp.bytes.length, reserved: false, df: true, mf: false,
+      src: "192.0.2.10", dst: "198.51.100.20", options: ""
+    });
+    return window.EthernetCodec.buildFrame({
+      dst: "02:00:00:00:00:01", src: "02:00:00:00:00:02",
+      etherType: 0x0800, payload: PH.concatBytes(ip.bytes, tcp.bytes), pad: false, fcs: true
+    }).bytes;
+  }
+
+  function exampleHttp() {
+    const http = window.HTTPCodec.buildHttp1({
+      kind: "request", method: "GET", target: "/index.html", host: "example.com",
+      headers: [
+        { name: "User-Agent", value: "packet-headers/1.0" },
+        { name: "Accept", value: "text/html" }
+      ]
+    }).bytes;
+    const tcp = window.TCPCodec.buildSegment({
+      sport: 50001, dport: 80, seq: 1, ack: 1, flags: 0x18, window: 64240,
+      urgent: 0, reserved: 0, src: "192.0.2.10", dst: "198.51.100.20",
+      options: "", payload: http
+    });
+    const ip = window.IPv4Codec.buildHeader({
+      version: 4, dscp: 0, ecn: 0, id: 0x4854, ttl: 64, protocol: 6,
+      fragmentOffset: 0, payloadLength: tcp.bytes.length, reserved: false, df: true, mf: false,
+      src: "192.0.2.10", dst: "198.51.100.20", options: ""
+    });
+    return window.EthernetCodec.buildFrame({
+      dst: "02:00:00:00:00:01", src: "02:00:00:00:00:02",
+      etherType: 0x0800, payload: PH.concatBytes(ip.bytes, tcp.bytes), pad: false, fcs: true
+    }).bytes;
+  }
+
   const EXAMPLES = {
     tcp: exampleTcp, dns: exampleDns, v6: exampleV6,
-    arp: exampleArp, icmp: exampleIcmp, vlan: exampleVlan
+    arp: exampleArp, icmp: exampleIcmp, vlan: exampleVlan,
+    tls: exampleTls, http: exampleHttp
   };
 
   function layerNode(item, index) {

@@ -2042,12 +2042,82 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   .dissect-layout { grid-template-columns: 1fr; }
   #dissect-tree { max-height: 320px; }
 }
-@media (max-width: 1320px) and (min-width: 1101px) {
+@media (max-width: 1320px) and (min-width: 1181px) {
   .site-nav a { padding-left: 5px; padding-right: 5px; font-size: 0.74rem; }
 }
-@media (max-width: 1100px) and (min-width: 901px) {
+@media (max-width: 1180px) and (min-width: 901px) {
   .site-nav a { padding-left: 0; padding-right: 0; font-size: 0.62rem; letter-spacing: -0.02em; }
+}
+@media (max-width: 940px) and (min-width: 901px) {
+  .site-nav { flex-wrap: wrap; overflow-x: visible; row-gap: 0; }
+}
+@media (min-width: 1321px) {
+  .site-nav a { padding-left: 6px; padding-right: 6px; }
 }
 @media (max-width: 900px) {
   .site-nav { flex-wrap: wrap; overflow-x: visible; row-gap: 0; }
 }
+
+/* ---------- TLS key schedule ---------- */
+.tls-flow {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+.tls-flow__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+.tls-flow__step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+}
+.tls-flow__step span {
+  color: var(--accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+}
+.tls-flow__step code {
+  display: block;
+  color: var(--fg);
+  background: transparent;
+  padding: 0;
+  font-size: 0.66rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.tls-flow__step small {
+  color: var(--muted);
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+.tls-flow__arrow {
+  align-self: center;
+  color: var(--dim);
+  font-size: 1rem;
+}
+.tls-message { margin-top: 16px; }
+
+/* ---------- HTTP/2 frame cards ---------- */
+.http-frame {
+  margin-top: 14px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+}
+.http-frame:first-of-type { border-top: 0; }
+.http-frame .decoded-head { margin-top: 4px; }
+
+@media (max-width: 700px) {
+  .tls-flow__row { grid-template-columns: 1fr; }
+  .tls-flow__arrow { justify-self: center; transform: rotate(90deg); }
+}
+
+/* Long protocol tokens in prose should not widen the page. */
+.section p, .callout p { overflow-wrap: break-word; }

@@ -102,6 +102,42 @@ window.PH_PROTOCOLS = {
       { label: "Records · EDNS", note: "sections" }
     ]
   },
+  http: {
+    name: "HTTP",
+    layer: "application",
+    modelLayer: "application",
+    modelNote: "requests · HTTP/2 · HPACK",
+    tone: "d",
+    layerCode: "L7",
+    layerLabel: "Application",
+    layerNote: "semantics · framing · RFC 9110/9112/9113",
+    family: "application",
+    path: [
+      { label: "Ethernet", note: "link" },
+      { label: "IPv4 / IPv6", note: "L3" },
+      { label: "TCP/80 · TCP/443", href: "tcp.html", note: "L4" },
+      { label: "HTTP", href: "http.html", note: "L7", current: true },
+      { label: "HTTP/2 frames · HPACK", note: "multiplexed" }
+    ]
+  },
+  tls: {
+    name: "TLS",
+    layer: "application",
+    modelLayer: "application",
+    modelNote: "records · handshakes · AEAD",
+    tone: "h",
+    layerCode: "L7",
+    layerLabel: "Application / security",
+    layerNote: "records & handshakes · RFC 8446",
+    family: "application",
+    path: [
+      { label: "Ethernet", note: "link" },
+      { label: "IPv4 / IPv6", note: "L3" },
+      { label: "TCP/443", href: "tcp.html", note: "L4" },
+      { label: "TLS", href: "tls.html", note: "L7", current: true },
+      { label: "Encrypted application data", note: "AEAD" }
+    ]
+  },
   quic: {
     name: "QUIC",
     layer: "transport",
@@ -215,6 +251,7 @@ window.PH_PROTOCOLS = {
       { label: "IPv4 / IPv6", href: "ipv4.html", note: "L3" },
       { label: "TCP / UDP / ICMP", href: "udp.html", note: "L4" },
       { label: "Application", href: "dns.html", note: "L7" },
+      { label: "HTTP / TLS", href: "http.html", note: "L7" },
       { label: "Dissector", href: "dissect.html", note: "ALL", current: true }
     ]
   }
@@ -228,8 +265,8 @@ window.PH_STACK = [
     key: "application",
     code: "L7",
     name: "Application / control",
-    note: "routing, DNS, TLS",
-    planned: ["TLS"]
+    note: "routing, DNS, HTTP, TLS",
+    planned: []
   },
   {
     key: "transport",

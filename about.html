@@ -25,6 +25,8 @@
       <a href="tcp.html">tcp</a>
       <a href="udp.html">udp</a>
       <a href="dns.html">dns</a>
+      <a href="http.html">http</a>
+      <a href="tls.html">tls</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
       <a href="wireguard.html">wireguard</a>
@@ -68,6 +70,8 @@
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
         <li><a href="udp.html" data-layer="L4">udp</a></li>
         <li><a href="dns.html" data-layer="L7">dns</a></li>
+        <li><a href="http.html" data-layer="L7">http</a></li>
+        <li><a href="tls.html" data-layer="L7">tls</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
         <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
@@ -103,7 +107,7 @@
       <section class="section" id="about">
         <h2>What this is</h2>
         <p>
-          Eleven protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
+          Thirteen protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP, TLS, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
           <a href="tools.html">toolbox</a> and a cross-layer <a href="dissect.html">packet dissector</a>. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
@@ -156,7 +160,7 @@
 
         <h3>Byte order</h3>
         <p>
-          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, QUIC and BGP. WireGuard is the
+          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP/2, TLS, QUIC and BGP. HTTP/1.1 is text. WireGuard is the
           exception: its integer fields are little-endian. The WireGuard page calls this out on
           every field and provides a converter. Bytes inside a field are always written in
           transmission order; only the interpretation of multi-byte integers changes.
@@ -166,9 +170,9 @@
         <p>
           The site uses the <strong>TCP/IP model</strong> as its primary map. OSI numbers
           (L3, L4, L7) appear as orientation labels, not as a claim that every protocol fits
-          one box. BGP is an application protocol over TCP, but its subject is routing;
-          WireGuard is a Layer 3 tunnel carried over UDP; QUIC spans transport, TLS and
-          application framing. The stack path at the top of each protocol page shows the
+          one box. BGP is an application protocol over TCP, but its subject is routing; HTTP and TLS
+          sit above TCP and describe requests, responses and record protection; WireGuard is a
+          Layer 3 tunnel carried over UDP; QUIC spans transport, TLS and application framing. The stack path at the top of each protocol page shows the
           actual encapsulation instead of forcing a single layer. The homepage renders an
           interactive stack map: click a layer to filter the field sheets, or a protocol to
           open its page.
@@ -177,7 +181,7 @@
           <table class="data-table">
             <thead><tr><th>Group</th><th>Layer labels</th><th>Protocols</th><th>Why</th></tr></thead>
             <tbody>
-              <tr><td><b>Application / control</b></td><td><code>L7</code></td><td>BGP, DNS</td><td>Routing policy over TCP and name resolution over UDP or TCP. Both are application protocols whose subject is control-plane data.</td></tr>
+              <tr><td><b>Application / control</b></td><td><code>L7</code></td><td>BGP, DNS, HTTP, TLS</td><td>Routing policy, name resolution, request/response semantics and the record layer that protects them. All are application protocols; HTTP/2 adds binary framing and TLS sits between TCP and application bytes.</td></tr>
               <tr><td><b>Transport</b></td><td><code>L4</code> / <code>L4+</code></td><td>TCP, UDP, QUIC</td><td>Process-to-process delivery: streams over TCP, datagrams over UDP, and encrypted transport with QUIC.</td></tr>
               <tr><td><b>Tunnels / overlays</b></td><td><code>L3 tunnel</code></td><td>WireGuard</td><td>A cross-layer overlay that carries inner IP over UDP.</td></tr>
               <tr><td><b>Internet / IP</b></td><td><code>L3</code></td><td>IPv4, ICMP, IPv6</td><td>Addressing, fragmentation, checksums, errors, extension chains and path-MTU signalling.</td></tr>
@@ -319,6 +323,25 @@
           <li><a href="https://www.rfc-editor.org/rfc/rfc8484" target="_blank" rel="noopener">RFC 8484</a><span>DNS over HTTPS</span></li>
           <li><a href="https://www.rfc-editor.org/rfc/rfc9250" target="_blank" rel="noopener">RFC 9250</a><span>DNS over QUIC</span></li>
         </ul>
+        <h3>HTTP</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9110" target="_blank" rel="noopener">RFC 9110</a><span>HTTP semantics</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9111" target="_blank" rel="noopener">RFC 9111</a><span>caching</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9112" target="_blank" rel="noopener">RFC 9112</a><span>HTTP/1.1</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9113" target="_blank" rel="noopener">RFC 9113</a><span>HTTP/2</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7541" target="_blank" rel="noopener">RFC 7541</a><span>HPACK</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9114" target="_blank" rel="noopener">RFC 9114</a><span>HTTP/3</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9204" target="_blank" rel="noopener">RFC 9204</a><span>QPACK</span></li>
+        </ul>
+        <h3>TLS</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446</a><span>TLS 1.3</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc5246" target="_blank" rel="noopener">RFC 5246</a><span>TLS 1.2</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6066" target="_blank" rel="noopener">RFC 6066</a><span>SNI</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7301" target="_blank" rel="noopener">RFC 7301</a><span>ALPN</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8422" target="_blank" rel="noopener">RFC 8422</a><span>ECC groups</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001</a><span>TLS for QUIC</span></li>
+        </ul>
         <h3>BGP</h3>
         <ul class="rfc-list">
           <li><a href="https://www.rfc-editor.org/rfc/rfc4271" target="_blank" rel="noopener">RFC 4271</a><span>BGP-4</span></li>
@@ -367,7 +390,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a></div>
   </div>
 </footer>
 

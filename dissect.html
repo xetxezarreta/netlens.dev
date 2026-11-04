@@ -25,6 +25,8 @@
       <a href="tcp.html">tcp</a>
       <a href="udp.html">udp</a>
       <a href="dns.html">dns</a>
+      <a href="http.html">http</a>
+      <a href="tls.html">tls</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
       <a href="wireguard.html">wireguard</a>
@@ -58,6 +60,8 @@
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
         <li><a href="udp.html" data-layer="L4">udp</a></li>
         <li><a href="dns.html" data-layer="L7">dns</a></li>
+        <li><a href="http.html" data-layer="L7">http</a></li>
+        <li><a href="tls.html" data-layer="L7">tls</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
         <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
@@ -87,7 +91,7 @@
       <h1>Packet dissect <span class="on">// cross-layer</span></h1>
       <p class="lead">
         Paste a captured frame and watch the encapsulation unfold: Ethernet II, VLAN tags,
-        IPv4 or IPv6, TCP, UDP or ICMP, then DNS, TLS, HTTP or an unknown payload. Every layer
+        IPv4 or IPv6, TCP, UDP or ICMP, then DNS, HTTP, TLS or an unknown payload. Every layer
         links back to its dedicated explorer, and every byte range maps to a highlighted hex
         view.
       </p>
@@ -100,6 +104,8 @@
         <a class="badge" href="ipv6.html">IPv6</a>
         <a class="badge" href="udp.html">UDP</a>
         <a class="badge" href="dns.html">DNS</a>
+        <a class="badge" href="http.html">HTTP</a>
+        <a class="badge" href="tls.html">TLS</a>
       </div>
       <div class="page-meta">
         <span><b>input</b> hex frame or packet</span>
@@ -148,6 +154,8 @@
             <button class="btn btn--ghost" type="button" id="dissect-example-arp">ARP request</button>
             <button class="btn btn--ghost" type="button" id="dissect-example-icmp">ICMP echo</button>
             <button class="btn btn--ghost" type="button" id="dissect-example-vlan">VLAN tagged</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-tls">TLS ClientHello</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-http">HTTP GET</button>
             <button class="btn btn--ghost" type="button" id="dissect-clear">Clear</button>
           </div>
           <div class="codec-status" id="dissect-status" role="status" aria-live="polite">No frame dissected yet.</div>
@@ -198,7 +206,7 @@
             <tr><td><b>802.1Q / 802.1ad</b></td><td>TPID <code>0x8100</code> / <code>0x88A8</code></td><td>One or more 4-byte tags</td><td>Inner EtherType</td></tr>
             <tr><td><b>IPv4</b></td><td>Protocol byte at offset 9</td><td><code>1</code> ICMP · <code>6</code> TCP · <code>17</code> UDP</td><td>Transport header</td></tr>
             <tr><td><b>IPv6</b></td><td>Next Header byte at offset 6</td><td>Hop-by-Hop, Routing, Fragment, AH, Destination Options</td><td>Terminal transport header</td></tr>
-            <tr><td><b>TCP / UDP</b></td><td>Port numbers and payload shape</td><td>53 DNS · 443 TLS/QUIC · 51820 WireGuard · 179 BGP</td><td>Application layer</td></tr>
+            <tr><td><b>TCP / UDP</b></td><td>Port numbers and payload shape</td><td>53 DNS · 80/8080 HTTP · 443 TLS/QUIC · 51820 WireGuard · 179 BGP</td><td>Application layer</td></tr>
           </tbody>
         </table>
       </div>
@@ -217,7 +225,7 @@
         <span class="section__hint">what this tool deliberately does not do</span>
       </div>
       <ul class="dashed">
-        <li><strong>No decryption.</strong> TLS application data, QUIC protected packets, ESP, WireGuard transport data and encrypted BGP sessions remain opaque.</li>
+        <li><strong>No decryption.</strong> TLS application data (including HTTP inside HTTPS), QUIC protected packets, ESP, WireGuard transport data and encrypted BGP sessions remain opaque.</li>
         <li><strong>No IP reassembly.</strong> A non-initial IPv4 fragment has no transport header. The dissector marks fragment data and stops instead of inventing a payload.</li>
         <li><strong>No TCP stream reassembly.</strong> One TCP segment is one input. A DNS message split across segments needs a stream reassembler, not a single-frame dissector.</li>
         <li><strong>No pcap import.</strong> The input is hex bytes. Extract one packet from your capture tool, or use the protocol pages for a specific header.</li>
@@ -235,13 +243,13 @@
       <h2 class="mt-24">Next</h2>
       <p>
         Start with the dedicated explorer for the layer you care about, or open
-        <a href="dns.html">DNS</a>, <a href="udp.html">UDP</a>, <a href="ipv6.html">IPv6</a> or
-        <a href="ethernet.html">Ethernet</a> to edit a header field by field.
+        <a href="dns.html">DNS</a>, <a href="http.html">HTTP</a>, <a href="tls.html">TLS</a>,
+        <a href="udp.html">UDP</a>, <a href="ipv6.html">IPv6</a> or <a href="ethernet.html">Ethernet</a> to edit a header field by field.
       </p>
 
       <div class="next-protocol">
         <span>next tool</span>
-        <a href="dns.html">DNS records &amp; compression -&gt;</a>
+        <a href="http.html">HTTP messages &amp; framing -&gt;</a>
       </div>
     </section>
   </main>
@@ -251,7 +259,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
   </div>
 </footer>
 
@@ -266,6 +274,8 @@
 <script src="assets/udp-codec.js"></script>
 <script src="assets/icmp-codec.js"></script>
 <script src="assets/dns-codec.js"></script>
+<script src="assets/tls-codec.js"></script>
+<script src="assets/http-codec.js"></script>
 <script src="assets/dissect-codec.js"></script>
 <script src="assets/dissect.js"></script>
 </body>

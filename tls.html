@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TLS 1.3 — records, handshakes, extensions &amp; key schedule · packet-headers.sh</title>
+<meta name="description" content="Interactive TLS 1.3 explorer: record layer, ClientHello and ServerHello layouts, handshake messages, extensions, alerts, the key schedule, and a byte-accurate ClientHello/ServerHello encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="ipv6.html">ipv6</a>
+      <a href="tcp.html">tcp</a>
+      <a href="udp.html">udp</a>
+      <a href="dns.html">dns</a>
+      <a href="http.html">http</a>
+      <a href="tls.html" aria-current="page">tls</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="dissect.html">dissect</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="udp.html" data-layer="L4">udp</a></li>
+        <li><a href="dns.html" data-layer="L7">dns</a></li>
+        <li><a href="http.html" data-layer="L7">http</a></li>
+        <li><a href="tls.html" class="is-active" data-layer="L7">tls</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+        <li><a href="dissect.html" data-layer="tool">dissect</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#record">record layer</a></li>
+        <li><a href="#handshake">handshake</a></li>
+        <li><a href="#hello">ClientHello</a></li>
+        <li><a href="#extensions">extensions</a></li>
+        <li><a href="#keyschedule">key schedule</a></li>
+        <li><a href="#alerts">alerts</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>TLS is a record protocol.</b> Handshakes, alerts and application bytes are all carried inside typed records. TLS 1.3 encrypts everything after ServerHello.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>tls</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>TLS 1.3 <span class="on">// RFC 8446</span></h1>
+      <p class="lead">
+        TLS wraps every byte after a TCP connection in a typed record. Inside those records,
+        <strong>ClientHello</strong> and <strong>ServerHello</strong> negotiate a version, cipher
+        suite, key share and ALPN protocol; extensions carry SNI, groups, signatures and
+        certificates. This page decodes the plaintext handshake and the record layer, and shows
+        exactly where the encrypted boundary begins.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 8446</b> · TLS 1.3</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc5246" target="_blank" rel="noopener">RFC 5246 · TLS 1.2</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7301" target="_blank" rel="noopener">RFC 7301 · ALPN</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc6066" target="_blank" rel="noopener">RFC 6066 · SNI</a>
+        <span class="badge">5 B record header</span>
+        <span class="badge">HKDF · AEAD</span>
+        <span class="badge">TCP/443</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L7 · application (over TCP)</span>
+        <span><b>record</b> 5 B header</span>
+        <span><b>handshake</b> 4 B header</span>
+        <span><b>encryption</b> AEAD after ServerHello</span>
+      </div>
+      <div class="stackbar" data-stack="tls"></div>
+      <ul class="toc">
+        <li><a href="#record">record</a></li>
+        <li><a href="#handshake">handshake</a></li>
+        <li><a href="#hello">hello</a></li>
+        <li><a href="#extensions">extensions</a></li>
+        <li><a href="#keyschedule">keys</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="record">
+      <div class="section__head">
+        <h2><span class="num">01</span>Record layer</h2>
+        <span class="section__hint">five-byte header · typed fragments</span>
+      </div>
+      <p>
+        TLS does not hand TCP a naked handshake message. Every message is first wrapped in a
+        <strong>record</strong>: one content type, a legacy version, a two-byte length and the
+        fragment. A handshake message may span several records, and one record may hold several
+        handshake messages. The record layer is also where AEAD protection is applied.
+      </p>
+
+      <div id="tls-record-lane"></div>
+      <div class="field-detail" id="tls-record-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Content type</th><th>Code</th><th>Fragment</th><th>TLS 1.3 note</th></tr></thead>
+          <tbody>
+            <tr><td><b>ChangeCipherSpec</b></td><td><code>20</code></td><td>1 byte, value <code>0x01</code></td><td>Compatibility only. It is not a key change in TLS 1.3.</td></tr>
+            <tr><td><b>Alert</b></td><td><code>21</code></td><td>Level + description</td><td>Fatal alerts close the connection. Some alerts are encrypted.</td></tr>
+            <tr><td><b>Handshake</b></td><td><code>22</code></td><td>One or more handshake messages</td><td>Plaintext only until ServerHello; later handshake records are encrypted inside application data.</td></tr>
+            <tr><td><b>Application Data</b></td><td><code>23</code></td><td>AEAD-protected bytes</td><td>Also carries encrypted handshake messages after ServerHello.</td></tr>
+            <tr><td><b>Heartbeat</b></td><td><code>24</code></td><td>Heartbeat message</td><td>Rarely used; historically a source of memory-disclosure bugs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">the legacy version is not the negotiated version</div>
+        <p>TLS 1.3 records use <code>0x0303</code> in the legacy record version for compatibility,
+        and the initial ClientHello record may use <code>0x0301</code>. The real version is
+        negotiated in the <code>supported_versions</code> extension. Do not infer TLS 1.3 from the
+        record header alone.</p>
+      </div>
+    </section>
+
+    <section class="section" id="handshake">
+      <div class="section__head">
+        <h2><span class="num">02</span>Handshake messages</h2>
+        <span class="section__hint">one type byte · three length bytes</span>
+      </div>
+      <p>
+        Every handshake message begins with a one-byte type and a 24-bit length. The length counts
+        the body only, so the total message is <code>4 + length</code> bytes. Handshake messages
+        are ordered: the client speaks first, the server answers, and Finished proves that both
+        sides derived the same keys.
+      </p>
+
+      <div id="tls-handshake-lane"></div>
+      <div class="field-detail" id="tls-handshake-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Name</th><th>Direction</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>ClientHello</b></td><td>C → S</td><td>Version, random, session ID, cipher suites, key share and extensions.</td></tr>
+            <tr><td><code>2</code></td><td><b>ServerHello</b></td><td>S → C</td><td>Selected version, cipher suite, server random and key share.</td></tr>
+            <tr><td><code>4</code></td><td><b>NewSessionTicket</b></td><td>S → C</td><td>Resumption lifetime, nonce, ticket and early-data size.</td></tr>
+            <tr><td><code>5</code></td><td><b>EndOfEarlyData</b></td><td>C → S</td><td>Marks the end of 0-RTT data.</td></tr>
+            <tr><td><code>8</code></td><td><b>EncryptedExtensions</b></td><td>S → C</td><td>Extensions that must not be visible before keys exist, including ALPN.</td></tr>
+            <tr><td><code>11</code></td><td><b>Certificate</b></td><td>S → C / C → S</td><td>Certificate chain and per-certificate extensions.</td></tr>
+            <tr><td><code>13</code></td><td><b>CertificateRequest</b></td><td>S → C</td><td>Request for client authentication.</td></tr>
+            <tr><td><code>15</code></td><td><b>CertificateVerify</b></td><td>S → C / C → S</td><td>Signature over the handshake transcript.</td></tr>
+            <tr><td><code>20</code></td><td><b>Finished</b></td><td>Both</td><td>HMAC over the transcript with the finished key.</td></tr>
+            <tr><td><code>24</code></td><td><b>KeyUpdate</b></td><td>Both</td><td>Requests a new application traffic secret.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">the encrypted boundary</div>
+        <p>In TLS 1.3 only ClientHello and ServerHello are plaintext handshake messages. Everything
+        after ServerHello — EncryptedExtensions, Certificate, CertificateVerify and Finished — is
+        sent as <strong>Application Data</strong> records protected with handshake traffic keys.
+        A capture without keys shows ciphertext, not a parseable Certificate message.</p>
+      </div>
+    </section>
+
+    <section class="section" id="hello">
+      <div class="section__head">
+        <h2><span class="num">03</span>ClientHello &amp; ServerHello</h2>
+        <span class="section__hint">the two plaintext messages worth knowing by heart</span>
+      </div>
+      <p>
+        The hello messages carry the negotiation. ClientHello lists what the client supports;
+        ServerHello selects one version, one cipher suite and one key share. Both keep the TLS 1.2
+        field shapes so middleboxes see a familiar structure, then move the real decisions into
+        extensions.
+      </p>
+
+      <div id="tls-clienthello-lane"></div>
+      <div class="field-detail" id="tls-clienthello-inspector"></div>
+
+      <div id="tls-serverhello-lane"></div>
+      <div class="field-detail" id="tls-serverhello-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Field</th><th>Width</th><th>ClientHello</th><th>ServerHello</th></tr></thead>
+          <tbody>
+            <tr><td><b>legacy_version</b></td><td>2 B</td><td><code>0x0303</code> in TLS 1.3</td><td><code>0x0303</code> in TLS 1.3</td></tr>
+            <tr><td><b>random</b></td><td>32 B</td><td>Client random, later mixed into the key schedule</td><td>Server random, later mixed into the key schedule</td></tr>
+            <tr><td><b>legacy_session_id</b></td><td>1 + 0–32 B</td><td>Compatibility session ID; may be empty</td><td>Echoes the client value</td></tr>
+            <tr><td><b>cipher_suites</b></td><td>2 + 2n B</td><td>List of offered suites</td><td>One selected cipher suite</td></tr>
+            <tr><td><b>legacy_compression_methods</b></td><td>1 + n B</td><td>Must include <code>0</code> (null)</td><td><code>0</code></td></tr>
+            <tr><td><b>extensions</b></td><td>2 + n B</td><td>SNI, groups, signatures, ALPN, versions, key share</td><td>supported_versions, key_share, pre_shared_key</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="extensions">
+      <div class="section__head">
+        <h2><span class="num">04</span>Extensions</h2>
+        <span class="section__hint">type · length · data · repeated everywhere</span>
+      </div>
+      <p>
+        Extensions are the extension mechanism that made TLS 1.3 possible without changing the
+        hello envelope. Each one is a four-byte header and an opaque body whose shape depends on
+        the extension type and the message that carries it. The same type can mean different
+        things in ClientHello, ServerHello, EncryptedExtensions and Certificate.
+      </p>
+
+      <div id="tls-extension-lane"></div>
+      <div class="field-detail" id="tls-extension-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Code</th><th>Extension</th><th>Carries</th><th>Seen in</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>server_name</b></td><td>Host name (SNI)</td><td>ClientHello, EncryptedExtensions</td></tr>
+            <tr><td><code>10</code></td><td><b>supported_groups</b></td><td>Named groups: x25519, secp256r1, FFDHE</td><td>ClientHello, EncryptedExtensions</td></tr>
+            <tr><td><code>13</code></td><td><b>signature_algorithms</b></td><td>Signature schemes the peer accepts</td><td>ClientHello, CertificateRequest</td></tr>
+            <tr><td><code>16</code></td><td><b>ALPN</b></td><td>Protocol names such as <code>h2</code>, <code>http/1.1</code></td><td>ClientHello, EncryptedExtensions</td></tr>
+            <tr><td><code>43</code></td><td><b>supported_versions</b></td><td>Version list or the selected version</td><td>ClientHello, ServerHello</td></tr>
+            <tr><td><code>51</code></td><td><b>key_share</b></td><td>Ephemeral public keys per group</td><td>ClientHello, ServerHello</td></tr>
+            <tr><td><code>41</code></td><td><b>pre_shared_key</b></td><td>PSK identities and binders</td><td>ClientHello, ServerHello</td></tr>
+            <tr><td><code>45</code></td><td><b>psk_key_exchange_modes</b></td><td><code>psk_ke</code> or <code>psk_dhe_ke</code></td><td>ClientHello</td></tr>
+            <tr><td><code>28</code></td><td><b>record_size_limit</b></td><td>Largest record the peer will accept</td><td>ClientHello, EncryptedExtensions</td></tr>
+            <tr><td><code>5</code></td><td><b>status_request</b></td><td>OCSP stapling request or response</td><td>ClientHello, Certificate</td></tr>
+            <tr><td><code>23</code></td><td><b>extended_master_secret</b></td><td>Empty marker for EMS</td><td>ClientHello, ServerHello</td></tr>
+            <tr><td><code>0xfe0d</code></td><td><b>encrypted_client_hello</b></td><td>ECHConfig and encrypted SNI</td><td>ClientHello</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="keyschedule">
+      <div class="section__head">
+        <h2><span class="num">05</span>TLS 1.3 key schedule</h2>
+        <span class="section__hint">HKDF-Extract · Derive-Secret · Expand-Label</span>
+      </div>
+      <p>
+        TLS 1.3 replaces the TLS 1.2 PRF cascade with a small HKDF-based schedule. Two inputs
+        matter: the <strong>ECDHE shared secret</strong> and the <strong>PSK</strong> (zero when
+        there is no resumption). Each stage mixes in a transcript hash, so a change to any
+        handshake byte changes every later traffic secret.
+      </p>
+
+      <div class="tls-flow" aria-label="TLS 1.3 key schedule">
+        <div class="tls-flow__row">
+          <div class="tls-flow__step"><span>early secret</span><code>HKDF-Extract(0, PSK)</code><small>zero PSK when resumption is not used</small></div>
+          <div class="tls-flow__arrow" aria-hidden="true">→</div>
+          <div class="tls-flow__step"><span>client_early_traffic_secret</span><code>Derive-Secret(early, "c e traffic", ClientHello)</code><small>protects 0-RTT data</small></div>
+        </div>
+        <div class="tls-flow__row">
+          <div class="tls-flow__step"><span>handshake secret</span><code>HKDF-Extract(early, ECDHE)</code><small>the ECDHE shared secret is the salt input</small></div>
+          <div class="tls-flow__arrow" aria-hidden="true">→</div>
+          <div class="tls-flow__step"><span>client/server handshake traffic</span><code>Derive-Secret(handshake, "c hs traffic" / "s hs traffic", transcript)</code><small>protects EncryptedExtensions through Finished</small></div>
+        </div>
+        <div class="tls-flow__row">
+          <div class="tls-flow__step"><span>master secret</span><code>HKDF-Extract(handshake, 0)</code><small>all zeros as the input keying material</small></div>
+          <div class="tls-flow__arrow" aria-hidden="true">→</div>
+          <div class="tls-flow__step"><span>client/server application traffic</span><code>Derive-Secret(master, "c ap traffic" / "s ap traffic", transcript)</code><small>protects application data and KeyUpdate</small></div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Secret</th><th>Derived from</th><th>Protects</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><b>early secret</b></td><td>PSK or zeros</td><td>—</td><td>Only meaningful with PSK resumption.</td></tr>
+            <tr><td><b>client_early_traffic_secret</b></td><td>early secret + ClientHello transcript</td><td>0-RTT application data</td><td>Replayable; servers should limit what 0-RTT can do.</td></tr>
+            <tr><td><b>handshake secret</b></td><td>early secret + ECDHE</td><td>—</td><td>Requires a key share; PSK-only handshakes still use (EC)DHE in TLS 1.3.</td></tr>
+            <tr><td><b>client/server handshake traffic</b></td><td>handshake secret + transcript</td><td>EncryptedExtensions, Certificate, CertificateVerify, Finished</td><td>This is why the certificate is invisible without keys.</td></tr>
+            <tr><td><b>master secret</b></td><td>handshake secret + zeros</td><td>—</td><td>Exists so application keys are separated from handshake keys.</td></tr>
+            <tr><td><b>client/server application traffic</b></td><td>master secret + transcript</td><td>Application Data records</td><td>KeyUpdate derives the next generation from the current secret.</td></tr>
+            <tr><td><b>exporter / resumption secrets</b></td><td>master secret + transcript</td><td>Outside TLS records</td><td>Used for channel bindings, EAP, and session tickets.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">AEAD nonce construction</div>
+        <p>TLS 1.3 builds the per-record nonce by XORing the 64-bit record sequence number into
+        the static IV derived from the traffic secret. The sequence number resets to zero when
+        keys change. Reusing a nonce with the same key breaks AEAD catastrophically, which is why
+        KeyUpdate exists and why the record sequence number must never wrap.</p>
+      </div>
+    </section>
+
+    <section class="section" id="alerts">
+      <div class="section__head">
+        <h2><span class="num">06</span>Alerts</h2>
+        <span class="section__hint">two bytes · level and description</span>
+      </div>
+      <p>
+        An alert is a two-byte record fragment. The level is <code>1</code> for warning or
+        <code>2</code> for fatal. In TLS 1.3 most alerts are fatal, and alerts sent after the
+        handshake keys are installed are encrypted like application data.
+      </p>
+
+      <div id="tls-alert-lane"></div>
+      <div class="field-detail" id="tls-alert-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Code</th><th>Alert</th><th>Typical cause</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>close_notify</b></td><td>Clean shutdown. It prevents truncation attacks.</td></tr>
+            <tr><td><code>20</code></td><td><b>bad_record_mac</b></td><td>AEAD authentication failed or keys disagree.</td></tr>
+            <tr><td><code>22</code></td><td><b>record_overflow</b></td><td>Record fragment larger than the negotiated limit.</td></tr>
+            <tr><td><code>40</code></td><td><b>handshake_failure</b></td><td>No common cipher suite, group or version.</td></tr>
+            <tr><td><code>42</code></td><td><b>bad_certificate</b></td><td>Certificate could not be parsed or verified.</td></tr>
+            <tr><td><code>47</code></td><td><b>illegal_parameter</b></td><td>A field was well-formed but not allowed in context.</td></tr>
+            <tr><td><code>50</code></td><td><b>decode_error</b></td><td>A message could not be decoded.</td></tr>
+            <tr><td><code>51</code></td><td><b>decrypt_error</b></td><td>Signature or Finished verification failed.</td></tr>
+            <tr><td><code>70</code></td><td><b>protocol_version</b></td><td>No mutually supported protocol version.</td></tr>
+            <tr><td><code>109</code></td><td><b>missing_extension</b></td><td>A required extension was absent.</td></tr>
+            <tr><td><code>112</code></td><td><b>unrecognized_name</b></td><td>SNI name is not served by this endpoint.</td></tr>
+            <tr><td><code>120</code></td><td><b>no_application_protocol</b></td><td>ALPN found no overlap.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">07</span>Encoder</h2>
+        <span class="section__hint">ClientHello · ServerHello · Alert · Application Data</span>
+      </div>
+      <p>
+        Build a syntactically valid TLS record. The key share is illustrative unless you paste a
+        real public key; the point is the encoding, not a usable handshake. Every length is
+        derived from the fields you enter, and the output can be fed straight back into the
+        decoder.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>TLS parameters</h3><span class="tag">RFC 8446</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid field-grid--three">
+              <div class="form-field">
+                <label for="tls-enc-mode">message</label>
+                <select id="tls-enc-mode">
+                  <option value="clienthello">ClientHello</option>
+                  <option value="serverhello">ServerHello</option>
+                  <option value="alert">Alert</option>
+                  <option value="appdata">Application Data</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-record-version">record version <span class="units">hex</span></label>
+                <input type="text" id="tls-enc-record-version" value="0x0301" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-random">random <span class="units">32 B hex · empty = example</span></label>
+                <input type="text" id="tls-enc-random" value="" placeholder="empty = deterministic example" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="clienthello serverhello">
+              <div class="form-field">
+                <label for="tls-enc-session">session ID <span class="units">0–32 B hex</span></label>
+                <input type="text" id="tls-enc-session" value="" placeholder="empty = example" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-keyshare-group">key share group</label>
+                <select id="tls-enc-keyshare-group">
+                  <option value="x25519">x25519</option>
+                  <option value="secp256r1">secp256r1</option>
+                  <option value="secp384r1">secp384r1</option>
+                  <option value="x448">x448</option>
+                  <option value="X25519MLKEM768">X25519MLKEM768</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="clienthello serverhello">
+              <div class="form-field span-2">
+                <label for="tls-enc-keyshare">key share <span class="units">hex · empty = example key</span></label>
+                <input type="text" id="tls-enc-keyshare" value="" placeholder="empty = deterministic example key" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="clienthello">
+              <div class="form-field">
+                <label for="tls-enc-sni">SNI host name</label>
+                <input type="text" id="tls-enc-sni" value="example.com" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-alpn">ALPN protocols <span class="units">comma separated</span></label>
+                <input type="text" id="tls-enc-alpn" value="h2, http/1.1" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-versions">supported versions</label>
+                <input type="text" id="tls-enc-versions" value="0x0304, 0x0303" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="clienthello">
+              <div class="form-field span-2">
+                <label for="tls-enc-suites">cipher suites <span class="units">names or 0x codes</span></label>
+                <input type="text" id="tls-enc-suites" value="TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-groups">groups</label>
+                <input type="text" id="tls-enc-groups" value="x25519, secp256r1, secp384r1" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="clienthello">
+              <div class="form-field span-2">
+                <label for="tls-enc-sigalgs">signature algorithms</label>
+                <input type="text" id="tls-enc-sigalgs" value="rsa_pss_rsae_sha256, ecdsa_secp256r1_sha256, ed25519, rsa_pkcs1_sha256" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="serverhello">
+              <div class="form-field">
+                <label for="tls-enc-server-suite">cipher suite</label>
+                <select id="tls-enc-server-suite">
+                  <option>TLS_AES_128_GCM_SHA256</option>
+                  <option>TLS_AES_256_GCM_SHA384</option>
+                  <option>TLS_CHACHA20_POLY1305_SHA256</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-server-version">selected version</label>
+                <input type="text" id="tls-enc-server-version" value="0x0304" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="tls-enc-server-alpn">ALPN selected <span class="units">optional</span></label>
+                <input type="text" id="tls-enc-server-alpn" value="" placeholder="usually in EncryptedExtensions" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="alert">
+              <div class="form-field">
+                <label for="tls-enc-alert-level">alert level</label>
+                <select id="tls-enc-alert-level">
+                  <option value="2">2 · fatal</option>
+                  <option value="1">1 · warning</option>
+                </select>
+              </div>
+              <div class="form-field span-2">
+                <label for="tls-enc-alert-desc">alert description</label>
+                <select id="tls-enc-alert-desc">
+                  <option value="0">0 · close_notify</option>
+                  <option value="20">20 · bad_record_mac</option>
+                  <option value="40" selected>40 · handshake_failure</option>
+                  <option value="42">42 · bad_certificate</option>
+                  <option value="47">47 · illegal_parameter</option>
+                  <option value="50">50 · decode_error</option>
+                  <option value="51">51 · decrypt_error</option>
+                  <option value="70">70 · protocol_version</option>
+                  <option value="109">109 · missing_extension</option>
+                  <option value="112">112 · unrecognized_name</option>
+                  <option value="120">120 · no_application_protocol</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-grid" data-tls-group="appdata">
+              <div class="form-field">
+                <label for="tls-enc-appdata-mode">payload encoding</label>
+                <select id="tls-enc-appdata-mode">
+                  <option value="ascii">ASCII / UTF-8</option>
+                  <option value="hex">hex bytes</option>
+                </select>
+              </div>
+              <div class="form-field span-2">
+                <label for="tls-enc-appdata">application data</label>
+                <textarea id="tls-enc-appdata" class="hex-input" rows="4" spellcheck="false">hello over TLS</textarea>
+              </div>
+            </div>
+
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="tls-enc-build">Build TLS</button>
+              <button class="btn btn--ghost" type="button" id="tls-enc-example">Load ClientHello</button>
+            </div>
+            <div class="presets" style="margin-top:8px">
+              <button type="button" data-tls-preset="clienthello">ClientHello</button>
+              <button type="button" data-tls-preset="serverhello">ServerHello</button>
+              <button type="button" data-tls-preset="alert">Alert</button>
+              <button type="button" data-tls-preset="appdata">Application Data</button>
+            </div>
+            <p class="form-note">The example key share is deterministic filler, not a valid X25519 point. Replace it with a real 32-byte public key if you need a handshake that a peer would accept. Lengths, extension framing and the record header are exact.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="tls-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="tls-enc-status" role="status" aria-live="polite">Set the fields and press Build TLS.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">TLS record hex</div><button class="copy-btn" type="button" data-copy-target="#tls-enc-output">copy</button></div>
+              <pre id="tls-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="tls-enc-summary"></div>
+            <div class="flag-readout">
+              <span>record <b id="tls-enc-length">—</b></span>
+              <span>handshake <b id="tls-enc-handshake">—</b></span>
+              <span>extensions <b id="tls-enc-extensions">—</b></span>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--ghost" type="button" id="tls-enc-permalink">Copy permalink</button>
+              <button class="btn btn--ghost" type="button" id="tls-enc-export">Download JSON</button>
+            </div>
+            <div class="callout" style="margin-top:14px">
+              <div class="callout__title">what the encoder does not do</div>
+              <p>It does not generate a private key, sign the transcript, derive traffic keys or
+              encrypt anything. It builds the plaintext record and handshake structures so you can
+              inspect the layout and feed the bytes to a decoder.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">08</span>Decoder</h2>
+        <span class="section__hint">record stream · handshake · TCP · IPv4 · IPv6 · Ethernet</span>
+      </div>
+      <p>
+        Paste raw TLS records, a bare handshake message, a TCP payload or a complete packet. The
+        decoder walks the record layer, reassembles handshake messages that span records, expands
+        ClientHello/ServerHello/EncryptedExtensions, and reports the point at which the bytes
+        became opaque ciphertext.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 8446 · records · extensions</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2">
+              <label for="tls-decode-input">hex input <span class="units">TLS record, handshake, TCP payload or packet</span></label>
+              <textarea id="tls-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="Paste TLS records, or load one of the examples below."></textarea>
+            </div>
+            <div class="form-field">
+              <label for="tls-decode-kind">input type</label>
+              <select id="tls-decode-kind">
+                <option value="auto">auto-detect</option>
+                <option value="tls">raw TLS record stream</option>
+                <option value="handshake">raw handshake message</option>
+                <option value="tcp">TCP payload</option>
+                <option value="ipv4">IPv4 / TCP packet</option>
+                <option value="ipv6">IPv6 / TCP packet</option>
+                <option value="ethernet">Ethernet frame</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="tls-decode">Decode TLS</button>
+            <button class="btn btn--ghost" type="button" id="tls-decode-example">Load ClientHello</button>
+            <button class="btn btn--ghost" type="button" id="tls-decode-server">Load ServerHello</button>
+            <button class="btn btn--ghost" type="button" id="tls-decode-alert">Load Alert</button>
+            <button class="btn btn--ghost" type="button" id="tls-decode-app">Load Application Data</button>
+            <button class="btn btn--ghost" type="button" id="tls-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="tls-decode-status" role="status" aria-live="polite">No TLS records decoded yet.</div>
+          <div id="tls-decode-result"></div>
+          <div class="btn-row">
+            <button class="btn btn--ghost" type="button" id="tls-decode-permalink">Copy permalink</button>
+            <button class="btn btn--ghost" type="button" id="tls-decode-export">Download JSON</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">09</span>Wire notes</h2>
+        <span class="section__hint">what TLS 1.3 removed, and what still bites</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">TLS 1.3 is not “TLS 1.2 with a new version number”</div>
+        <p>RSA key transport, static DH, CBC-mode suites, compression, renegotiation and custom
+        DHE groups are gone from TLS 1.3. A ClientHello that offers only <code>0x0303</code> is a
+        TLS 1.2 client even if the record layer looks modern.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>SNI is not authentication.</strong> The server_name extension selects a certificate; the certificate and CertificateVerify signature are what prove the endpoint.</li>
+        <li><strong>ALPN is negotiated, not implied by the port.</strong> TCP/443 can carry HTTP/1.1, HTTP/2 or another protocol. Read the ALPN result in EncryptedExtensions before assuming HTTP/2.</li>
+        <li><strong>0-RTT is replayable.</strong> Early data is encrypted with keys derived before the handshake completes. Servers must restrict it to idempotent operations.</li>
+        <li><strong>Record boundaries are not message boundaries.</strong> A single handshake message can span records, and one record can contain several handshake messages. A decoder must buffer across records.</li>
+        <li><strong>Encrypted records reveal lengths.</strong> TLS 1.3 hides content but not record sizes or timing. Padding and record_size_limit reduce, but do not remove, traffic analysis.</li>
+        <li><strong>The certificate chain can be large.</strong> A Certificate message may exceed one record; the decoder concatenates handshake fragments before parsing.</li>
+        <li><strong>Middlebox compatibility mode.</strong> Many TLS 1.3 clients send a non-empty legacy_session_id and a dummy ChangeCipherSpec record so older middleboxes keep working. Neither changes the keys.</li>
+        <li><strong>DoT, DoH and DoQ are different transports.</strong> DoT is TLS over TCP/853, DoH is HTTP over TLS, and DoQ is QUIC. The TLS handshake is similar; the framing above it is not.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446</a><span>TLS 1.3</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5246" target="_blank" rel="noopener">RFC 5246</a><span>TLS 1.2</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6066" target="_blank" rel="noopener">RFC 6066</a><span>SNI and max_fragment_length</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7301" target="_blank" rel="noopener">RFC 7301</a><span>ALPN</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7919" target="_blank" rel="noopener">RFC 7919</a><span>FFDHE groups</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8422" target="_blank" rel="noopener">RFC 8422</a><span>ECC groups and point formats</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8447" target="_blank" rel="noopener">RFC 8447</a><span>IANA registry updates</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001</a><span>TLS for QUIC</span></li>
+        <li><a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml" target="_blank" rel="noopener">IANA registry</a><span>TLS cipher suites, extensions, groups and alerts</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="quic.html">QUIC transport parameters &amp; frames -&gt;</a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ethernet-codec.js"></script>
+<script src="assets/arp-codec.js"></script>
+<script src="assets/ipv4.js"></script>
+<script src="assets/ipv6-codec.js"></script>
+<script src="assets/tcp.js"></script>
+<script src="assets/udp-codec.js"></script>
+<script src="assets/icmp-codec.js"></script>
+<script src="assets/dns-codec.js"></script>
+<script src="assets/tls-codec.js"></script>
+<script src="assets/http-codec.js"></script>
+<script src="assets/dissect-codec.js"></script>
+<script src="assets/tls.js"></script>
+</body>
+</html>

@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP — requests, responses, HTTP/2 frames &amp; HPACK · packet-headers.sh</title>
+<meta name="description" content="Interactive HTTP explorer: HTTP/1.1 request and status lines, header fields, Content-Length and chunked framing, HTTP/2 frame headers, HPACK integer/string encoding and a byte-accurate encoder/decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="ipv6.html">ipv6</a>
+      <a href="tcp.html">tcp</a>
+      <a href="udp.html">udp</a>
+      <a href="dns.html">dns</a>
+      <a href="http.html" aria-current="page">http</a>
+      <a href="tls.html">tls</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="dissect.html">dissect</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="udp.html" data-layer="L4">udp</a></li>
+        <li><a href="dns.html" data-layer="L7">dns</a></li>
+        <li><a href="http.html" class="is-active" data-layer="L7">http</a></li>
+        <li><a href="tls.html" data-layer="L7">tls</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+        <li><a href="dissect.html" data-layer="tool">dissect</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#message">message layout</a></li>
+        <li><a href="#startline">start line</a></li>
+        <li><a href="#framing">framing</a></li>
+        <li><a href="#h2">HTTP/2 frames</a></li>
+        <li><a href="#hpack">HPACK</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>HTTP/1.1 is text; HTTP/2 is binary.</b> Both carry the same semantics, but the framing, header encoding and concurrency model are completely different.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>http</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>HTTP <span class="on">// RFC 9110 · RFC 9113</span></h1>
+      <p class="lead">
+        HTTP is two protocols with one name. HTTP/1.1 puts a text start line, header fields, a
+        blank line and a body on a TCP stream, with <strong>Content-Length</strong> or
+        <strong>chunked</strong> framing. HTTP/2 replaces that with binary frames, stream IDs and
+        <strong>HPACK</strong>-compressed header blocks. This page decodes both and shows where
+        the request-smuggling bugs live.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 9110</b> · semantics</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9112" target="_blank" rel="noopener">RFC 9112 · HTTP/1.1</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9113" target="_blank" rel="noopener">RFC 9113 · HTTP/2</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7541" target="_blank" rel="noopener">RFC 7541 · HPACK</a>
+        <span class="badge">text + binary</span>
+        <span class="badge">chunked</span>
+        <span class="badge">HPACK · Huffman</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L7 · application</span>
+        <span><b>HTTP/1.1</b> text framing</span>
+        <span><b>HTTP/2</b> 9 B frame header</span>
+        <span><b>transport</b> TCP/80 · TCP/443</span>
+      </div>
+      <div class="stackbar" data-stack="http"></div>
+      <ul class="toc">
+        <li><a href="#message">message</a></li>
+        <li><a href="#startline">start line</a></li>
+        <li><a href="#framing">framing</a></li>
+        <li><a href="#h2">HTTP/2</a></li>
+        <li><a href="#hpack">HPACK</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="message">
+      <div class="section__head">
+        <h2><span class="num">01</span>HTTP/1.1 message layout</h2>
+        <span class="section__hint">start line · header fields · empty line · body</span>
+      </div>
+      <p>
+        An HTTP/1.1 message is a start line, zero or more header fields, an empty line and an
+        optional body. Lines end in <code>CRLF</code>; the empty line is exactly <code>CRLF</code>.
+        The start line is a request line for requests and a status line for responses.
+      </p>
+
+      <div id="http-message-lane"></div>
+      <div class="field-detail" id="http-message-inspector"></div>
+
+      <div class="callout">
+        <div class="callout__title">the body is framed, not self-describing</div>
+        <p>HTTP/1.1 does not put a length on the whole message. The receiver decides where the
+        body ends from the request method, the status code, <code>Content-Length</code>,
+        <code>Transfer-Encoding: chunked</code>, or connection close. Every framing disagreement
+        between two parsers is a potential request-smuggling bug.</p>
+      </div>
+    </section>
+
+    <section class="section" id="startline">
+      <div class="section__head">
+        <h2><span class="num">02</span>Request line &amp; status line</h2>
+        <span class="section__hint">ASCII · space separated · CRLF terminated</span>
+      </div>
+      <p>
+        The request line carries the method, target and protocol version. The status line carries
+        the version, a three-digit status code and a reason phrase. The reason phrase is
+        informative only; clients must use the code.
+      </p>
+
+      <div id="http-request-lane"></div>
+      <div class="field-detail" id="http-request-inspector"></div>
+
+      <div id="http-status-lane"></div>
+      <div class="field-detail" id="http-status-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Method</th><th>Body semantics</th><th>Safe</th><th>Idempotent</th></tr></thead>
+          <tbody>
+            <tr><td><b>GET</b></td><td>No defined body semantics</td><td>yes</td><td>yes</td></tr>
+            <tr><td><b>HEAD</b></td><td>Same as GET, but no response body</td><td>yes</td><td>yes</td></tr>
+            <tr><td><b>POST</b></td><td>Process the enclosed representation</td><td>no</td><td>no</td></tr>
+            <tr><td><b>PUT</b></td><td>Replace the target resource</td><td>no</td><td>yes</td></tr>
+            <tr><td><b>DELETE</b></td><td>Remove the target resource</td><td>no</td><td>yes</td></tr>
+            <tr><td><b>PATCH</b></td><td>Apply a partial modification</td><td>no</td><td>no</td></tr>
+            <tr><td><b>OPTIONS</b></td><td>Describe communication options</td><td>yes</td><td>yes</td></tr>
+            <tr><td><b>CONNECT</b></td><td>Establish a tunnel</td><td>no</td><td>no</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Status class</th><th>Meaning</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td><b>1xx</b></td><td>Informational</td><td>100 Continue, 101 Switching Protocols</td></tr>
+            <tr><td><b>2xx</b></td><td>Success</td><td>200 OK, 201 Created, 204 No Content</td></tr>
+            <tr><td><b>3xx</b></td><td>Redirection</td><td>301, 302, 304 Not Modified, 307, 308</td></tr>
+            <tr><td><b>4xx</b></td><td>Client error</td><td>400, 401, 403, 404, 429</td></tr>
+            <tr><td><b>5xx</b></td><td>Server error</td><td>500, 502, 503, 504</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="framing">
+      <div class="section__head">
+        <h2><span class="num">03</span>Body framing</h2>
+        <span class="section__hint">Content-Length · chunked · close-delimited</span>
+      </div>
+      <p>
+        Framing is the part of HTTP/1.1 that most often breaks in the real world. A response with
+        both <code>Content-Length</code> and <code>Transfer-Encoding: chunked</code> is invalid
+        enough that RFC 9112 says the message ought to be treated as an error; a proxy that
+        prefers the other header is how request smuggling starts.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Framing</th><th>Body ends when</th><th>Used by</th><th>Risk</th></tr></thead>
+          <tbody>
+            <tr><td><b>Content-Length</b></td><td>Exactly N bytes have been read</td><td>Requests and responses with a known size</td><td>Duplicate or conflicting lengths; integer parsing differences</td></tr>
+            <tr><td><b>chunked</b></td><td>The zero-length chunk and trailer section are read</td><td>Streaming responses, unknown length</td><td>Chunk-size parsing, extensions, trailer handling</td></tr>
+            <tr><td><b>close-delimited</b></td><td>The connection closes</td><td>HTTP/1.0 responses and some HTTP/1.1 responses</td><td>Truncation looks like a complete message</td></tr>
+            <tr><td><b>no body</b></td><td>Immediately after the header block</td><td>HEAD, 204, 304, 1xx</td><td>A parser that ignores the method/status desynchronises the next message</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="http-chunk-lane"></div>
+      <div class="field-detail" id="http-chunk-inspector"></div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">Transfer-Encoding beats Content-Length</div>
+        <p>When both are present, a message with <code>Transfer-Encoding: chunked</code> uses
+        chunked framing. A front-end that honours <code>Content-Length</code> while a back-end
+        honours chunked can be made to see two different requests on one connection. Reject
+        messages that carry both, and reject duplicate or non-identical lengths.</p>
+      </div>
+    </section>
+
+    <section class="section" id="h2">
+      <div class="section__head">
+        <h2><span class="num">04</span>HTTP/2 frames</h2>
+        <span class="section__hint">9-byte header · multiplexed streams · binary</span>
+      </div>
+      <p>
+        HTTP/2 keeps the request/response semantics and replaces the text framing with a binary
+        frame layer. Every frame starts with a 24-bit length, an 8-bit type, an 8-bit flags field
+        and a 31-bit stream identifier. A connection carries many streams at once, and header
+        blocks are compressed with HPACK.
+      </p>
+
+      <div id="http2-frame-diagram"></div>
+      <div class="field-detail" id="http2-frame-inspector"></div>
+      <div id="http2-frame-fields"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Frame</th><th>Stream</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>DATA</b></td><td>non-zero</td><td>Request or response body bytes, with optional padding.</td></tr>
+            <tr><td><code>1</code></td><td><b>HEADERS</b></td><td>non-zero</td><td>HPACK header block; may be continued by CONTINUATION.</td></tr>
+            <tr><td><code>2</code></td><td><b>PRIORITY</b></td><td>non-zero</td><td>Legacy dependency and weight hint.</td></tr>
+            <tr><td><code>3</code></td><td><b>RST_STREAM</b></td><td>non-zero</td><td>Abruptly terminate one stream with an error code.</td></tr>
+            <tr><td><code>4</code></td><td><b>SETTINGS</b></td><td>0</td><td>Connection parameters; ACK when the flags bit is set.</td></tr>
+            <tr><td><code>5</code></td><td><b>PUSH_PROMISE</b></td><td>non-zero</td><td>Promised request headers for a server push.</td></tr>
+            <tr><td><code>6</code></td><td><b>PING</b></td><td>0</td><td>Eight opaque bytes; used for liveness and RTT.</td></tr>
+            <tr><td><code>7</code></td><td><b>GOAWAY</b></td><td>0</td><td>Last accepted stream and the reason for shutdown.</td></tr>
+            <tr><td><code>8</code></td><td><b>WINDOW_UPDATE</b></td><td>0 or non-zero</td><td>Increase the connection or stream flow-control window.</td></tr>
+            <tr><td><code>9</code></td><td><b>CONTINUATION</b></td><td>non-zero</td><td>Continues a header block that did not fit in HEADERS.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Frame</th><th>Flag bit</th><th>Name</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>DATA</td><td><code>0x1</code></td><td><b>END_STREAM</b></td><td>This is the last frame from the sender on the stream.</td></tr>
+            <tr><td>DATA / HEADERS</td><td><code>0x8</code></td><td><b>PADDED</b></td><td>The payload starts with a pad-length byte.</td></tr>
+            <tr><td>HEADERS</td><td><code>0x4</code></td><td><b>END_HEADERS</b></td><td>No CONTINUATION follows; the HPACK block is complete.</td></tr>
+            <tr><td>HEADERS</td><td><code>0x20</code></td><td><b>PRIORITY</b></td><td>A 5-byte priority block precedes the header block.</td></tr>
+            <tr><td>SETTINGS / PING</td><td><code>0x1</code></td><td><b>ACK</b></td><td>Acknowledges a previous frame; the payload is normally empty.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">stream 0 is the connection</div>
+        <p>SETTINGS, PING and GOAWAY use stream 0 and apply to the whole connection. Streams are
+        initiated with odd IDs by the client and even IDs by the server. A frame that appears on
+        the wrong stream, or a DATA frame on stream 0, is a connection error, not a warning.</p>
+      </div>
+    </section>
+
+    <section class="section" id="hpack">
+      <div class="section__head">
+        <h2><span class="num">05</span>HPACK header compression</h2>
+        <span class="section__hint">static table · dynamic table · Huffman strings</span>
+      </div>
+      <p>
+        HPACK is a stateful compression format shared by every stream on an HTTP/2 connection.
+        Header fields are either indexed into a 61-entry static table, indexed into a dynamic
+        table that both peers update in lock-step, or sent as literals. Strings may be Huffman
+        coded. A decoder that loses state cannot recover until the connection ends.
+      </p>
+
+      <div id="hpack-int-diagram"></div>
+      <div class="field-detail" id="hpack-int-inspector"></div>
+
+      <div id="hpack-string-diagram"></div>
+      <div class="field-detail" id="hpack-string-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Pattern</th><th>Prefix</th><th>Meaning</th><th>Updates dynamic table</th></tr></thead>
+          <tbody>
+            <tr><td><code>1xxxxxxx</code></td><td>7-bit index</td><td>Indexed header field</td><td>No</td></tr>
+            <tr><td><code>01xxxxxx</code></td><td>6-bit name index</td><td>Literal with incremental indexing</td><td>Yes</td></tr>
+            <tr><td><code>0000xxxx</code></td><td>4-bit name index</td><td>Literal without indexing</td><td>No</td></tr>
+            <tr><td><code>0001xxxx</code></td><td>4-bit name index</td><td>Literal never indexed (sensitive)</td><td>No</td></tr>
+            <tr><td><code>001xxxxx</code></td><td>5-bit size</td><td>Dynamic table size update</td><td>Resizes the table</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Index</th><th>Name</th><th>Value</th><th>Why it matters</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>:authority</b></td><td></td><td>Equivalent to the HTTP/1.1 Host header.</td></tr>
+            <tr><td><code>2</code></td><td><b>:method</b></td><td><code>GET</code></td><td>Encoded as a single <code>0x82</code> byte.</td></tr>
+            <tr><td><code>3</code></td><td><b>:method</b></td><td><code>POST</code></td><td>Single <code>0x83</code> byte.</td></tr>
+            <tr><td><code>4</code></td><td><b>:path</b></td><td><code>/</code></td><td>Single <code>0x84</code> byte.</td></tr>
+            <tr><td><code>7</code></td><td><b>:scheme</b></td><td><code>https</code></td><td>Single <code>0x87</code> byte.</td></tr>
+            <tr><td><code>8</code></td><td><b>:status</b></td><td><code>200</code></td><td>Single <code>0x88</code> byte.</td></tr>
+            <tr><td><code>28</code></td><td><b>content-length</b></td><td></td><td>Name index reused for a literal value.</td></tr>
+            <tr><td><code>31</code></td><td><b>content-type</b></td><td></td><td>Name index reused for a literal value.</td></tr>
+            <tr><td><code>57</code></td><td><b>transfer-encoding</b></td><td></td><td>Forbidden in HTTP/2; its presence is a protocol error.</td></tr>
+            <tr><td><code>58</code></td><td><b>user-agent</b></td><td></td><td>Common literal field.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">Huffman is not encryption</div>
+        <p>HPACK Huffman coding is a fixed prefix code from RFC 7541. It makes header blocks
+        smaller, not secret. The full 257-symbol table is implemented in this page's decoder; a
+        block can mix Huffman and raw strings freely.</p>
+      </div>
+
+      <h3 class="mt-24">Encode a header block</h3>
+      <p>
+        This builds an HPACK block using static-table indexing where possible and literal
+        fields otherwise. It is useful for seeing how few bytes a repeated pseudo-header costs,
+        and for feeding a HEADERS payload into the decoder.
+      </p>
+      <div class="codec-panel">
+        <div class="codec-panel__head"><h3>HPACK encoder</h3><span class="tag">RFC 7541 §6</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="hpack-enc-input">header fields <span class="units">one per line · name: value</span></label>
+            <textarea id="hpack-enc-input" class="hex-input" rows="5" spellcheck="false">:method: GET
+:scheme: https
+:authority: example.com
+:path: /index.html
+user-agent: packet-headers/1.0
+accept: text/html</textarea>
+          </div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn btn--primary" type="button" id="hpack-enc-build">Encode HPACK</button>
+          </div>
+          <div class="codec-status" id="hpack-enc-status" role="status" aria-live="polite">Press Encode HPACK to build a header block.</div>
+          <div class="output">
+            <div class="row-between"><div class="output__label">HPACK block hex</div><button class="copy-btn" type="button" data-copy-target="#hpack-enc-output">copy</button></div>
+            <pre id="hpack-enc-output" class="placeholder">no bytes built yet</pre>
+          </div>
+          <div id="hpack-enc-decoded"></div>
+        </div>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">dynamic table size is a connection property</div>
+        <p>Each entry costs <code>name length + value length + 32</code> bytes. The peer may
+        announce a smaller <code>SETTINGS_HEADER_TABLE_SIZE</code>, and the encoder must emit a
+        dynamic table size update before using the new size. Eviction is from the oldest entry.
+        If you start decoding in the middle of a connection, indexed fields may refer to entries
+        you never saw.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">06</span>HTTP/1.1 encoder</h2>
+        <span class="section__hint">request · response · Content-Length · chunked</span>
+      </div>
+      <p>
+        Build an HTTP/1.1 message with exact framing. The encoder adds <code>Host</code> for
+        HTTP/1.1 requests when it is missing, replaces any supplied
+        <code>Content-Length</code>/<code>Transfer-Encoding</code> with the framing implied by the
+        body, and can split the body into chunks.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>HTTP parameters</h3><span class="tag">RFC 9112</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid field-grid--three">
+              <div class="form-field">
+                <label for="http-enc-kind">message kind</label>
+                <select id="http-enc-kind">
+                  <option value="request">request</option>
+                  <option value="response">response</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="http-enc-version">version</label>
+                <select id="http-enc-version">
+                  <option>HTTP/1.1</option>
+                  <option>HTTP/1.0</option>
+                </select>
+              </div>
+              <div class="form-field" data-http-group="request">
+                <label for="http-enc-method">method</label>
+                <select id="http-enc-method">
+                  <option>GET</option><option>HEAD</option><option>POST</option><option>PUT</option>
+                  <option>DELETE</option><option>PATCH</option><option>OPTIONS</option><option>CONNECT</option>
+                </select>
+              </div>
+              <div class="form-field" data-http-group="request">
+                <label for="http-enc-target">request target</label>
+                <input type="text" id="http-enc-target" value="/index.html" spellcheck="false">
+              </div>
+              <div class="form-field" data-http-group="request">
+                <label for="http-enc-host">Host</label>
+                <input type="text" id="http-enc-host" value="example.com" spellcheck="false">
+              </div>
+              <div class="form-field" data-http-group="response">
+                <label for="http-enc-status-code">status code</label>
+                <input type="number" id="http-enc-status-code" value="200" min="100" max="599" inputmode="numeric">
+              </div>
+              <div class="form-field" data-http-group="response">
+                <label for="http-enc-reason">reason phrase</label>
+                <input type="text" id="http-enc-reason" value="OK" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" style="margin-top:12px">
+              <div class="form-field">
+                <label class="inline-checks" style="min-height:34px"><input type="checkbox" id="http-enc-chunked"> chunked transfer coding</label>
+              </div>
+              <div class="form-field">
+                <label for="http-enc-chunk-size">chunk size <span class="units">bytes</span></label>
+                <input type="number" id="http-enc-chunk-size" value="16" min="1" max="65535" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label for="http-enc-body-mode">body encoding</label>
+                <select id="http-enc-body-mode">
+                  <option value="ascii">ASCII / UTF-8</option>
+                  <option value="hex">hex bytes</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-field" style="margin-top:12px">
+              <label for="http-enc-headers">header fields <span class="units">one per line · name: value</span></label>
+              <textarea id="http-enc-headers" class="hex-input" rows="5" spellcheck="false">User-Agent: packet-headers/1.0
+Accept: text/html,application/xhtml+xml
+Accept-Encoding: gzip, br</textarea>
+            </div>
+            <div class="form-field" style="margin-top:10px">
+              <label for="http-enc-body">body</label>
+              <textarea id="http-enc-body" class="hex-input" rows="4" spellcheck="false"></textarea>
+            </div>
+
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="http-enc-build">Build HTTP</button>
+              <button class="btn btn--ghost" type="button" id="http-enc-example">Load GET</button>
+            </div>
+            <div class="presets" style="margin-top:8px">
+              <button type="button" data-http-preset="request">GET request</button>
+              <button type="button" data-http-preset="response">200 response</button>
+              <button type="button" data-http-preset="chunked">chunked response</button>
+              <button type="button" data-http-preset="post">POST</button>
+            </div>
+            <p class="form-note">Header names are case-insensitive on the wire, but this encoder preserves the capitalization you type. <code>Content-Length</code> and <code>Transfer-Encoding</code> are generated from the body and the chunked checkbox; do not add them by hand.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="http-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="http-enc-status" role="status" aria-live="polite">Set the fields and press Build HTTP.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">HTTP bytes</div><button class="copy-btn" type="button" data-copy-target="#http-enc-output">copy</button></div>
+              <pre id="http-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="http-enc-summary"></div>
+            <div class="flag-readout">
+              <span>message <b id="http-enc-length">—</b></span>
+              <span>headers <b id="http-enc-headers-count">—</b></span>
+              <span>body <b id="http-enc-body-count">—</b></span>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--ghost" type="button" id="http-enc-permalink">Copy permalink</button>
+              <button class="btn btn--ghost" type="button" id="http-enc-export">Download JSON</button>
+            </div>
+            <div class="callout" style="margin-top:14px">
+              <div class="callout__title">this is HTTP/1.1 only</div>
+              <p>HTTP/2 is binary. Its headers are HPACK-compressed and its body is split across
+              DATA frames, so a text encoder cannot produce it. Use the decoder below to inspect
+              an HTTP/2 frame stream, or read the frame and HPACK sections above.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">07</span>Decoder</h2>
+        <span class="section__hint">HTTP/1.1 · HTTP/2 frames · HPACK · full packets</span>
+      </div>
+      <p>
+        Paste an HTTP/1.1 message, an HTTP/2 frame stream, a bare HPACK block, a TCP payload or a
+        complete packet. HTTP/1.1 framing is resolved from the method, status,
+        <code>Content-Length</code> and <code>Transfer-Encoding</code>; HTTP/2 frames are walked
+        in order and header blocks are decoded with a connection-level HPACK context.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 9112 · RFC 9113 · RFC 7541</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2">
+              <label for="http-decode-input">hex input <span class="units">HTTP message, frame stream, HPACK block or packet</span></label>
+              <textarea id="http-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="Paste HTTP bytes, or load one of the examples below."></textarea>
+            </div>
+            <div class="form-field">
+              <label for="http-decode-kind">input type</label>
+              <select id="http-decode-kind">
+                <option value="auto">auto-detect</option>
+                <option value="h1">HTTP/1.1 message</option>
+                <option value="h2">HTTP/2 frame stream</option>
+                <option value="hpack">raw HPACK block</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="http-decode">Decode HTTP</button>
+            <button class="btn btn--ghost" type="button" id="http-decode-request">Load GET</button>
+            <button class="btn btn--ghost" type="button" id="http-decode-response">Load 200</button>
+            <button class="btn btn--ghost" type="button" id="http-decode-chunked">Load chunked</button>
+            <button class="btn btn--ghost" type="button" id="http-decode-h2">Load HTTP/2</button>
+            <button class="btn btn--ghost" type="button" id="http-decode-hpack">Load HPACK</button>
+            <button class="btn btn--ghost" type="button" id="http-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="http-decode-status" role="status" aria-live="polite">No HTTP message decoded yet.</div>
+          <div id="http-decode-result"></div>
+          <div class="btn-row">
+            <button class="btn btn--ghost" type="button" id="http-decode-permalink">Copy permalink</button>
+            <button class="btn btn--ghost" type="button" id="http-decode-export">Download JSON</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">08</span>Wire notes</h2>
+        <span class="section__hint">what changes between HTTP/1.1, HTTP/2 and HTTP/3</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">HTTP semantics are stable; framing is not</div>
+        <p>Methods, status codes and header field semantics come from RFC 9110 and apply to
+        HTTP/1.1, HTTP/2 and HTTP/3. The start line, header encoding, multiplexing and flow
+        control are version-specific. A tool that only understands text HTTP will misread every
+        HTTP/2 connection.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>HTTP/2 headers must be lowercase.</strong> Field names containing uppercase letters are malformed. Pseudo-headers (<code>:method</code>, <code>:path</code>, <code>:scheme</code>, <code>:authority</code>, <code>:status</code>) come before regular fields.</li>
+        <li><strong>Connection-specific headers are forbidden in HTTP/2.</strong> <code>Connection</code>, <code>Keep-Alive</code>, <code>Proxy-Connection</code>, <code>Transfer-Encoding</code> and <code>Upgrade</code> must not appear. TE is allowed only with the value <code>trailers</code>.</li>
+        <li><strong>HTTP/2 flow control is per stream and per connection.</strong> DATA frames consume window; WINDOW_UPDATE restores it. A zero increment is a protocol error.</li>
+        <li><strong>HPACK state is per connection, not per stream.</strong> HEADERS and CONTINUATION on different streams share one dynamic table. Starting a decode mid-connection can make indexed fields unresolvable.</li>
+        <li><strong>Request smuggling lives in framing disagreement.</strong> Duplicate Content-Length, both Content-Length and chunked, whitespace before a colon, and obs-fold are all parser-differential bugs. Reject ambiguous messages.</li>
+        <li><strong>Trailers are real headers.</strong> In chunked HTTP/1.1 they follow the zero chunk; in HTTP/2 they are a HEADERS frame after DATA with END_STREAM. Do not drop them silently.</li>
+        <li><strong>HTTP/3 is HTTP over QUIC.</strong> Requests and responses run on QUIC streams, and header compression is QPACK rather than HPACK. There is no TCP head-of-line blocking, but stream-level flow control and QUIC loss recovery replace it.</li>
+        <li><strong>HTTPS is HTTP inside TLS.</strong> ALPN selects <code>h2</code> or <code>http/1.1</code>. The HTTP bytes only become visible after the TLS handshake and record decryption.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9110" target="_blank" rel="noopener">RFC 9110</a><span>HTTP semantics</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9111" target="_blank" rel="noopener">RFC 9111</a><span>HTTP caching</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9112" target="_blank" rel="noopener">RFC 9112</a><span>HTTP/1.1 message syntax and routing</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9113" target="_blank" rel="noopener">RFC 9113</a><span>HTTP/2</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7541" target="_blank" rel="noopener">RFC 7541</a><span>HPACK header compression</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9114" target="_blank" rel="noopener">RFC 9114</a><span>HTTP/3</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9204" target="_blank" rel="noopener">RFC 9204</a><span>QPACK for HTTP/3</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6265" target="_blank" rel="noopener">RFC 6265</a><span>Cookies</span></li>
+        <li><a href="https://www.iana.org/assignments/http2-parameters/http2-parameters.xhtml" target="_blank" rel="noopener">IANA registry</a><span>HTTP/2 frame types, settings and error codes</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="tls.html">TLS 1.3 records &amp; handshakes -&gt;</a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ethernet-codec.js"></script>
+<script src="assets/arp-codec.js"></script>
+<script src="assets/ipv4.js"></script>
+<script src="assets/ipv6-codec.js"></script>
+<script src="assets/tcp.js"></script>
+<script src="assets/udp-codec.js"></script>
+<script src="assets/icmp-codec.js"></script>
+<script src="assets/dns-codec.js"></script>
+<script src="assets/tls-codec.js"></script>
+<script src="assets/http-codec.js"></script>
+<script src="assets/dissect-codec.js"></script>
+<script src="assets/http.js"></script>
+</body>
+</html>

@@ -60,6 +60,11 @@
     if (!global.DNSCodec) return false;
     try {
       const message = global.DNSCodec.decodeMessage(bytes, { allowLarge: true });
+      const severe = message.warnings.some((warning) =>
+        /runs past|truncated|extends past|declares RDLENGTH|Unsupported label|Compression pointer|count says|Record .*truncated/i.test(warning));
+      if (severe) return false;
+      if (message.counts.questions > 8 || message.counts.answers > 128 ||
+          message.counts.authority > 128 || message.counts.additional > 128) return false;
       return message.questions.length > 0 || message.answers.length > 0 ||
         message.authority.length > 0 || message.additional.length > 0 ||
         message.flags.qr === 1;
@@ -101,7 +106,48 @@
     });
   }
 
+  function looksLikeTls(bytes) {
+    if (!bytes || bytes.length < 5) return false;
+    const type = bytes[0];
+    const major = bytes[1];
+    const length = PH.u16be(bytes, 3);
+    return type >= 20 && type <= 24 && major === 3 && length <= bytes.length - 5;
+  }
+
   function tlsLayer(bytes, offset, state, depth) {
+    if (global.TLSCodec && looksLikeTls(bytes)) {
+      try {
+        const decoded = global.TLSCodec.decodeTls(bytes);
+        decoded.warnings.slice(0, 8).forEach((warning) => pushWarning(state, "TLS: " + warning));
+        const fields = [
+          field("Records", decoded.records.length + " · " + decoded.records.map((record) => record.typeName).join(", ")),
+          field("Handshakes", decoded.handshakes.length
+            ? decoded.handshakes.map((message) => message.typeName).join(" → ")
+            : "none in plaintext")
+        ];
+        if (decoded.context.negotiatedVersion) {
+          fields.push(field("Negotiated version", global.TLSCodec.versionName(decoded.context.negotiatedVersion)));
+        } else if (decoded.context.clientVersions && decoded.context.clientVersions.length) {
+          fields.push(field("Offered versions", decoded.context.clientVersions.map((code) => global.TLSCodec.versionName(code)).join(", ")));
+        }
+        if (decoded.context.sni) fields.push(field("SNI", decoded.context.sni));
+        if (decoded.context.alpn) fields.push(field("ALPN", decoded.context.alpn.join(", ")));
+        if (decoded.context.cipherSuite != null) fields.push(field("Cipher suite", global.TLSCodec.cipherName(decoded.context.cipherSuite)));
+        if (decoded.alerts.length) fields.push(field("Alert", decoded.alerts[0].summary));
+        if (decoded.records.some((record) => record.type === 23)) {
+          fields.push(field("Encrypted", decoded.records.filter((record) => record.type === 23).length + " application-data record(s)"));
+        }
+        return layer({
+          proto: "tls", name: "TLS", offset,
+          length: Math.min(decoded.length || bytes.length, bytes.length),
+          summary: decoded.summary, fields,
+          warnings: decoded.warnings.slice(0, 8), depth, href: "tls.html",
+          meta: { decoded }
+        });
+      } catch (err) {
+        pushWarning(state, "TLS decode failed: " + err.message);
+      }
+    }
     const records = [];
     let position = 0;
     let guard = 0;
@@ -125,11 +171,45 @@
     return layer({
       proto: "tls", name: "TLS", offset, length: Math.min(position, bytes.length),
       summary: "TLS " + first.version + " · " + TLS_CONTENT[first.type] + handshake + " · " + records.length + " record(s)",
-      fields, warnings: [], depth
+      fields, warnings: [], depth, href: "tls.html"
     });
   }
 
-  function httpLayer(bytes, offset, depth) {
+  function httpLayer(bytes, offset, state, depth, hint) {
+    const app = hint || {};
+    if (global.HTTPCodec) {
+      const preface = bytes.length >= global.HTTPCodec.H2_PREFACE.length &&
+        global.HTTPCodec.asciiString(bytes.subarray(0, global.HTTPCodec.H2_PREFACE.length)) === global.HTTPCodec.H2_PREFACE;
+      const h1 = global.HTTPCodec.looksLikeHttp1(bytes);
+      const h2 = preface || (app.http && global.HTTPCodec.looksLikeHttp2(bytes));
+      if (h1 || h2) {
+        try {
+          const decoded = global.HTTPCodec.decodeHttpMessage(bytes, { kind: preface ? "h2" : "auto" });
+          decoded.warnings.slice(0, 8).forEach((warning) => pushWarning(state, "HTTP: " + warning));
+          const fields = [];
+          if (decoded.kind === "h1") {
+            fields.push(field("Start line", decoded.startLine));
+            fields.push(field("Headers", decoded.headers.length));
+            fields.push(field("Framing", decoded.framing));
+            fields.push(field("Body", decoded.body.length + " B" + (decoded.chunked ? " · " + decoded.chunks.length + " chunk(s)" : "")));
+          } else if (decoded.kind === "h2") {
+            fields.push(field("Preface", decoded.preface ? "client connection preface" : "absent"));
+            fields.push(field("Frames", decoded.frames.length + " · " + decoded.frames.map((frame) => frame.typeName).join(", ")));
+            fields.push(field("Header fields", decoded.headerCount));
+            fields.push(field("HPACK", decoded.hpack.dynamicCount + " dynamic entr" + (decoded.hpack.dynamicCount === 1 ? "y" : "ies")));
+          }
+          return layer({
+            proto: "http", name: decoded.kind === "h2" ? "HTTP/2" : "HTTP", offset,
+            length: Math.min(decoded.messageLength || decoded.length || bytes.length, bytes.length),
+            summary: decoded.summary, fields,
+            warnings: decoded.warnings.slice(0, 8), depth, href: "http.html",
+            meta: { decoded }
+          });
+        } catch (err) {
+          pushWarning(state, "HTTP decode failed: " + err.message);
+        }
+      }
+    }
     const preview = PH.bytesToAscii(bytes.subarray(0, Math.min(bytes.length, 96)));
     const firstLine = preview.split(/\r?\n/)[0];
     if (!/^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|CONNECT|TRACE|HTTP\/\d\.\d)\b/.test(firstLine)) return null;
@@ -138,7 +218,7 @@
       proto: "http", name: "HTTP", offset, length: bytes.length,
       summary: (request ? "HTTP request · " : "HTTP response · ") + firstLine,
       fields: [field("Start line", firstLine), field("Body", bytes.length + " B captured")],
-      warnings: [], depth
+      warnings: [], depth, href: "http.html"
     });
   }
 
@@ -210,7 +290,7 @@
   function applicationLayer(bytes, offset, state, depth, hint) {
     if (!bytes || bytes.length === 0) return null;
     const app = hint || {};
-    if (app.dns || looksLikeDns(bytes)) {
+    if (app.dns) {
       try {
         return dnsLayer(bytes, offset, state, depth);
       } catch (err) {
@@ -221,7 +301,18 @@
       const tls = tlsLayer(bytes, offset, state, depth);
       if (tls) return tls;
     }
-    const http = httpLayer(bytes, offset, depth);
+    if (looksLikeDns(bytes)) {
+      try {
+        return dnsLayer(bytes, offset, state, depth);
+      } catch (err) {
+        pushWarning(state, "DNS decode failed: " + err.message);
+      }
+    }
+    if (looksLikeTls(bytes)) {
+      const tls = tlsLayer(bytes, offset, state, depth);
+      if (tls) return tls;
+    }
+    const http = httpLayer(bytes, offset, state, depth, { http: app.http, h2: app.h2 });
     if (http) return http;
     const ssh = sshLayer(bytes, offset, depth);
     if (ssh) return ssh;
@@ -288,6 +379,8 @@
     }
     const app = applicationLayer(payload, payloadOffset, state, depth + 1, {
       tls: parsed.sport === 443 || parsed.dport === 443,
+      http: parsed.sport === 80 || parsed.dport === 80 || parsed.sport === 8080 || parsed.dport === 8080 ||
+        parsed.sport === 8000 || parsed.dport === 8000,
       quic: false
     });
     if (app) result.push(app);
