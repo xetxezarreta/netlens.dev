@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP header, flags &amp; options — bit diagram, encoder, decoder · packet-headers.sh</title>
+<meta name="description" content="Interactive TCP header bit diagram: all eight control flags, reserved bits, data offset, MSS, window scale, SACK and timestamp options, plus scan recipes and a pseudo-header-aware encoder/decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="tcp.html" aria-current="page">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" class="is-active" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">header layout</a></li>
+        <li><a href="#flags">flag explorer</a></li>
+        <li><a href="#options">options &amp; TLVs</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Data Offset</b> is in 32-bit words. <b>Flags</b> live in the low byte of the twelfth header byte. The checksum needs an IP pseudo-header.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>tcp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>TCP header <span class="on">// RFC 9293</span></h1>
+      <p class="lead">
+        A 20-byte header, eight control bits and a deceptively small option space.
+        Toggle the flags, inspect the TLV kinds, and let the encoder compute the
+        pseudo-header checksum that makes a segment believable.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 9293</b> · TCP</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7323" target="_blank" rel="noopener">RFC 7323 · WS/TS</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc2018" target="_blank" rel="noopener">RFC 2018 · SACK</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3168" target="_blank" rel="noopener">RFC 3168 · ECN</a>
+        <span class="badge">20–60 bytes</span>
+        <span class="badge">pseudo-header</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L4 · transport</span>
+        <span><b>header</b> 20 B + 0–40 B options</span>
+        <span><b>checksum</b> IPv4/IPv6 pseudo-header</span>
+        <span><b>byte order</b> big-endian</span>
+      </div>
+      <div class="stackbar" data-stack="tcp"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#flags">flags</a></li>
+        <li><a href="#options">options</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Header layout</h2>
+        <span class="section__hint">click a field to pin it · esc clears</span>
+      </div>
+      <p>
+        <strong>Sequence Number</strong> and <strong>Acknowledgment Number</strong> are 32-bit
+        unsigned counters that wrap. <strong>Data Offset</strong> counts 32-bit words, so
+        <code>5</code> means the 20-byte minimum; options occupy the rest up to 40 bytes.
+        The four reserved bits must be zero.
+      </p>
+
+      <div id="tcp-diagram"></div>
+      <div class="field-detail" id="tcp-inspector"></div>
+      <div id="tcp-fields"></div>
+
+      <div class="callout">
+        <div class="callout__title">the twelfth byte is where diagrams disagree</div>
+        <p>Data Offset (4 bits), Reserved (4 bits), then the flag octet: CWR, ECE, URG, ACK, PSH,
+        RST, SYN, FIN. Some older diagrams split the reserved nibble into a 3-bit reserved field
+        plus the experimental NS bit (RFC 3540). RFC 8311 deprecated NS; treat it as reserved.</p>
+      </div>
+    </section>
+
+    <section class="section" id="flags">
+      <div class="section__head">
+        <h2><span class="num">02</span>Flag explorer</h2>
+        <span class="section__hint">bits 104–111 · octet 12</span>
+      </div>
+      <p>
+        Flip the bits to see the raw octet, the tcpdump-style notation and the names.
+        The recipes below set common legitimate and scan combinations; they are here to
+        explain the wire, not to defeat a specific IDS.
+      </p>
+
+      <div class="flag-box">
+        <div class="flag-box__head"><span>TCP control flags</span><span>RFC 9293 · RFC 3168</span></div>
+        <div class="flag-box__body">
+          <div class="flag-grid">
+            <label class="flag-toggle"><input type="checkbox" id="tcp-cwr"><span><span class="bitno">bit 104</span><b>W</b><small>CWR</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="tcp-ece"><span><span class="bitno">bit 105</span><b>E</b><small>ECE</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="tcp-urg"><span><span class="bitno">bit 106</span><b>U</b><small>URG</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="tcp-ack"><span><span class="bitno">bit 107</span><b>A</b><small>ACK</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="tcp-psh"><span><span class="bitno">bit 108</span><b>P</b><small>PSH</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="tcp-rst"><span><span class="bitno">bit 109</span><b>R</b><small>RST</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="tcp-syn" checked><span><span class="bitno">bit 110</span><b>S</b><small>SYN</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="tcp-fin"><span><span class="bitno">bit 111</span><b>F</b><small>FIN</small></span></label>
+          </div>
+          <div class="flag-readout">
+            <span>octet <b id="tcp-flag-byte">0x02</b></span>
+            <span>tcpdump <b class="tcpdump" id="tcp-flag-notation">[S]</b></span>
+            <span>names <b id="tcp-flag-names">SYN</b></span>
+            <span class="spacer"></span>
+            <span>bit 110 = <b>0x02</b></span>
+          </div>
+          <p class="flag-box__note">CWR and ECE are ECN signals (RFC 3168). URG makes the Urgent Pointer meaningful. ACK makes Acknowledgment Number meaningful; PSH asks the receiver to deliver buffered data; RST aborts; SYN synchronizes; FIN ends the sender's byte stream.</p>
+        </div>
+      </div>
+
+      <div class="recipe-grid">
+        <button type="button" class="recipe" data-tcp-flags="SYN"><b>SYN scan</b><code>-S</code><span>SYN only. A response of SYN/ACK means the port is open; RST means closed.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="ACK"><b>ACK scan</b><code>-sA</code><span>ACK only. Maps firewall statefulness; rarely proves a port is open.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="FIN"><b>FIN scan</b><code>-sF</code><span>FIN only. Some stacks ignore it; closed ports tend to answer RST.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="FIN,PSH,URG"><b>Xmas scan</b><code>-sX</code><span>FIN+PSH+URG. “Lights on” for RFC 793 stacks; filtered by many middleboxes.</span></button>
+        <button type="button" class="recipe" data-tcp-flags=""><b>NULL scan</b><code>-sN</code><span>No flags. The classic “no bits, no answer” probe.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="FIN,ACK"><b>Maimon scan</b><code>-sM</code><span>FIN+ACK. Behaviour depends on the target stack; mostly historical.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="SYN,ACK"><b>SYN/ACK</b><code>response</code><span>The second packet of the three-way handshake. ACK must be set.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="RST"><b>Reset</b><code>abort</code><span>Unconditional close or refusal. RST+ACK is also common in responses.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="FIN,ACK,PSH"><b>Close + data</b><code>FPA</code><span>Not standard as a recipe; illustrates that combinations are just bits.</span></button>
+      </div>
+    </section>
+
+    <section class="section" id="options">
+      <div class="section__head">
+        <h2><span class="num">03</span>Options &amp; TLVs</h2>
+        <span class="section__hint">kind 8-bit · length includes both</span>
+      </div>
+      <p>
+        Most TCP options are TLVs. Kind <code>0</code> (EOL) and <code>1</code> (NOP) are one
+        byte and have no length. All others have a one-byte length covering kind, length and
+        value. The whole option list is padded to a 4-byte boundary and counted by Data Offset.
+      </p>
+
+      <div class="diagram diagram--compact">
+        <div class="diagram__head"><div class="diagram__title">TCP option TLV</div><div class="legend"><span>8 + 8 + n bits</span></div></div>
+        <div class="diagram__scroll">
+          <div class="option-bits option-bits--tcp" aria-label="TCP option type layout">
+            <div><b>Kind</b><small>1 byte</small></div>
+            <div><b>Length</b><small>1 byte · 2–255</small></div>
+          </div>
+          <div class="output" style="margin-top:8px"><div class="output__label">data</div><pre>length − 2 bytes · padded with EOL / NOP to a 4-byte boundary</pre></div>
+        </div>
+        <p class="diagram__note">EOL (<code>0x00</code>) and NOP (<code>0x01</code>) are single bytes, not TLVs. A length below 2 is malformed. The option list is limited to 40 bytes by the 4-bit Data Offset.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Kind</th><th>Name</th><th class="num">Length (B)</th><th>Reference</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>EOL</b></td><td class="num">1</td><td>RFC 9293 §3.1</td><td>End of option list; the rest should be padding.</td></tr>
+            <tr><td><code>1</code></td><td><b>NOP</b></td><td class="num">1</td><td>RFC 9293 §3.1</td><td>Alignment filler; no length byte.</td></tr>
+            <tr><td><code>2</code></td><td><b>MSS</b></td><td class="num">4</td><td>RFC 9293 §3.1</td><td>16-bit maximum segment size; normally only in SYN.</td></tr>
+            <tr><td><code>3</code></td><td><b>WS</b> · Window Scale</td><td class="num">3</td><td>RFC 7323 §2.2</td><td>One shift byte; max useful value 14.</td></tr>
+            <tr><td><code>4</code></td><td><b>SACK-permitted</b></td><td class="num">2</td><td>RFC 2018 §2</td><td>No data; negotiated in SYN.</td></tr>
+            <tr><td><code>5</code></td><td><b>SACK</b></td><td class="num">2 + 8n</td><td>RFC 2018 §3</td><td>n ≤ 4 blocks of 32-bit left/right edges.</td></tr>
+            <tr><td><code>8</code></td><td><b>Timestamps</b></td><td class="num">10</td><td>RFC 7323 §3.2</td><td>TSval and TSecr, both 32-bit.</td></tr>
+            <tr><td><code>19</code></td><td><b>MD5</b></td><td class="num">18</td><td>RFC 2385</td><td>16-byte digest; historic, superseded by TCP-AO.</td></tr>
+            <tr><td><code>28</code></td><td><b>UTO</b> · User Timeout</td><td class="num">4</td><td>RFC 5482 §3</td><td>16-bit timeout + 16-bit granularity.</td></tr>
+            <tr><td><code>29</code></td><td><b>TCP-AO</b></td><td class="num">≥ 4</td><td>RFC 5925 §3.1</td><td>KeyID, RNextKeyID and MAC; variable.</td></tr>
+            <tr><td><code>30</code></td><td><b>MPTCP</b></td><td class="num">var</td><td>RFC 8684 §3</td><td>Multipath signaling; subtypes in the first data nibble.</td></tr>
+            <tr><td><code>34</code></td><td><b>TFO</b> · Fast Open</td><td class="num">6–18</td><td>RFC 7413 §4.1</td><td>Cookie in SYN; 4–16 bytes. An empty request may be encoded as length 2.</td></tr>
+            <tr><td><code>253/254</code></td><td><b>Experimental</b></td><td class="num">var</td><td>RFC 6994</td><td>Reserved for experiments; do not rely on them.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">pseudo-header checksum when IPs are supplied</span>
+      </div>
+      <p>
+        Build a TCP segment with a correct header checksum. Supply IPv4 source and destination
+        addresses to compute the pseudo-header checksum; leave them blank to emit checksum
+        <code>0x0000</code>. Payload is optional and is appended after the header.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build a TCP segment</h3><span class="tag">20–60 B header</span></div>
+          <div class="codec-panel__body">
+            <form id="tcp-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="tcp-enc-sport">source port <span class="units">0–65535</span></label><input type="number" id="tcp-enc-sport" value="49152" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="tcp-enc-dport">destination port <span class="units">0–65535</span></label><input type="number" id="tcp-enc-dport" value="443" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="tcp-enc-window">window <span class="units">0–65535</span></label><input type="number" id="tcp-enc-window" value="64240" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field span-2"><label for="tcp-enc-seq">sequence number <span class="units">32-bit</span></label><input type="text" id="tcp-enc-seq" value="0x1c4f9a02" spellcheck="false"></div>
+                <div class="form-field"><label for="tcp-enc-reserved">reserved <span class="units">4 bits</span></label><input type="number" id="tcp-enc-reserved" value="0" min="0" max="15" inputmode="numeric"></div>
+                <div class="form-field span-2"><label for="tcp-enc-ackno">acknowledgment <span class="units">32-bit</span></label><input type="text" id="tcp-enc-ackno" value="0" spellcheck="false"></div>
+                <div class="form-field"><label for="tcp-enc-urgent">urgent pointer <span class="units">0–65535</span></label><input type="number" id="tcp-enc-urgent" value="0" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field span-2"><label for="tcp-enc-src">IPv4 source <span class="units">for checksum</span></label><input type="text" id="tcp-enc-src" value="192.0.2.10" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="tcp-enc-dst">IPv4 destination <span class="units">for checksum</span></label><input type="text" id="tcp-enc-dst" value="198.51.100.20" spellcheck="false"></div>
+                <div class="form-field span-2">
+                  <label for="tcp-enc-options">options <span class="units">hex · padded to 4 bytes</span></label>
+                  <input type="text" id="tcp-enc-options" class="hex-input" value="02 04 05 b4 04 02 08 0a 00 00 00 00 00 00 00 00" spellcheck="false">
+                  <div class="presets">
+                    <button type="button" data-tcp-opt="02 04 05 b4">MSS 1460</button>
+                    <button type="button" data-tcp-opt="01 03 03 07">NOP + WS 7</button>
+                    <button type="button" data-tcp-opt="04 02">SACK permitted</button>
+                    <button type="button" data-tcp-opt="08 0a 00 00 00 00 00 00 00 00">timestamp</button>
+                    <button type="button" data-tcp-opt="02 04 05 b4 01 03 03 07 04 02 08 0a 00 00 00 00 00 00 00 00">SYN options</button>
+                    <button type="button" data-tcp-opt="">clear</button>
+                  </div>
+                </div>
+                <div class="form-field span-2">
+                  <label for="tcp-enc-payload">payload <span class="units">hex · optional</span></label>
+                  <input type="text" id="tcp-enc-payload" class="hex-input" value="" placeholder="de ad be ef" spellcheck="false">
+                </div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px">
+                <label><input type="checkbox" id="tcp-enc-flag-cwr"> CWR</label>
+                <label><input type="checkbox" id="tcp-enc-flag-ece"> ECE</label>
+                <label><input type="checkbox" id="tcp-enc-flag-urg"> URG</label>
+                <label><input type="checkbox" id="tcp-enc-flag-ack"> ACK</label>
+                <label><input type="checkbox" id="tcp-enc-flag-psh"> PSH</label>
+                <label><input type="checkbox" id="tcp-enc-flag-rst"> RST</label>
+                <label><input type="checkbox" id="tcp-enc-flag-syn" checked> SYN</label>
+                <label><input type="checkbox" id="tcp-enc-flag-fin"> FIN</label>
+              </div>
+              <div class="btn-row" style="margin-top:12px">
+                <button class="btn btn--primary" type="button" id="tcp-build">Build segment</button>
+                <button class="btn btn--ghost" type="button" id="tcp-load-example">Load example</button>
+              </div>
+              <p class="form-note">The checksum covers a 12-byte pseudo-header (source, destination, zero, protocol 6, TCP length) followed by the TCP header and payload. A valid checksum is not a valid connection.</p>
+            </form>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="tcp-enc-summary-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="tcp-encode-status" role="status" aria-live="polite">Set the fields and press Build segment.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">segment hex · header + payload</div><button class="copy-btn" type="button" data-copy-target="#tcp-enc-output">copy</button></div>
+              <pre id="tcp-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="tcp-enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">pseudo-header, not a real header</div>
+              <p>The 12 bytes of source address, destination address, zero, protocol and TCP length
+              are never transmitted. Both ends reconstruct them from the IP layer. For IPv6 the
+              pseudo-header is 40 bytes and uses the next-header value instead of protocol.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">raw TCP segment or full IPv4 packet</span>
+      </div>
+      <p>
+        Paste a TCP segment. If the input starts with a plausible IPv4 header whose protocol is
+        6, the decoder extracts the TCP segment, uses the IPv4 addresses for checksum
+        verification and reports the enclosing packet. Raw segments are decoded but their
+        checksum is marked unverified because the pseudo-header is missing.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 9293 · options · flags</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="tcp-decode-input">hex input <span class="units">TCP segment or IPv4 packet</span></label>
+            <textarea id="tcp-decode-input" class="hex-input" rows="5" spellcheck="false" placeholder="c1 8b 01 bb 1c 4f 9a 02 00 00 00 00 a0 02 fa f0 71 2c 00 00"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="tcp-decode">Decode</button>
+            <button class="btn btn--ghost" type="button" id="tcp-decode-example">Load example</button>
+            <button class="btn btn--ghost" type="button" id="tcp-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="tcp-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="tcp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">where TCP implementations hurt</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">the checksum is over a fake header</div>
+        <p>Copying a TCP segment without its IP addresses makes the checksum unverifiable.
+        This is why packet generators ask for the pseudo-header tuple. It is also why NAT
+        devices must recompute the TCP/UDP checksum when they rewrite addresses.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Data Offset is words.</strong> <code>5</code> = 20 bytes, <code>15</code> = 60 bytes. A value below 5 is malformed; a value larger than the segment means the options are truncated.</li>
+        <li><strong>Options are negotiated, not universal.</strong> Window Scale and SACK-permitted are normally SYN-only; timestamps are negotiated in both directions; SACK blocks appear after loss.</li>
+        <li><strong>Window Scale shifts the 16-bit window.</strong> The shift is 0–14; values above 14 should be treated as 14. The scale applies to later segments, not the SYN itself.</li>
+        <li><strong>MSS is not the path MTU.</strong> It is the largest TCP payload the sender can receive, normally MTU − 40. MSS 0 is invalid.</li>
+        <li><strong>The urgent pointer is practically dead.</strong> URG is rarely used and interpreted inconsistently; do not design new protocols around it.</li>
+        <li><strong>NS is historic.</strong> RFC 3540 defined the ECN nonce bit; RFC 8311 deprecated the nonce. Modern parsers treat the bit as reserved.</li>
+        <li><strong>Flags are not authentication.</strong> Anyone can forge a RST or a SYN. TCP sequence numbers and cookies provide some resistance, not identity.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9293" target="_blank" rel="noopener">RFC 9293</a><span>TCP (current)</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc793" target="_blank" rel="noopener">RFC 793</a><span>TCP (historic)</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7323" target="_blank" rel="noopener">RFC 7323</a><span>Window scale &amp; timestamps</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2018" target="_blank" rel="noopener">RFC 2018</a><span>SACK</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3168" target="_blank" rel="noopener">RFC 3168</a><span>ECN</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8311" target="_blank" rel="noopener">RFC 8311</a><span>ECN nonce deprecation</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7413" target="_blank" rel="noopener">RFC 7413</a><span>TCP Fast Open</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5925" target="_blank" rel="noopener">RFC 5925</a><span>TCP-AO</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="quic.html">QUIC frames &amp; varints -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv4.html">ipv4</a><a href="tools.html#checksum">checksum tool</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ipv4.js"></script>
+<script src="assets/tcp.js"></script>
+</body>
+</html>

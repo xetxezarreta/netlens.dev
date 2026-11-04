@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ethernet II frames — MAC, EtherType, VLAN &amp; FCS · packet-headers.sh</title>
+<meta name="description" content="Interactive Ethernet II frame diagram: destination and source MAC addresses, EtherType, 802.1Q VLAN tags, payload padding and CRC-32 FCS, plus a frame encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html" aria-current="page">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+        <li><a href="ethernet.html" class="is-active" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">frame layout</a></li>
+        <li><a href="#ethertypes">EtherTypes</a></li>
+        <li><a href="#vlan">VLAN tags</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Preamble/SFD</b> are physical-layer fields. Packet captures normally start at the destination MAC; the FCS is often stripped by the NIC.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>ethernet</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Ethernet II frames <span class="on">// IEEE 802.3</span></h1>
+      <p class="lead">
+        The link-layer frame that carries IP, ARP and VLAN tags across a LAN. Ethernet II has
+        no length field: the EtherType says what follows. A 32-bit CRC at the end protects the
+        entire frame, even though most packet captures throw it away.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>IEEE 802.3</b> · Ethernet</span>
+        <a class="badge" href="https://www.iana.org/assignments/ieee-802-numbers/ieee-802-numbers.xhtml" target="_blank" rel="noopener">IANA EtherTypes</a>
+        <span class="badge">IEEE 802.1Q · VLAN</span>
+        <span class="badge">CRC-32 FCS</span>
+        <span class="badge">64–1518 B frame</span>
+        <span class="badge">link layer</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L2 · link</span>
+        <span><b>header</b> 14 B (+4 B VLAN)</span>
+        <span><b>payload</b> 46–1500 B</span>
+        <span><b>FCS</b> 4 B · usually stripped</span>
+      </div>
+      <div class="stackbar" data-stack="ethernet"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#ethertypes">EtherTypes</a></li>
+        <li><a href="#vlan">VLAN</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Frame layout</h2>
+        <span class="section__hint">MAC header · 14 bytes</span>
+      </div>
+      <p>
+        An Ethernet II frame begins with a 6-byte <strong>destination MAC address</strong>, a
+        6-byte <strong>source MAC address</strong>, and a 2-byte <strong>EtherType</strong>.
+        The payload follows; the FCS is the last four bytes. The 8-byte preamble/SFD and the
+        interpacket gap live at the physical layer and are not part of the captured frame.
+      </p>
+
+      <div id="ethernet-diagram"></div>
+      <div class="field-detail" id="ethernet-inspector"></div>
+      <div id="ethernet-fields"></div>
+      <div id="ethernet-frame-lane"></div>
+      <div class="field-detail" id="ethernet-frame-inspector"></div>
+
+      <div class="callout">
+        <div class="callout__title">64 bytes from destination MAC through FCS</div>
+        <p>An Ethernet frame is <strong>64–1518 bytes</strong> without VLAN tagging, or up to
+        <strong>1522 bytes</strong> with a single 802.1Q tag. The minimum payload is 46 bytes
+        untagged and 42 bytes tagged; short payloads are padded. Jumbo frames exceed 1500 bytes
+        but are not part of the base standard. Frames shorter than 64 bytes are runts.</p>
+      </div>
+    </section>
+
+    <section class="section" id="ethertypes">
+      <div class="section__head">
+        <h2><span class="num">02</span>EtherType</h2>
+        <span class="section__hint">≥ 0x0600 means type; ≤ 1500 means length</span>
+      </div>
+      <p>
+        The 16-bit field after the source MAC is an <strong>EtherType</strong> in Ethernet II.
+        Values from 0x0600 (1536) upward identify the payload protocol. Values up to 1500 are
+        an IEEE 802.3 length field instead; 1501–1535 are reserved. A VLAN tag temporarily
+        occupies this position with TPID <code>0x8100</code>.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>EtherType</th><th>Payload</th><th>Reference</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x0800</code></td><td><a href="ipv4.html"><b>IPv4</b></a></td><td>RFC 894</td><td>Classic IPv4 over Ethernet II.</td></tr>
+            <tr><td><code>0x0806</code></td><td><a href="arp.html"><b>ARP</b></a></td><td>RFC 826</td><td>IPv4 address resolution over Ethernet.</td></tr>
+            <tr><td><code>0x8035</code></td><td><b>RARP</b></td><td>RFC 903</td><td>Reverse ARP; obsolete in practice.</td></tr>
+            <tr><td><code>0x8100</code></td><td><b>802.1Q VLAN</b></td><td>IEEE 802.1Q</td><td>TPID followed by a 16-bit TCI and the inner EtherType.</td></tr>
+            <tr><td><code>0x86DD</code></td><td><b>IPv6</b></td><td>RFC 2464</td><td>IPv6 over Ethernet.</td></tr>
+            <tr><td><code>0x8847</code></td><td><b>MPLS</b></td><td>RFC 3032</td><td>MPLS unicast.</td></tr>
+            <tr><td><code>0x8848</code></td><td><b>MPLS multicast</b></td><td>RFC 3032</td><td>MPLS multicast.</td></tr>
+            <tr><td><code>0x8863</code></td><td><b>PPPoE Discovery</b></td><td>RFC 2516</td><td>PPP over Ethernet discovery stage.</td></tr>
+            <tr><td><code>0x8864</code></td><td><b>PPPoE Session</b></td><td>RFC 2516</td><td>PPP over Ethernet session stage.</td></tr>
+            <tr><td><code>0x888E</code></td><td><b>EAPOL</b></td><td>IEEE 802.1X</td><td>Port-based network access control.</td></tr>
+            <tr><td><code>0x88A8</code></td><td><b>802.1ad QinQ</b></td><td>IEEE 802.1ad</td><td>Outer service VLAN tag; another tag usually follows.</td></tr>
+            <tr><td><code>0x88CC</code></td><td><b>LLDP</b></td><td>IEEE 802.1AB</td><td>Link Layer Discovery Protocol.</td></tr>
+            <tr><td><code>0x88F7</code></td><td><b>PTP</b></td><td>IEEE 1588</td><td>Precision Time Protocol over Ethernet.</td></tr>
+            <tr><td><code>0x8906</code></td><td><b>FCoE</b></td><td>INCITS T11</td><td>Fibre Channel over Ethernet.</td></tr>
+            <tr><td><code>0x8915</code></td><td><b>RoCE</b></td><td>InfiniBand TA</td><td>RDMA over Converged Ethernet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="vlan">
+      <div class="section__head">
+        <h2><span class="num">03</span>802.1Q VLAN tags</h2>
+        <span class="section__hint">4 bytes between source MAC and EtherType</span>
+      </div>
+      <p>
+        A VLAN tag inserts a 2-byte <strong>TPID</strong> (<code>0x8100</code> for 802.1Q,
+        <code>0x88A8</code> for 802.1ad) followed by a 16-bit <strong>TCI</strong>. The TCI
+        carries a 3-bit priority, a drop-eligibility bit and a 12-bit VLAN identifier.
+      </p>
+
+      <div id="vlan-diagram"></div>
+      <div class="field-detail" id="vlan-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>PCP</th><th>Traffic class</th><th>VID</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>Best effort</td><td><code>0</code></td><td>Priority tag: priority is meaningful, no VLAN membership.</td></tr>
+            <tr><td><code>1</code></td><td>Background</td><td><code>1</code></td><td>Default VLAN on many switches; deployment-specific.</td></tr>
+            <tr><td><code>2</code></td><td>Excellent effort</td><td><code>2–1005</code></td><td>Normal 802.1Q VLAN range.</td></tr>
+            <tr><td><code>3</code></td><td>Critical applications</td><td><code>1006–4094</code></td><td>Extended range; device support varies.</td></tr>
+            <tr><td><code>4</code></td><td>Video</td><td><code>4095</code></td><td>Reserved; must not be used as a VLAN ID.</td></tr>
+            <tr><td><code>5</code></td><td>Voice</td><td>—</td><td>Latency-sensitive traffic; maps to a queue by policy.</td></tr>
+            <tr><td><code>6</code></td><td>Internetwork control</td><td>—</td><td>Routing and control protocols.</td></tr>
+            <tr><td><code>7</code></td><td>Network control</td><td>—</td><td>Highest priority; reserve for critical control traffic.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">tag stacking changes the offsets</div>
+        <p>Each 802.1Q/802.1ad tag adds four bytes before the inner EtherType. QinQ frames can
+        carry two tags or more, so a parser must walk the TPID chain instead of assuming the
+        EtherType is always at bytes 12–13. The frame's maximum size grows by four bytes per
+        tag; the 64-byte minimum payload shrinks to 42 bytes with one tag.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Frame encoder</h2>
+        <span class="section__hint">optional VLAN · padding · FCS</span>
+      </div>
+      <p>
+        Build an Ethernet II frame and optionally insert an 802.1Q tag, pad the payload to the
+        minimum and append the CRC-32 FCS. A real NIC normally adds the FCS in hardware; the
+        checkbox exists so you can produce a complete on-wire frame for a lab tool.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>frame parameters</h3><span class="tag">Ethernet II</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid">
+              <div class="form-field span-2">
+                <label for="eth-enc-dst">destination MAC</label>
+                <input type="text" id="eth-enc-dst" value="ff:ff:ff:ff:ff:ff" spellcheck="false">
+              </div>
+              <div class="form-field span-2">
+                <label for="eth-enc-src">source MAC</label>
+                <input type="text" id="eth-enc-src" value="02:00:00:00:00:0a" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="eth-enc-type">EtherType <span class="units">0x0600+</span></label>
+                <input type="text" id="eth-enc-type" value="0x0806" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label>payload presets</label>
+                <div class="presets">
+                  <button type="button" data-eth-preset="arp">ARP request</button>
+                  <button type="button" data-eth-preset="clear">clear</button>
+                </div>
+              </div>
+              <div class="form-field span-2">
+                <label for="eth-enc-payload">payload <span class="units">hex</span></label>
+                <textarea id="eth-enc-payload" class="hex-input" rows="3" spellcheck="false">00 01 08 00 06 04 00 01 02 00 00 00 00 0A C0 00 02 0A 00 00 00 00 00 00 C0 00 02 01</textarea>
+              </div>
+            </div>
+            <div class="inline-checks" style="margin-top:10px">
+              <label><input type="checkbox" id="eth-enc-vlan"> 802.1Q VLAN tag</label>
+              <label><input type="checkbox" id="eth-enc-pad" checked> pad to minimum frame</label>
+              <label><input type="checkbox" id="eth-enc-fcs" checked> append FCS</label>
+            </div>
+            <div class="field-grid field-grid--three" style="margin-top:10px">
+              <div class="form-field">
+                <label for="eth-enc-pcp">PCP <span class="units">0–7</span></label>
+                <select id="eth-enc-pcp"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select>
+              </div>
+              <div class="form-field">
+                <label>&nbsp;</label>
+                <label class="inline-checks" style="min-height:34px"><input type="checkbox" id="eth-enc-dei"> DEI</label>
+              </div>
+              <div class="form-field">
+                <label for="eth-enc-vid">VID <span class="units">0–4095</span></label>
+                <input type="number" id="eth-enc-vid" value="100" min="0" max="4095" inputmode="numeric">
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="eth-enc-build">Build frame</button>
+              <button class="btn btn--ghost" type="button" id="eth-enc-example">Load VLAN example</button>
+            </div>
+            <p class="form-note">The FCS is calculated over the destination MAC through the end of padding. It is appended as the reflected CRC-32 value, least-significant byte first.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="eth-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="eth-enc-status" role="status" aria-live="polite">Set the fields and press Build frame.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">frame hex</div><button class="copy-btn" type="button" data-copy-target="#eth-enc-output">copy</button></div>
+              <pre id="eth-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="eth-enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">the FCS is not authentication</div>
+              <p>CRC-32 detects accidental corruption. It does not stop a sender from forging a
+              frame; use MACsec, IPsec or higher-layer authentication when you need integrity
+              against an attacker.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Frame decoder</h2>
+        <span class="section__hint">header, VLAN chain, payload, FCS</span>
+      </div>
+      <p>
+        Paste a frame starting at the destination MAC. An optional 7×<code>55</code> preamble
+        plus <code>D5</code> SFD is detected and skipped. Set the FCS mode if your capture is
+        known to include or exclude the trailing CRC; automatic mode strips it only when the
+        CRC validates.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">Ethernet II · 802.1Q</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2">
+              <label for="eth-decode-input">hex input <span class="units">frame, optional preamble</span></label>
+              <textarea id="eth-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="ff ff ff ff ff ff 02 00 00 00 00 0a 08 06 …"></textarea>
+            </div>
+            <div class="form-field">
+              <label for="eth-decode-fcs">FCS mode</label>
+              <select id="eth-decode-fcs">
+                <option value="auto">auto-detect valid FCS</option>
+                <option value="present">last 4 bytes are FCS</option>
+                <option value="absent">no FCS</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="eth-decode">Decode frame</button>
+            <button class="btn btn--ghost" type="button" id="eth-decode-example">Load example</button>
+            <button class="btn btn--ghost" type="button" id="eth-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="eth-decode-status" role="status" aria-live="polite">No frame decoded yet.</div>
+          <div id="eth-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">what packet capture hides</span>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">captures are not the wire</div>
+        <p>The NIC strips the preamble, SFD, interpacket gap and often the FCS before handing the
+        frame to the host. A capture that shows no FCS is normal. A capture taken on a sending
+        host may also show checksum offload artifacts at higher layers.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Destination MAC first.</strong> The first six bytes are the receiver's MAC. A broadcast destination is <code>ff:ff:ff:ff:ff:ff</code>; multicast has the I/G bit set in the first octet.</li>
+        <li><strong>EtherType or length.</strong> Values ≥ 0x0600 are EtherTypes; values ≤ 1500 are 802.3 length fields. The 1501–1535 range is undefined.</li>
+        <li><strong>A VLAN tag is not free.</strong> Each tag moves the inner EtherType four bytes right and permits a 1522-byte standard frame. QinQ stacks tags and increases the limit further.</li>
+        <li><strong>The FCS is little-endian in practice.</strong> The reflected CRC-32 value is transmitted least-significant byte first. A receiver that computes CRC over the frame including the FCS sees the residue <code>0x2144DF1C</code> when it is valid.</li>
+        <li><strong>Padding is not payload.</strong> A 28-byte ARP message is padded to the 46-byte minimum; a protocol parser must trust its own length fields, not the Ethernet frame boundary alone.</li>
+        <li><strong>MAC addresses are link-local.</strong> They are learned and forwarded by switches; they do not survive a router. ARP glues IPv4 to the next-hop MAC.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://standards.ieee.org/ieee/802.3/7071/" target="_blank" rel="noopener">IEEE 802.3</a><span>Ethernet</span></li>
+        <li><a href="https://standards.ieee.org/ieee/802.1Q/6844/" target="_blank" rel="noopener">IEEE 802.1Q</a><span>VLAN tags</span></li>
+        <li><a href="https://www.iana.org/assignments/ieee-802-numbers/ieee-802-numbers.xhtml" target="_blank" rel="noopener">IANA registry</a><span>EtherTypes</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc894" target="_blank" rel="noopener">RFC 894</a><span>IPv4 over Ethernet</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1042" target="_blank" rel="noopener">RFC 1042</a><span>IP over IEEE 802</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc826" target="_blank" rel="noopener">RFC 826</a><span>ARP</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="arp.html">ARP address resolution -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs and IEEE standards are the source of truth. Verify against the current standard, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv4.html">ipv4</a><a href="arp.html">arp</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ethernet-codec.js"></script>
+<script src="assets/ethernet.js"></script>
+</body>
+</html>

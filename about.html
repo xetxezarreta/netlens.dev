@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About &amp; conventions — packet-headers.sh</title>
+<meta name="description" content="How to read the bit diagrams, which RFCs are used, keyboard shortcuts, and the limits of the encoders and decoders on packet-headers.sh.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html" aria-current="page">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">about</p>
+      <ul>
+        <li><a href="#about">what this is</a></li>
+        <li><a href="#conventions">conventions</a></li>
+        <li><a href="#keyboard">keyboard</a></li>
+        <li><a href="#accuracy">accuracy</a></li>
+        <li><a href="#sources">sources</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>build:</b> plain HTML, CSS and JavaScript. No frameworks, no build step, no analytics.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><span>about</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>About &amp; conventions <span class="on">// read me first</span></h1>
+      <p class="lead">
+        packet-headers.sh is a static field guide to the wire formats that show up in packet
+        captures, kernel code and late-night incident calls. The diagrams are meant to be read
+        next to a hex dump, not instead of the RFC.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent">static</span>
+        <span class="badge">no trackers</span>
+        <span class="badge">RFC-cited</span>
+        <span class="badge">works offline</span>
+      </div>
+    </div>
+
+    <div class="prose">
+      <section class="section" id="about">
+        <h2>What this is</h2>
+        <p>
+          Eight protocol pages — IPv4, ICMP, TCP, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
+          <a href="tools.html">toolbox</a>. Each protocol page has an interactive bit or byte
+          diagram, a field reference with RFC citations, and an encoder and decoder that work
+          on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
+        </p>
+        <p>
+          The design borrows the density and keyboard-friendly feel of a systems reference:
+          monospace type, dashed rules, compact tables, offsets visible everywhere. The content
+          is deliberately narrower than a general-purpose protocol encyclopedia. These are the
+          headers you inspect when something is broken.
+        </p>
+
+        <div class="about-grid">
+          <div class="about-box"><h3>For network engineers</h3><p>Check a field offset, settle the units question, or paste a header from a capture without opening five PDFs.</p></div>
+          <div class="about-box"><h3>For security researchers</h3><p>See reserved bits, flag combinations, TLV length traps and the exact bytes a scan recipe sets.</p></div>
+          <div class="about-box"><h3>For implementers</h3><p>Use the encoders as a second opinion on layout and the decoders as a sanity check on a new parser.</p></div>
+          <div class="about-box"><h3>For the 03:00 call</h3><p>Search a field name, jump to the bit range, confirm the RFC clause. Then go back to the pcap.</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="conventions">
+        <h2>Conventions</h2>
+        <h3>Bit numbering</h3>
+        <p>
+          Bit 0 is the <strong>most significant bit</strong> of the first octet. Diagrams are
+          drawn left to right, MSB first. A field labelled <code>bits 0–3</code> occupies the
+          high nibble of the first byte; <code>bits 4–7</code> occupies the low nibble. This is
+          the convention used by RFC diagrams and most packet dissectors.
+        </p>
+
+        <div class="bit-strip" style="min-width:0;max-width:420px;margin:14px 0">
+          <div class="on"><b>1</b>bit 0</div><div class="on"><b>0</b>bit 1</div><div class="on"><b>1</b>bit 2</div><div class="on"><b>0</b>bit 3</div>
+          <div><b>1</b>bit 4</div><div><b>1</b>bit 5</div><div><b>0</b>bit 6</div><div><b>0</b>bit 7</div>
+        </div>
+        <p class="small dim">The octet 0xA4 is shown above as bits 0–7. The high nibble is 0xA, the low nibble is 0x4.</p>
+
+        <h3>Offsets</h3>
+        <p>
+          Byte offsets count from the first byte of the structure being described. On the IPv4
+          page, offset <code>0</code> is the version/IHL octet — not the start of the Ethernet
+          frame. If the decoder detects an Ethernet frame, it says so and shifts internally.
+          Bit offsets are absolute within the structure and inclusive at both ends.
+        </p>
+
+        <h3>Byte order</h3>
+        <p>
+          Network byte order is big-endian for IPv4, ICMP, TCP, QUIC and BGP. WireGuard is the
+          exception: its integer fields are little-endian. The WireGuard page calls this out on
+          every field and provides a converter. Bytes inside a field are always written in
+          transmission order; only the interpretation of multi-byte integers changes.
+        </p>
+
+        <h3>Layer grouping</h3>
+        <p>
+          The site uses the <strong>TCP/IP model</strong> as its primary map. OSI numbers
+          (L3, L4, L7) appear as orientation labels, not as a claim that every protocol fits
+          one box. BGP is an application protocol over TCP, but its subject is routing;
+          WireGuard is a Layer 3 tunnel carried over UDP; QUIC spans transport, TLS and
+          application framing. The stack path at the top of each protocol page shows the
+          actual encapsulation instead of forcing a single layer. The homepage renders an
+          interactive stack map: click a layer to filter the field sheets, or a protocol to
+          open its page.
+        </p>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Group</th><th>Layer labels</th><th>Protocols</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td><b>Application / control</b></td><td><code>L7</code></td><td>BGP</td><td>Routing policy over TCP. BGP is an application protocol whose subject is the control plane.</td></tr>
+              <tr><td><b>Transport</b></td><td><code>L4</code> / <code>L4+</code></td><td>TCP, QUIC</td><td>Process-to-process delivery. QUIC also carries TLS and application framing.</td></tr>
+              <tr><td><b>Tunnels / overlays</b></td><td><code>L3 tunnel</code></td><td>WireGuard</td><td>A cross-layer overlay that carries inner IP over UDP.</td></tr>
+              <tr><td><b>Internet / IP</b></td><td><code>L3</code></td><td>IPv4, ICMP</td><td>Addressing, fragmentation, header checksums, errors, echo and path-MTU signalling.</td></tr>
+              <tr><td><b>Link</b></td><td><code>L2</code> / <code>L2.5</code></td><td>Ethernet, ARP</td><td>Frames, MAC addressing, VLAN tags, FCS and IPv4-to-MAC resolution.</td></tr>
+              <tr><td><b>Cross-layer</b></td><td><code>ALL</code></td><td>Toolbox</td><td>Checksums, varints and TLVs used by several protocols.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Hex and lengths</h3>
+        <p>
+          Hex bytes are displayed uppercase with spaces: <code>45 00 00 28</code>. Inputs accept
+          spaces, colons, dashes, newlines and <code>0x</code> prefixes. Lengths are in bytes
+          unless a field explicitly says “words” or “8-byte units”. When a field is variable,
+          the diagram shows a nominal width and marks it with a dashed edge; the actual length is
+          carried by a preceding length field or by the packet boundary.
+        </p>
+
+        <h3>What the encoders do not do</h3>
+        <p>
+          The encoders build structurally valid bytes and compute Internet checksums where the
+          page says so. They do not encrypt, authenticate, sign, compress, fragment, route, or
+          negotiate capabilities. A valid checksum is not a valid connection; a well-formed
+          WireGuard message with a zero tag will be dropped by a real peer.
+        </p>
+      </section>
+
+      <section class="section" id="keyboard">
+        <h2>Keyboard</h2>
+        <div class="keymap">
+          <kbd>/</kbd><span>Open the global field search from anywhere.</span>
+          <kbd>Ctrl K</kbd><span>Same search dialog (use <kbd>⌘ K</kbd> on macOS).</span>
+          <kbd>↑ ↓</kbd><span>Move through search results.</span>
+          <kbd>↵</kbd><span>Open the selected result.</span>
+          <kbd>Esc</kbd><span>Close the search dialog or clear a pinned diagram field.</span>
+          <kbd>Tab</kbd><span>Move through diagram fields and controls; diagrams are buttons.</span>
+        </div>
+        <p class="mt-16">
+          The search index covers protocol names, field names, option kinds, RFC numbers and
+          common abbreviations. It is a static array in <code>assets/search-index.js</code>; no
+          query leaves the page.
+        </p>
+      </section>
+
+      <section class="section" id="accuracy">
+        <h2>Accuracy &amp; limits</h2>
+        <p>
+          The cited RFC is the authority. Some protocols have later updates that change field
+          semantics without changing the layout: IPv4 DSCP/ECN, ICMP extensions and deprecated
+          message types, TCP timestamps and ECN, BGP four-octet AS numbers and extended messages,
+          QUIC v2 and DATAGRAM. The notes point at
+          the relevant updates, but they cannot replace the current document and its errata.
+        </p>
+        <p>
+          Decoders are intentionally strict in some places and permissive in others. They report
+          what they can prove from the bytes — lengths, reserved bits, checksums, flag patterns —
+          and mark what they cannot verify, such as a TCP checksum without a pseudo-header or a
+          WireGuard MAC without keys. A clean parse means “structurally plausible”, not
+          “authentic”.
+        </p>
+        <p>
+          If a diagram and a real implementation disagree, the implementation may be buggy, the
+          RFC may have an erratum, or the deployment may be using an extension. Check all three.
+          This site is independent and not affiliated with the IETF or the WireGuard project.
+        </p>
+      </section>
+
+      <section class="section" id="sources">
+        <h2>Sources</h2>
+        <h3>IPv4</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc791" target="_blank" rel="noopener">RFC 791</a><span>Internet Protocol</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2474" target="_blank" rel="noopener">RFC 2474</a><span>DSCP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc3168" target="_blank" rel="noopener">RFC 3168</a><span>ECN</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1071" target="_blank" rel="noopener">RFC 1071</a><span>Internet checksum</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6864" target="_blank" rel="noopener">RFC 6864</a><span>IPv4 ID field</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2113" target="_blank" rel="noopener">RFC 2113</a><span>Router Alert</span></li>
+        </ul>
+        <h3>ICMP</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc792" target="_blank" rel="noopener">RFC 792</a><span>ICMP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1122" target="_blank" rel="noopener">RFC 1122</a><span>host requirements</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1812" target="_blank" rel="noopener">RFC 1812</a><span>router requirements</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1191" target="_blank" rel="noopener">RFC 1191</a><span>path MTU discovery</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4884" target="_blank" rel="noopener">RFC 4884</a><span>extended ICMP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc950" target="_blank" rel="noopener">RFC 950</a><span>address masks</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1256" target="_blank" rel="noopener">RFC 1256</a><span>router discovery</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1393" target="_blank" rel="noopener">RFC 1393</a><span>traceroute message</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6633" target="_blank" rel="noopener">RFC 6633</a><span>Source Quench deprecation</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6918" target="_blank" rel="noopener">RFC 6918</a><span>deprecated ICMPv4 types</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8335" target="_blank" rel="noopener">RFC 8335</a><span>Extended Echo</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4443" target="_blank" rel="noopener">RFC 4443</a><span>ICMPv6</span></li>
+        </ul>
+        <h3>TCP</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9293" target="_blank" rel="noopener">RFC 9293</a><span>TCP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7323" target="_blank" rel="noopener">RFC 7323</a><span>Window scale, timestamps</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2018" target="_blank" rel="noopener">RFC 2018</a><span>SACK</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7413" target="_blank" rel="noopener">RFC 7413</a><span>Fast Open</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc5925" target="_blank" rel="noopener">RFC 5925</a><span>TCP-AO</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8311" target="_blank" rel="noopener">RFC 8311</a><span>ECN nonce deprecation</span></li>
+        </ul>
+        <h3>QUIC</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9000" target="_blank" rel="noopener">RFC 9000</a><span>QUIC v1</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001</a><span>TLS &amp; header protection</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9002" target="_blank" rel="noopener">RFC 9002</a><span>Loss recovery</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9221" target="_blank" rel="noopener">RFC 9221</a><span>DATAGRAM</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9369" target="_blank" rel="noopener">RFC 9369</a><span>QUIC v2</span></li>
+        </ul>
+        <h3>BGP</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4271" target="_blank" rel="noopener">RFC 4271</a><span>BGP-4</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4760" target="_blank" rel="noopener">RFC 4760</a><span>Multiprotocol BGP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6793" target="_blank" rel="noopener">RFC 6793</a><span>4-byte AS</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8092" target="_blank" rel="noopener">RFC 8092</a><span>Large communities</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7606" target="_blank" rel="noopener">RFC 7606</a><span>Error handling</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8654" target="_blank" rel="noopener">RFC 8654</a><span>Extended messages</span></li>
+        </ul>
+        <h3>Ethernet &amp; ARP</h3>
+        <ul class="rfc-list">
+          <li><a href="https://standards.ieee.org/ieee/802.3/7071/" target="_blank" rel="noopener">IEEE 802.3</a><span>Ethernet</span></li>
+          <li><a href="https://standards.ieee.org/ieee/802.1Q/6844/" target="_blank" rel="noopener">IEEE 802.1Q</a><span>VLAN tags</span></li>
+          <li><a href="https://www.iana.org/assignments/ieee-802-numbers/ieee-802-numbers.xhtml" target="_blank" rel="noopener">IANA EtherTypes</a><span>type registry</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc826" target="_blank" rel="noopener">RFC 826</a><span>ARP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc5227" target="_blank" rel="noopener">RFC 5227</a><span>address conflict detection</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc894" target="_blank" rel="noopener">RFC 894</a><span>IPv4 over Ethernet</span></li>
+        </ul>
+
+        <h3>WireGuard</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.wireguard.com/protocol/" target="_blank" rel="noopener">WireGuard protocol</a><span>specification</span></li>
+          <li><a href="https://www.wireguard.com/papers/wireguard.pdf" target="_blank" rel="noopener">WireGuard paper</a><span>design rationale</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7693" target="_blank" rel="noopener">RFC 7693</a><span>BLAKE2</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8439" target="_blank" rel="noopener">RFC 8439</a><span>ChaCha20-Poly1305</span></li>
+        </ul>
+
+        <h3>Privacy &amp; tech</h3>
+        <p>
+          No cookies, analytics, fonts from third parties or background requests. The only
+          client-side storage is a theme preference in <code>localStorage</code>. The typeface is
+          JetBrains Mono (SIL Open Font License); the license text is in <a href="fonts/OFL.txt">fonts/OFL.txt</a>. Everything else is hand-written HTML, CSS and
+          JavaScript. External RFC links open only when you click them.
+        </p>
+      </section>
+    </div>
+
+    <div class="next-protocol">
+      <span>back to the index</span>
+      <a href="index.html#protocols">All protocols -&gt;</a>
+    </div>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="tools.html">tools</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+</body>
+</html>

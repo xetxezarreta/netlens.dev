@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARP — address resolution, opcodes &amp; Ethernet framing · packet-headers.sh</title>
+<meta name="description" content="Interactive ARP message diagram: hardware/protocol types, opcodes, sender and target MAC/IP fields, ARP probes and gratuitous ARP, plus a raw/Ethernet-wrapped encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html" aria-current="page">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" class="is-active" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">message layout</a></li>
+        <li><a href="#opcodes">opcodes</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>ARP has no checksum.</b> It relies on the Ethernet FCS for transmission integrity and has no authentication at all.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>arp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>ARP <span class="on">// RFC 826</span></h1>
+      <p class="lead">
+        The Address Resolution Protocol maps an IPv4 address to a link-layer address on the
+        local segment. It is a small, unauthenticated request/reply protocol: “who has this
+        IP?” broadcast, then “that IP is at this MAC” unicast.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 826</b> · ARP</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc5227" target="_blank" rel="noopener">RFC 5227 · conflict detection</a>
+        <span class="badge">EtherType 0x0806</span>
+        <span class="badge">28-byte message</span>
+        <span class="badge">IPv4 + Ethernet</span>
+        <span class="badge">no checksum</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L2.5 · address resolution</span>
+        <span><b>message</b> 28 B fixed</span>
+        <span><b>wrapper</b> Ethernet II</span>
+        <span><b>opcodes</b> 1 request · 2 reply</span>
+      </div>
+      <div class="stackbar" data-stack="arp"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#opcodes">opcodes</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message layout</h2>
+        <span class="section__hint">224 bits · 28 bytes on Ethernet/IPv4</span>
+      </div>
+      <p>
+        The fixed Ethernet/IPv4 ARP message is 28 bytes: two 16-bit type fields, two
+        address-length bytes, a 16-bit opcode, then sender hardware/protocol addresses and
+        target hardware/protocol addresses. The fields are sized by <strong>HLEN</strong> and
+        <strong>PLEN</strong>, so the parser must not hard-code six and four without checking.
+      </p>
+
+      <div id="arp-diagram"></div>
+      <div class="field-detail" id="arp-inspector"></div>
+      <div id="arp-fields"></div>
+
+      <div class="callout">
+        <div class="callout__title">ARP is wrapped by Ethernet, not carried by IP</div>
+        <p>An ARP request is an Ethernet frame with EtherType <code>0x0806</code>, usually sent
+        to <code>ff:ff:ff:ff:ff:ff</code>. The 28-byte ARP message is padded to the 46-byte
+        Ethernet payload minimum and protected by the Ethernet FCS. ARP has no IP header,
+        no port numbers and no checksum.</p>
+      </div>
+
+      <div id="arp-frame-lane"></div>
+      <div class="field-detail" id="arp-frame-inspector"></div>
+    </section>
+
+    <section class="section" id="opcodes">
+      <div class="section__head">
+        <h2><span class="num">02</span>Opcodes &amp; common messages</h2>
+        <span class="section__hint">1 request · 2 reply</span>
+      </div>
+      <p>
+        The opcode is a 16-bit field, so RARP, InARP and experimental variants share the same
+        layout. Modern IPv4 LANs mostly use requests and replies; the rest are history,
+        specialized transports or diagnostic tools.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Opcode</th><th>Message</th><th>Meaning</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>ARP REQUEST</b></td><td>“Who has target IP? Tell sender IP.” Usually broadcast.</td><td>RFC 826</td></tr>
+            <tr><td><code>2</code></td><td><b>ARP REPLY</b></td><td>“Target IP is at sender MAC.” Usually unicast back to the requester.</td><td>RFC 826</td></tr>
+            <tr><td><code>3</code></td><td><b>RARP REQUEST</b></td><td>“Who is my IP?” Reverse ARP; effectively obsolete.</td><td>RFC 903</td></tr>
+            <tr><td><code>4</code></td><td><b>RARP REPLY</b></td><td>Server response carrying the client's IPv4 address.</td><td>RFC 903</td></tr>
+            <tr><td><code>8</code></td><td><b>InARP REQUEST</b></td><td>Inverse ARP: ask for a protocol address for a known hardware address.</td><td>RFC 2390</td></tr>
+            <tr><td><code>9</code></td><td><b>InARP REPLY</b></td><td>Inverse ARP response.</td><td>RFC 2390</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="recipe-grid">
+        <div class="recipe"><b>ARP probe</b><code>SPA = 0.0.0.0</code><span>A host checks whether an address is already in use before claiming it. The sender protocol address is deliberately zero.</span></div>
+        <div class="recipe"><b>Gratuitous ARP</b><code>SPA = TPA</code><span>An unsolicited announcement or probe for the sender's own address. Used for duplicate detection, failover and cache refresh.</span></div>
+        <div class="recipe"><b>ARP spoofing</b><code>no auth</code><span>Any host can claim any IPv4 address. Dynamic ARP Inspection, static entries and segmentation limit the blast radius.</span></div>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">ARP is unauthenticated by design</div>
+        <p>There is no signature, nonce or checksum in the ARP message. Attackers on the same
+        broadcast domain can poison caches and intercept traffic. Encryption at higher layers
+        protects confidentiality, not the ARP mapping itself.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">03</span>Encoder</h2>
+        <span class="section__hint">raw ARP or Ethernet-wrapped</span>
+      </div>
+      <p>
+        Build a 28-byte Ethernet/IPv4 ARP message. The default wraps it in an Ethernet II frame
+        with broadcast destination, padding and FCS so it matches a complete on-wire request.
+        Untick the wrapper for the raw ARP message.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>ARP parameters</h3><span class="tag">RFC 826</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid">
+              <div class="form-field">
+                <label for="arp-enc-opcode">opcode</label>
+                <select id="arp-enc-opcode">
+                  <option value="1">1 · request</option>
+                  <option value="2">2 · reply</option>
+                  <option value="3">3 · RARP request</option>
+                  <option value="4">4 · RARP reply</option>
+                  <option value="8">8 · InARP request</option>
+                  <option value="9">9 · InARP reply</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>&nbsp;</label>
+                <div class="presets">
+                  <button type="button" id="arp-enc-probe">ARP probe</button>
+                  <button type="button" id="arp-enc-gratuitous">gratuitous</button>
+                </div>
+              </div>
+              <div class="form-field span-2">
+                <label for="arp-enc-sender-mac">sender MAC</label>
+                <input type="text" id="arp-enc-sender-mac" value="02:00:00:00:00:0a" spellcheck="false">
+              </div>
+              <div class="form-field span-2">
+                <label for="arp-enc-sender-ip">sender IPv4</label>
+                <input type="text" id="arp-enc-sender-ip" value="192.0.2.10" spellcheck="false">
+              </div>
+              <div class="form-field span-2">
+                <label for="arp-enc-target-mac">target MAC</label>
+                <input type="text" id="arp-enc-target-mac" value="00:00:00:00:00:00" spellcheck="false">
+              </div>
+              <div class="form-field span-2">
+                <label for="arp-enc-target-ip">target IPv4</label>
+                <input type="text" id="arp-enc-target-ip" value="192.0.2.1" spellcheck="false">
+              </div>
+            </div>
+            <div class="inline-checks" style="margin-top:10px">
+              <label><input type="checkbox" id="arp-enc-wrap" checked> wrap in Ethernet</label>
+              <label><input type="checkbox" id="arp-enc-pad" checked> pad to 46 B</label>
+              <label><input type="checkbox" id="arp-enc-fcs" checked> append FCS</label>
+            </div>
+            <div class="field-grid" style="margin-top:10px">
+              <div class="form-field span-2">
+                <label for="arp-enc-dst-mac">Ethernet destination MAC <span class="units">when wrapped</span></label>
+                <input type="text" id="arp-enc-dst-mac" value="ff:ff:ff:ff:ff:ff" spellcheck="false">
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="arp-enc-build">Build ARP</button>
+              <button class="btn btn--ghost" type="button" id="arp-enc-example">Load example</button>
+            </div>
+            <p class="form-note">For a request the Ethernet destination is normally broadcast; for a reply it is the requester's MAC. The ARP target MAC is all zero in a request, because that is the value being resolved.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="arp-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="arp-enc-status" role="status" aria-live="polite">Set the fields and press Build ARP.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">output hex</div><button class="copy-btn" type="button" data-copy-target="#arp-enc-output">copy</button></div>
+              <pre id="arp-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="arp-enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">ARP does not carry a checksum</div>
+              <p>The Ethernet FCS protects the frame in transit. A complete ARP request will
+              normally be padded to the 46-byte Ethernet payload minimum; that padding is not
+              part of the ARP message.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Decoder</h2>
+        <span class="section__hint">raw ARP or Ethernet frame</span>
+      </div>
+      <p>
+        Paste raw ARP bytes or a complete Ethernet frame with EtherType <code>0x0806</code>.
+        The decoder detects the Ethernet wrapper, VLAN tags and padding, then reads the ARP
+        addresses using HLEN and PLEN rather than assuming six and four.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 826 · Ethernet wrapper</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="arp-decode-input">hex input <span class="units">ARP message or Ethernet frame</span></label>
+            <textarea id="arp-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="00 01 08 00 06 04 00 01 …"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="arp-decode">Decode ARP</button>
+            <button class="btn btn--ghost" type="button" id="arp-decode-example">Load example request</button>
+            <button class="btn btn--ghost" type="button" id="arp-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="arp-decode-status" role="status" aria-live="polite">No ARP message decoded yet.</div>
+          <div id="arp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">05</span>Wire notes</h2>
+        <span class="section__hint">what every LAN operator eventually learns</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">ARP is link-local</div>
+        <p>ARP resolves an IPv4 address only for the <strong>next hop</strong> on the same link.
+        A router answers ARP for its own interface, not for a remote destination. IPv6 uses
+        Neighbor Discovery instead of ARP.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>The message is 28 bytes for Ethernet/IPv4.</strong> HLEN=6 and PLEN=4. A receiver must still read HLEN and PLEN before slicing addresses; other link layers use different lengths.</li>
+        <li><strong>Requests are broadcast, replies usually unicast.</strong> The ARP target MAC is all zero in a request; that is the answer being requested. The Ethernet destination is broadcast in the usual case.</li>
+        <li><strong>Ethernet padding is not ARP.</strong> A 28-byte ARP message inside a 46-byte minimum payload has 18 trailing zero bytes. Parse ARP by its own length, not by the frame end.</li>
+        <li><strong>ARP has no checksum or authentication.</strong> The Ethernet FCS detects accidental corruption; it does not prevent cache poisoning or spoofing.</li>
+        <li><strong>ARP probes and gratuitous ARP use the same fields.</strong> A probe uses sender IP 0.0.0.0. A gratuitous announcement uses sender IP equal to target IP. RFC 5227 defines IPv4 address conflict detection.</li>
+        <li><strong>InARP and RARP share the format.</strong> The hardware and protocol type fields make ARP extensible, but RARP is obsolete and InARP is specialized to transports such as Frame Relay.</li>
+        <li><strong>Watch the cache, not just the packet.</strong> Linux exposes neighbor entries through <code>ip neigh</code>; <code>arp_ignore</code> and <code>arp_announce</code> change how the kernel responds to ARP.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc826" target="_blank" rel="noopener">RFC 826</a><span>ARP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5227" target="_blank" rel="noopener">RFC 5227</a><span>IPv4 address conflict detection</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc903" target="_blank" rel="noopener">RFC 903</a><span>RARP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2390" target="_blank" rel="noopener">RFC 2390</a><span>Inverse ARP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1027" target="_blank" rel="noopener">RFC 1027</a><span>Proxy ARP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc894" target="_blank" rel="noopener">RFC 894</a><span>IPv4 over Ethernet</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="ipv4.html">IPv4 header &amp; options -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs and IEEE standards are the source of truth. Verify against the current standard, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ethernet.html">ethernet</a><a href="ipv4.html">ipv4</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ethernet-codec.js"></script>
+<script src="assets/arp-codec.js"></script>
+<script src="assets/arp.js"></script>
+</body>
+</html>

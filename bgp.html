@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BGP path attributes — flags, AS_PATH, communities &amp; decoder · packet-headers.sh</title>
+<meta name="description" content="BGP-4 path attribute bit diagrams: optional/transitive/partial/extended-length flags, ORIGIN, AS_PATH, NEXT_HOP, communities, MP_REACH_NLRI, plus an attribute encoder and UPDATE decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html" aria-current="page">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" class="is-active" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#message">message layout</a></li>
+        <li><a href="#attribute">attribute flags</a></li>
+        <li><a href="#types">attribute types</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note">BGP runs over <b>TCP/179</b>. Path attributes live inside UPDATE messages; the message header is only marker, length and type.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>bgp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>BGP path attributes <span class="on">// RFC 4271</span></h1>
+      <p class="lead">
+        BGP is a TCP application with a tiny fixed header and a large, flag-driven
+        type-length-value space. The four high bits of each attribute flag octet decide
+        whether a speaker must understand it, whether it survives a hop, and how long
+        the length field is.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 4271</b> · BGP-4</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4760" target="_blank" rel="noopener">RFC 4760 · MP-BGP</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc6793" target="_blank" rel="noopener">RFC 6793 · 4-byte AS</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8092" target="_blank" rel="noopener">RFC 8092 · large communities</a>
+        <span class="badge">TCP/179</span>
+        <span class="badge">UPDATE</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L7 · routing over TCP</span><span><b>message</b> 19 B header + body</span>
+        <span><b>attribute</b> 3 B header + value</span>
+        <span><b>AS width</b> 2 or 4 bytes</span>
+        <span><b>byte order</b> big-endian</span>
+      </div>
+      <div class="stackbar" data-stack="bgp"></div>
+      <ul class="toc">
+        <li><a href="#message">message</a></li>
+        <li><a href="#attribute">flags</a></li>
+        <li><a href="#types">types</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="message">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message &amp; UPDATE layout</h2>
+        <span class="section__hint">marker · length · type</span>
+      </div>
+      <p>
+        Every BGP message starts with a 16-byte <strong>Marker</strong> (all ones in BGP-4),
+        a 16-bit <strong>Length</strong> including the header, and an 8-bit
+        <strong>Type</strong>. The default maximum length is 4096 bytes; RFC 8654 adds an
+        extended message capability for larger updates.
+      </p>
+
+      <div id="bgp-msg-lane"></div>
+      <div id="bgp-update-lane"></div>
+      <div class="field-detail" id="bgp-structure-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Message</th><th>Reference</th><th>Body</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>OPEN</b></td><td>RFC 4271 §4.2</td><td>Version, AS, hold time, identifier, optional parameters.</td></tr>
+            <tr><td><code>2</code></td><td><b>UPDATE</b></td><td>RFC 4271 §4.3</td><td>Withdrawn routes, path attributes, NLRI.</td></tr>
+            <tr><td><code>3</code></td><td><b>NOTIFICATION</b></td><td>RFC 4271 §4.5</td><td>Error code, subcode, diagnostic data.</td></tr>
+            <tr><td><code>4</code></td><td><b>KEEPALIVE</b></td><td>RFC 4271 §4.4</td><td>Header only; 19 bytes total.</td></tr>
+            <tr><td><code>5</code></td><td><b>ROUTE-REFRESH</b></td><td>RFC 2918</td><td>AFI and SAFI for a route refresh request.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">UPDATE is three variable regions</div>
+        <p><strong>Withdrawn Routes Length</strong> (2 bytes) scopes the withdrawn prefix list.
+        <strong>Total Path Attribute Length</strong> (2 bytes) scopes the attribute list.
+        Whatever remains after those regions is NLRI. An empty UPDATE with no withdrawn routes
+        and no attributes is a valid keepalive-like advertisement of nothing.</p>
+      </div>
+    </section>
+
+    <section class="section" id="attribute">
+      <div class="section__head">
+        <h2><span class="num">02</span>Attribute flags</h2>
+        <span class="section__hint">one octet that changes everything</span>
+      </div>
+      <p>
+        The first octet of every path attribute is a flag field. <strong>Optional</strong> means
+        a speaker that does not understand the attribute may ignore it. <strong>Transitive</strong>
+        means the attribute should be passed on. <strong>Partial</strong> marks an optional
+        transitive attribute that a speaker did not fully understand. <strong>Extended Length</strong>
+        switches the length field from one byte to two.
+      </p>
+
+      <div id="bgp-flag-diagram"></div>
+      <div class="field-detail" id="bgp-flag-inspector"></div>
+
+      <div class="flag-box">
+        <div class="flag-box__head"><span>flag octet editor</span><span>bits 0–7</span></div>
+        <div class="flag-box__body">
+          <div class="field-grid">
+            <div class="form-field">
+              <label for="bgp-flag-type">attribute type <span class="units">sets the standard flags</span></label>
+              <select id="bgp-flag-type"></select>
+            </div>
+            <div class="form-field">
+              <label>flags byte</label>
+              <div class="output" style="min-height:34px;padding:7px 9px"><pre id="bgp-flag-byte">0xC0</pre></div>
+            </div>
+          </div>
+          <div class="inline-checks" style="margin-top:10px">
+            <label><input type="checkbox" id="bgp-flag-optional"> Optional (0x80)</label>
+            <label><input type="checkbox" id="bgp-flag-transitive" checked> Transitive (0x40)</label>
+            <label><input type="checkbox" id="bgp-flag-partial"> Partial (0x20)</label>
+            <label><input type="checkbox" id="bgp-flag-extended"> Extended Length (0x10)</label>
+          </div>
+          <div class="flag-readout">
+            <span>standard <b id="bgp-flag-standard">0xC0</b></span>
+            <span>reserved <b>0x0</b></span>
+            <span class="spacer"></span>
+            <span id="bgp-flag-valid" class="good-text">consistent</span>
+          </div>
+          <p class="flag-box__note">The low four bits are reserved and must be zero. Partial is only meaningful for optional transitive attributes; for well-known attributes it must be clear. Extended Length may be set even when the value is short, but it is unusual.</p>
+        </div>
+      </div>
+
+      <h3 class="mt-24">Attribute header · normal length</h3>
+      <div id="bgp-attr-normal"></div>
+      <h3 class="mt-24">Attribute header · extended length</h3>
+      <div id="bgp-attr-extended"></div>
+
+      <h3 class="mt-24">AS_PATH segment</h3>
+      <p>AS_PATH is a list of segments. The segment length counts AS numbers, not bytes, so the total byte length depends on the negotiated AS width.</p>
+      <div id="bgp-aspath-lane"></div>
+      <div class="field-detail" id="bgp-attribute-inspector"></div>
+
+      <h3 class="mt-24">COMMUNITIES value layout</h3>
+      <p>Standard communities are two 16-bit halves: an AS number and a local value. Extended communities add a type and subtype; large communities use three 32-bit words.</p>
+      <div id="bgp-community-diagram"></div>
+      <div class="field-detail" id="bgp-community-inspector"></div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">the flags must match the type</div>
+        <p>Well-known attributes have Optional=0 and Transitive=1. Optional non-transitive attributes
+        have Optional=1 and Transitive=0. Optional transitive attributes have both. A Partial bit on
+        a well-known attribute is a protocol error under RFC 4271; RFC 7606 tightened the handling
+        of malformed attributes.</p>
+      </div>
+    </section>
+
+    <section class="section" id="types">
+      <div class="section__head">
+        <h2><span class="num">03</span>Attribute types</h2>
+        <span class="section__hint">the ones that matter at 03:00</span>
+      </div>
+      <p>
+        Click a row to load its standard flags into the editor above. Values on the wire are
+        big-endian; the AS width is not encoded in AS_PATH and must be known from the session
+        capability.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Code</th><th>Attribute</th><th>Standard flags</th><th>Value</th><th>RFC</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr data-bgp-type="1"><td><code>1</code></td><td><b>ORIGIN</b></td><td><code>0x40</code></td><td>1 byte: 0 IGP, 1 EGP, 2 INCOMPLETE</td><td>4271 §5.1</td><td>Well-known mandatory.</td></tr>
+            <tr data-bgp-type="2"><td><code>2</code></td><td><b>AS_PATH</b></td><td><code>0x40</code></td><td>segments of ASNs</td><td>4271 §5.1.2</td><td>Well-known mandatory; 2- or 4-byte ASNs by capability.</td></tr>
+            <tr data-bgp-type="3"><td><code>3</code></td><td><b>NEXT_HOP</b></td><td><code>0x40</code></td><td>4-byte IPv4 address</td><td>4271 §5.1.3</td><td>Well-known mandatory for IPv4 unicast.</td></tr>
+            <tr data-bgp-type="4"><td><code>4</code></td><td><b>MULTI_EXIT_DISC</b></td><td><code>0x80</code></td><td>4-byte integer</td><td>4271 §5.1.4</td><td>Optional non-transitive; the MED.</td></tr>
+            <tr data-bgp-type="5"><td><code>5</code></td><td><b>LOCAL_PREF</b></td><td><code>0x40</code></td><td>4-byte integer</td><td>4271 §5.1.5</td><td>Well-known discretionary; iBGP only.</td></tr>
+            <tr data-bgp-type="6"><td><code>6</code></td><td><b>ATOMIC_AGGREGATE</b></td><td><code>0x40</code></td><td>zero bytes</td><td>4271 §5.1.6</td><td>Well-known discretionary.</td></tr>
+            <tr data-bgp-type="7"><td><code>7</code></td><td><b>AGGREGATOR</b></td><td><code>0xC0</code></td><td>AS + IPv4 address</td><td>4271 §5.1.7</td><td>Optional transitive; RFC 6793 changes AS width.</td></tr>
+            <tr data-bgp-type="8"><td><code>8</code></td><td><b>COMMUNITIES</b></td><td><code>0xC0</code></td><td>4 bytes per community</td><td>RFC 1997</td><td>Optional transitive; well-known values use AS 65535.</td></tr>
+            <tr data-bgp-type="9"><td><code>9</code></td><td><b>ORIGINATOR_ID</b></td><td><code>0x80</code></td><td>4-byte router ID</td><td>RFC 4456</td><td>Optional non-transitive; route reflection.</td></tr>
+            <tr data-bgp-type="10"><td><code>10</code></td><td><b>CLUSTER_LIST</b></td><td><code>0x80</code></td><td>4-byte cluster IDs</td><td>RFC 4456</td><td>Optional non-transitive; loop prevention.</td></tr>
+            <tr data-bgp-type="14"><td><code>14</code></td><td><b>MP_REACH_NLRI</b></td><td><code>0x80</code></td><td>AFI, SAFI, next hop, NLRI</td><td>RFC 4760</td><td>Optional non-transitive; IPv6, VPN, EVPN.</td></tr>
+            <tr data-bgp-type="15"><td><code>15</code></td><td><b>MP_UNREACH_NLRI</b></td><td><code>0x80</code></td><td>AFI, SAFI, withdrawn NLRI</td><td>RFC 4760</td><td>Optional non-transitive.</td></tr>
+            <tr data-bgp-type="16"><td><code>16</code></td><td><b>EXTENDED_COMMUNITIES</b></td><td><code>0xC0</code></td><td>8 bytes per community</td><td>RFC 4360 · 5668</td><td>Optional transitive; route targets and origins.</td></tr>
+            <tr data-bgp-type="17"><td><code>17</code></td><td><b>AS4_PATH</b></td><td><code>0xC0</code></td><td>segments of 4-byte ASNs</td><td>RFC 6793</td><td>Optional transitive; compatibility with 2-byte peers.</td></tr>
+            <tr data-bgp-type="18"><td><code>18</code></td><td><b>AS4_AGGREGATOR</b></td><td><code>0xC0</code></td><td>4-byte AS + IPv4</td><td>RFC 6793</td><td>Optional transitive.</td></tr>
+            <tr data-bgp-type="32"><td><code>32</code></td><td><b>LARGE_COMMUNITIES</b></td><td><code>0xC0</code></td><td>12 bytes per community</td><td>RFC 8092</td><td>Optional transitive; global:local1:local2.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">well-known community values</div>
+        <p><code>NO_EXPORT</code> = <code>0xFFFFFF01</code> · <code>NO_ADVERTISE</code> =
+        <code>0xFFFFFF02</code> · <code>NO_EXPORT_SUBCONFED</code> = <code>0xFFFFFF03</code> ·
+        <code>NO_PEER</code> = <code>0xFFFFFF04</code>. In the AS:value notation these are
+        <code>65535:65281</code> through <code>65535:65284</code>.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Attribute encoder</h2>
+        <span class="section__hint">one path attribute</span>
+      </div>
+      <p>
+        Build a single path attribute with standard flags, automatic length selection and a
+        type-specific value parser. This is the attribute, not the whole UPDATE message; the
+        decoder below accepts either and can show the envelope.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>attribute parameters</h3><span class="tag">3+ value bytes</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid">
+              <div class="form-field">
+                <label for="bgp-build-type">attribute type</label>
+                <select id="bgp-build-type"></select>
+              </div>
+              <div class="form-field">
+                <label for="bgp-build-aswidth">AS number width</label>
+                <select id="bgp-build-aswidth"><option value="2">2 bytes · 16-bit ASN</option><option value="4">4 bytes · 32-bit ASN</option></select>
+              </div>
+            </div>
+            <div class="inline-checks">
+              <label><input type="checkbox" id="bgp-build-optional"> Optional</label>
+              <label><input type="checkbox" id="bgp-build-transitive"> Transitive</label>
+              <label><input type="checkbox" id="bgp-build-partial"> Partial</label>
+              <label><input type="checkbox" id="bgp-build-extended"> Extended Length</label>
+            </div>
+            <div class="form-field">
+              <label for="bgp-build-value">value <span class="units" id="bgp-build-hint">type-specific</span></label>
+              <textarea id="bgp-build-value" class="hex-input" rows="4" spellcheck="false">0</textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--primary" type="button" id="bgp-build">Build attribute</button>
+              <button class="btn btn--ghost" type="button" id="bgp-build-standard">Standard flags</button>
+              <button class="btn btn--ghost" type="button" id="bgp-build-example">Load example</button>
+            </div>
+            <p class="form-note" id="bgp-build-note">Flags are set to the standard values for the selected type. Changing them is allowed; the decoder will flag inconsistencies.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>attribute bytes</h3><span class="tag" id="bgp-build-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="bgp-build-status" role="status" aria-live="polite">Choose a type and press Build attribute.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">path attribute hex</div><button class="copy-btn" type="button" data-copy-target="#bgp-build-out">copy</button></div>
+              <pre id="bgp-build-out" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="bgp-build-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">decode it below</div>
+              <p>The decoder accepts one or more concatenated path attributes, a complete UPDATE
+              body, or a full BGP message with the all-ones marker. AS_PATH width must be supplied
+              because the wire format does not carry it.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">attributes · UPDATE · full message</span>
+      </div>
+      <p>
+        Paste bytes from a pcap, a lab session or the encoder. A full BGP message is detected
+        by its 16-byte all-ones marker. Raw input is parsed as a sequence of path attributes.
+        The AS width selector applies to AS_PATH and AGGREGATOR; AS4_PATH is always 4-byte.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 4271 · RFC 7606 validation</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field">
+              <label for="bgp-decode-input">hex input <span class="units">attributes, UPDATE body, or BGP message</span></label>
+              <textarea id="bgp-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="40 01 01 00 40 02 06 02 01 00 00 fd e9"></textarea>
+            </div>
+            <div class="form-field">
+              <label for="bgp-decode-aswidth">AS number width</label>
+              <select id="bgp-decode-aswidth"><option value="2">2 bytes</option><option value="4">4 bytes</option></select>
+              <p class="form-note">AS_PATH and AGGREGATOR width follows the session capability. AS4_PATH is always 4-byte.</p>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="bgp-decode">Decode attributes</button>
+            <button class="btn btn--ghost" type="button" id="bgp-decode-example">Load example UPDATE</button>
+            <button class="btn btn--ghost" type="button" id="bgp-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="bgp-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="bgp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">where BGP parsers and routers disagree</span>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">AS width is context, not metadata</div>
+        <p>AS_PATH carries a sequence of AS numbers but no width byte. A session that negotiated
+        four-octet AS support uses 4-byte ASNs; an old session uses 2-byte ASNs and may carry
+        AS4_PATH alongside. Parsing with the wrong width silently shifts every subsequent
+        segment.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Marker is all ones.</strong> BGP-4 expects 16 bytes of 0xff. Authentication mechanisms historically changed it; modern BGP uses TCP-MD5/TCP-AO at the transport layer.</li>
+        <li><strong>Length includes the 19-byte header.</strong> The default maximum message size is 4096 bytes; extended messages (RFC 8654) can reach 65535 with capability negotiation.</li>
+        <li><strong>Attribute length is bytes, not elements.</strong> Communities are 4 bytes each; extended communities 8; large communities 12. A length not divisible by the element size is a parse error.</li>
+        <li><strong>Segment length is AS count.</strong> For AS_PATH, the second byte of a segment counts ASNs, not bytes. Multiply by the AS width when walking the value.</li>
+        <li><strong>Partial means “I did not understand this”.</strong> It is only valid on optional transitive attributes and should make the receiver forward the attribute even though it ignored the semantics.</li>
+        <li><strong>RFC 7606 changed error handling.</strong> Many malformed attributes are now treated as withdraw-with-error rather than session reset. Do not assume an old “treat-as-withdraw” path.</li>
+        <li><strong>Path attributes are policy, not truth.</strong> ORIGIN, AS_PATH, MED and communities are inputs to decision processes; RPKI and route-leak detection live outside the attribute encoding.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4271" target="_blank" rel="noopener">RFC 4271</a><span>BGP-4</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4760" target="_blank" rel="noopener">RFC 4760</a><span>Multiprotocol extensions</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6793" target="_blank" rel="noopener">RFC 6793</a><span>Four-octet AS numbers</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8092" target="_blank" rel="noopener">RFC 8092</a><span>Large communities</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4360" target="_blank" rel="noopener">RFC 4360</a><span>Extended communities</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7606" target="_blank" rel="noopener">RFC 7606</a><span>Revised error handling</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8654" target="_blank" rel="noopener">RFC 8654</a><span>Extended message support</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4456" target="_blank" rel="noopener">RFC 4456</a><span>Route reflection</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="wireguard.html">WireGuard messages -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="quic.html">quic</a><a href="tools.html#tlv">TLV tool</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/bgp.js"></script>
+</body>
+</html>

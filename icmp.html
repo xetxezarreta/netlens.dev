@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICMP — types, codes, checksum &amp; error messages · packet-headers.sh</title>
+<meta name="description" content="Interactive ICMPv4 message diagram: type and code fields, Internet checksum, rest-of-header variants, embedded original datagrams, RFC 4884 extensions, and a byte-accurate encoder/decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html" aria-current="page">icmp</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" class="is-active" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">message layout</a></li>
+        <li><a href="#types">types &amp; codes</a></li>
+        <li><a href="#rest">rest of header</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>ICMP is not transport.</b> It has no ports, no pseudo-header and no authentication. The IPv4 Protocol field is <code>1</code>.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>icmp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>ICMP <span class="on">// RFC 792</span></h1>
+      <p class="lead">
+        The control and error plane of IPv4. ICMP has an eight-byte common header and a
+        type-specific body: echo requests keep latency probes simple, while unreachable and
+        time-exceeded messages quote the packet that caused them. No ports, no pseudo-header,
+        and no security beyond the checksum.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 792</b> · ICMPv4</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc1122" target="_blank" rel="noopener">RFC 1122 · host requirements</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc1191" target="_blank" rel="noopener">RFC 1191 · PMTUD</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4884" target="_blank" rel="noopener">RFC 4884 · extensions</a>
+        <span class="badge">8 B header</span>
+        <span class="badge">checksum</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L3 · internet control</span>
+        <span><b>header</b> 8 B + type-specific body</span>
+        <span><b>checksum</b> entire ICMP message</span>
+        <span><b>wrapper</b> IPv4 protocol 1</span>
+      </div>
+      <div class="stackbar" data-stack="icmp"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#types">types</a></li>
+        <li><a href="#rest">rest</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message layout</h2>
+        <span class="section__hint">common header · 8 bytes</span>
+      </div>
+      <p>
+        Every ICMPv4 message starts with <strong>Type</strong>, <strong>Code</strong> and a
+        16-bit <strong>Checksum</strong>. The next four bytes are the <strong>rest of header</strong>:
+        their meaning is fixed by the type and code, not by the common header. Everything after
+        byte eight is the message body. The checksum covers the complete ICMP message, including
+        the body, and not the IPv4 header that carries it.
+      </p>
+
+      <div id="icmp-diagram"></div>
+      <div class="field-detail" id="icmp-inspector"></div>
+      <div id="icmp-fields"></div>
+      <div id="icmp-frame-lane"></div>
+      <div class="field-detail" id="icmp-frame-inspector"></div>
+
+      <div class="callout">
+        <div class="callout__title">no pseudo-header, no ports</div>
+        <p>ICMPv4 is a network-layer protocol, not a transport protocol. It has no source or
+        destination ports and its checksum does <strong>not</strong> include an IPv4 pseudo-header.
+        ICMPv6 is different: it uses next header <code>58</code>, a separate type space and a
+        checksum that includes the IPv6 pseudo-header.</p>
+      </div>
+    </section>
+
+    <section class="section" id="types">
+      <div class="section__head">
+        <h2><span class="num">02</span>Types &amp; codes</h2>
+        <span class="section__hint">information, errors and diagnostics</span>
+      </div>
+      <p>
+        The 8-bit type selects the message class; the 8-bit code refines it. Echo and timestamp
+        messages are informational, while unreachable, redirect, time-exceeded and parameter-problem
+        messages report errors. A handful of old types are formally deprecated and should be
+        ignored or filtered.
+      </p>
+
+      <div class="flag-box">
+        <div class="flag-box__head"><span>type &amp; code explorer</span><span>select a combination</span></div>
+        <div class="flag-box__body">
+          <div class="field-grid field-grid--three">
+            <div class="form-field">
+              <label for="icmp-type-select">type</label>
+              <select id="icmp-type-select"></select>
+            </div>
+            <div class="form-field">
+              <label for="icmp-code-select">code</label>
+              <select id="icmp-code-select"></select>
+            </div>
+            <div class="form-field">
+              <label>type / code octets</label>
+              <div class="output" style="min-height:34px;padding:7px 9px"><pre id="icmp-type-bytes">08 00</pre></div>
+            </div>
+          </div>
+          <div class="flag-readout">
+            <span>name <b id="icmp-type-name">8 · Echo Request</b></span>
+            <span>code <b id="icmp-type-code-name">0 · No code</b></span>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost" type="button" id="icmp-type-use" style="padding:4px 8px">use in encoder</button>
+          </div>
+          <div class="field-grid" style="margin-top:12px">
+            <div class="form-field">
+              <label>rest of header</label>
+              <div class="codec-help" id="icmp-type-rest">Identifier (16) + Sequence Number (16)</div>
+            </div>
+            <div class="form-field">
+              <label>body</label>
+              <div class="codec-help" id="icmp-type-body">Echo payload (arbitrary length)</div>
+            </div>
+          </div>
+          <p class="flag-box__note" id="icmp-type-note">RFC 792</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Message</th><th>Common codes</th><th>Rest of header</th><th>Body</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>Echo Reply</b></td><td><code>0</code></td><td>Identifier + Sequence</td><td>Echoed payload</td><td>RFC 792</td></tr>
+            <tr><td><code>3</code></td><td><b>Destination Unreachable</b></td><td><code>0</code> net · <code>1</code> host · <code>2</code> protocol · <code>3</code> port · <code>4</code> frag needed</td><td>Unused + Length + MTU/unused</td><td>Original IPv4 header + 8+ bytes</td><td>RFC 792 · RFC 1191 · RFC 4884</td></tr>
+            <tr><td><code>4</code></td><td><b>Source Quench</b></td><td><code>0</code></td><td>Unused</td><td>Original datagram</td><td>RFC 792 · deprecated</td></tr>
+            <tr><td><code>5</code></td><td><b>Redirect</b></td><td><code>0</code> net · <code>1</code> host · <code>2</code> TOS+net · <code>3</code> TOS+host</td><td>Gateway IPv4 address</td><td>Original datagram</td><td>RFC 792</td></tr>
+            <tr><td><code>8</code></td><td><b>Echo Request</b></td><td><code>0</code></td><td>Identifier + Sequence</td><td>Echo payload</td><td>RFC 792</td></tr>
+            <tr><td><code>9</code></td><td><b>Router Advertisement</b></td><td><code>0</code></td><td>Num Addrs + Entry Size + Lifetime</td><td>Router entries</td><td>RFC 1256</td></tr>
+            <tr><td><code>10</code></td><td><b>Router Solicitation</b></td><td><code>0</code></td><td>Reserved</td><td>No body</td><td>RFC 1256</td></tr>
+            <tr><td><code>11</code></td><td><b>Time Exceeded</b></td><td><code>0</code> TTL · <code>1</code> reassembly</td><td>Unused + Length + unused</td><td>Original datagram</td><td>RFC 792 · RFC 4884</td></tr>
+            <tr><td><code>12</code></td><td><b>Parameter Problem</b></td><td><code>0</code> pointer · <code>1</code> missing option · <code>2</code> bad length</td><td>Pointer + Length + unused</td><td>Original datagram</td><td>RFC 792 · RFC 4884</td></tr>
+            <tr><td><code>13</code></td><td><b>Timestamp Request</b></td><td><code>0</code></td><td>Identifier + Sequence</td><td>Three 32-bit timestamps</td><td>RFC 792</td></tr>
+            <tr><td><code>14</code></td><td><b>Timestamp Reply</b></td><td><code>0</code></td><td>Identifier + Sequence</td><td>Three 32-bit timestamps</td><td>RFC 792</td></tr>
+            <tr><td><code>17</code></td><td><b>Address Mask Request</b></td><td><code>0</code></td><td>Identifier + Sequence</td><td>4-byte subnet mask</td><td>RFC 950 · deprecated</td></tr>
+            <tr><td><code>18</code></td><td><b>Address Mask Reply</b></td><td><code>0</code></td><td>Identifier + Sequence</td><td>4-byte subnet mask</td><td>RFC 950 · deprecated</td></tr>
+            <tr><td><code>30</code></td><td><b>Traceroute</b></td><td><code>0</code></td><td>ID + hop counts</td><td>Type-specific</td><td>RFC 1393 · obsolete</td></tr>
+            <tr><td><code>42</code></td><td><b>Extended Echo Request</b></td><td><code>0</code></td><td>Identifier + Sequence + L</td><td>RFC 4884 extension</td><td>RFC 8335</td></tr>
+            <tr><td><code>43</code></td><td><b>Extended Echo Reply</b></td><td><code>0–4</code></td><td>Identifier + Sequence + flags</td><td>RFC 4884 extension</td><td>RFC 8335</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mt-24">Common code values</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Code</th><th>Meaning</th><th>Why it matters</th></tr></thead>
+          <tbody>
+            <tr><td><code>3</code></td><td><code>0</code></td><td>Network Unreachable</td><td>No route to the destination network.</td></tr>
+            <tr><td><code>3</code></td><td><code>1</code></td><td>Host Unreachable</td><td>The last-hop network cannot reach the host.</td></tr>
+            <tr><td><code>3</code></td><td><code>2</code></td><td>Protocol Unreachable</td><td>No upper-layer protocol handler on the target.</td></tr>
+            <tr><td><code>3</code></td><td><code>3</code></td><td>Port Unreachable</td><td>UDP port closed; also used by some TCP stacks.</td></tr>
+            <tr><td><code>3</code></td><td><code>4</code></td><td>Fragmentation Needed and DF Set</td><td>Path-MTU Discovery; the rest-of-header carries the next-hop MTU.</td></tr>
+            <tr><td><code>3</code></td><td><code>9/10</code></td><td>Network / host administratively prohibited</td><td>A firewall or routing policy rejected the packet.</td></tr>
+            <tr><td><code>3</code></td><td><code>13</code></td><td>Communication Administratively Prohibited</td><td>Common firewall rejection code.</td></tr>
+            <tr><td><code>5</code></td><td><code>0–3</code></td><td>Redirect for network / host / TOS variants</td><td>Router suggests a better next hop; usually ignored for security.</td></tr>
+            <tr><td><code>11</code></td><td><code>0</code></td><td>TTL Exceeded in Transit</td><td>The building block of traceroute.</td></tr>
+            <tr><td><code>11</code></td><td><code>1</code></td><td>Fragment Reassembly Time Exceeded</td><td>A fragmented datagram did not arrive in time.</td></tr>
+            <tr><td><code>12</code></td><td><code>0</code></td><td>Pointer Indicates Error</td><td>The pointer names the malformed octet in the original header.</td></tr>
+            <tr><td><code>12</code></td><td><code>1</code></td><td>Missing Required Option</td><td>An option required by the type or code was absent.</td></tr>
+            <tr><td><code>12</code></td><td><code>2</code></td><td>Bad Length</td><td>The original datagram's length field is inconsistent.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="recipe-grid">
+        <div class="recipe"><b>Ping</b><code>type 8 / code 0</code><span>Echo request; the reply is type 0 with the same identifier, sequence and payload.</span></div>
+        <div class="recipe"><b>Traceroute</b><code>type 11 / code 0</code><span>Routers report TTL expiry. The quoted original datagram identifies the probe.</span></div>
+        <div class="recipe"><b>Path-MTU Discovery</b><code>type 3 / code 4</code><span>“Fragmentation needed and DF set” carries the next-hop MTU. Blocking it can black-hole TCP.</span></div>
+        <div class="recipe"><b>Port unreachable</b><code>type 3 / code 3</code><span>UDP has no handshake; this is often the only signal that a service is closed.</span></div>
+        <div class="recipe"><b>Parameter problem</b><code>type 12 / code 0</code><span>The pointer identifies the offending octet. Useful when an option or length field is malformed.</span></div>
+        <div class="recipe"><b>Redirect</b><code>type 5 / code 1</code><span>An ICMP redirect points at another gateway. Most hosts ignore redirects by default.</span></div>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">ICMP is unauthenticated control traffic</div>
+        <p>Any host that can reach the path can send an ICMP error. The checksum protects
+        against accidental corruption, not forgery. Validate quoted datagrams before changing
+        connection state, rate-limit ICMP generation, and do not blanket-drop all ICMP: path-MTU
+        discovery and IPv6 depend on it.</p>
+      </div>
+    </section>
+
+    <section class="section" id="rest">
+      <div class="section__head">
+        <h2><span class="num">03</span>Rest-of-header formats</h2>
+        <span class="section__hint">the same 32 bits, different meanings</span>
+      </div>
+      <p>
+        The fourth 32-bit word is where most ICMP parsers go wrong. Echo uses an identifier and
+        sequence; redirect carries a gateway address; Parameter Problem carries a pointer. The
+        error types that quote an original datagram also use the sixth octet for an RFC 4884
+        <strong>Length</strong> field when an extension structure is present.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type(s)</th><th>Bits 32–63</th><th>Body interpretation</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code>, <code>8</code>, <code>13</code>, <code>14</code>, <code>15</code>, <code>16</code>, <code>17</code>, <code>18</code></td><td>Identifier (16) · Sequence (16)</td><td>Echo payload, timestamp fields or subnet mask.</td><td>RFC 792 · RFC 950</td></tr>
+            <tr><td><code>3</code></td><td>Unused (8) · Length (8) · Next-Hop MTU or unused (16)</td><td>Original IPv4 header plus quoted payload; code 4 supplies the MTU.</td><td>RFC 792 · RFC 1191 · RFC 4884</td></tr>
+            <tr><td><code>4</code></td><td>Unused (32)</td><td>Deprecated Source Quench.</td><td>RFC 792 · RFC 6633</td></tr>
+            <tr><td><code>5</code></td><td>Gateway IPv4 address (32)</td><td>Original datagram after the ICMP header.</td><td>RFC 792</td></tr>
+            <tr><td><code>9</code></td><td>Num Addrs (8) · Addr Entry Size (8) · Lifetime (16)</td><td>Router address and preference entries.</td><td>RFC 1256</td></tr>
+            <tr><td><code>10</code></td><td>Reserved (32)</td><td>No body.</td><td>RFC 1256</td></tr>
+            <tr><td><code>11</code></td><td>Unused (8) · Length (8) · unused (16)</td><td>Original datagram plus optional RFC 4884 extensions.</td><td>RFC 792 · RFC 4884</td></tr>
+            <tr><td><code>12</code></td><td>Pointer (8) · Length (8) · unused (16)</td><td>Original datagram; pointer identifies the malformed octet.</td><td>RFC 792 · RFC 4884</td></tr>
+            <tr><td><code>42</code></td><td>Identifier (16) · Sequence (8) · Reserved (7) · L (1)</td><td>RFC 4884 extension structure identifying the probed interface.</td><td>RFC 8335</td></tr>
+            <tr><td><code>43</code></td><td>Identifier (16) · Sequence (8) · State (3) · Res (2) · A · 4 · 6</td><td>Extended Echo Reply flags and state.</td><td>RFC 8335</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">RFC 4884 reused a reserved octet</div>
+        <p>Before extensions, the sixth octet of Destination Unreachable, Time Exceeded and
+        Parameter Problem was “unused.” RFC 4884 redefined it as the length of the original
+        datagram in 32-bit words. A value of zero means no extension structure. When it is
+        non-zero, the original datagram is padded to a 32-bit boundary and an extension header
+        (version 2) follows it.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">checksum computed over the full message</span>
+      </div>
+      <p>
+        Build an ICMPv4 message with the type-specific rest-of-header. The checksum is calculated
+        after the header and body are assembled. Optionally wrap the message in a minimal IPv4
+        packet so you can paste a complete on-wire unit into a lab tool or capture.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>ICMP parameters</h3><span class="tag">RFC 792</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid field-grid--three">
+              <div class="form-field">
+                <label for="icmp-enc-type">type <span class="units">0–255</span></label>
+                <input type="number" id="icmp-enc-type" value="8" min="0" max="255" inputmode="numeric">
+                <div class="codec-help" id="icmp-enc-type-hint">8 · Echo Request</div>
+              </div>
+              <div class="form-field">
+                <label for="icmp-enc-code">code <span class="units">0–255</span></label>
+                <input type="number" id="icmp-enc-code" value="0" min="0" max="255" inputmode="numeric">
+                <div class="codec-help" id="icmp-enc-code-hint">0 · No code</div>
+              </div>
+              <div class="form-field">
+                <label>presets</label>
+                <div class="presets">
+                  <button type="button" data-icmp-preset="echo">echo request</button>
+                  <button type="button" data-icmp-preset="reply">echo reply</button>
+                  <button type="button" data-icmp-preset="unreachable">port unreachable</button>
+                  <button type="button" data-icmp-preset="frag">frag needed</button>
+                  <button type="button" data-icmp-preset="time">time exceeded</button>
+                  <button type="button" data-icmp-preset="param">parameter problem</button>
+                  <button type="button" data-icmp-preset="redirect">redirect</button>
+                  <button type="button" data-icmp-preset="timestamp">timestamp</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-grid field-grid--three" id="icmp-enc-echo-group">
+              <div class="form-field">
+                <label for="icmp-enc-id">identifier <span class="units">0–65535</span></label>
+                <input type="text" id="icmp-enc-id" value="0x1234" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="icmp-enc-seq">sequence <span class="units">0–65535</span></label>
+                <input type="number" id="icmp-enc-seq" value="1" min="0" max="65535" inputmode="numeric">
+              </div>
+            </div>
+
+            <div class="field-grid" id="icmp-enc-mtu-group" hidden>
+              <div class="form-field">
+                <label for="icmp-enc-mtu">next-hop MTU <span class="units">bytes</span></label>
+                <input type="number" id="icmp-enc-mtu" value="1400" min="0" max="65535" inputmode="numeric">
+              </div>
+            </div>
+
+            <div class="field-grid" id="icmp-enc-gateway-group" hidden>
+              <div class="form-field">
+                <label for="icmp-enc-gateway">redirect gateway <span class="units">IPv4</span></label>
+                <input type="text" id="icmp-enc-gateway" value="192.0.2.1" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="field-grid" id="icmp-enc-pointer-group" hidden>
+              <div class="form-field">
+                <label for="icmp-enc-pointer">parameter pointer <span class="units">0–255</span></label>
+                <input type="number" id="icmp-enc-pointer" value="9" min="0" max="255" inputmode="numeric">
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="form-field">
+                <label for="icmp-enc-data-mode">data encoding</label>
+                <select id="icmp-enc-data-mode">
+                  <option value="ascii">ASCII / UTF-8</option>
+                  <option value="hex">hex bytes</option>
+                </select>
+              </div>
+              <div class="form-field span-2">
+                <label for="icmp-enc-data" id="icmp-enc-data-label">echo payload</label>
+                <textarea id="icmp-enc-data" class="hex-input" rows="3" spellcheck="false">packet-headers.sh ping</textarea>
+                <div class="codec-help" id="icmp-enc-rest-note">Identifier (16) + Sequence Number (16).</div>
+              </div>
+            </div>
+
+            <div class="inline-checks">
+              <label><input type="checkbox" id="icmp-enc-wrap"> wrap in IPv4</label>
+            </div>
+            <div class="field-grid" id="icmp-enc-wrap-fields" hidden>
+              <div class="form-field">
+                <label for="icmp-enc-src">IPv4 source</label>
+                <input type="text" id="icmp-enc-src" value="192.0.2.10" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="icmp-enc-dst">IPv4 destination</label>
+                <input type="text" id="icmp-enc-dst" value="198.51.100.20" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="icmp-enc-ttl">TTL <span class="units">0–255</span></label>
+                <input type="number" id="icmp-enc-ttl" value="64" min="0" max="255" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label for="icmp-enc-ip-id">IPv4 identification <span class="units">16 bits</span></label>
+                <input type="text" id="icmp-enc-ip-id" value="0x1c46" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="icmp-enc-build">Build ICMP</button>
+              <button class="btn btn--ghost" type="button" id="icmp-enc-example">Load echo example</button>
+            </div>
+            <p class="form-note">The encoder computes the ICMP checksum first, then the IPv4 header checksum when wrapping. It does not add Ethernet framing or an FCS; use the Ethernet explorer for that layer.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="icmp-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="icmp-enc-status" role="status" aria-live="polite">Set the fields and press Build ICMP.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">message / packet hex</div><button class="copy-btn" type="button" data-copy-target="#icmp-enc-output">copy</button></div>
+              <pre id="icmp-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="icmp-enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">valid bytes, not trusted control traffic</div>
+              <p>A correct checksum only means the bytes arrived intact. A forged ICMP redirect
+              or unreachable message is still a valid ICMP message; the receiver must decide
+              whether the sender is credible.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">raw ICMP, IPv4 packet or Ethernet frame</span>
+      </div>
+      <p>
+        Paste an ICMP message, an IPv4 packet with Protocol <code>1</code>, or an Ethernet II
+        frame carrying IPv4. The decoder validates both checksums, follows the type-specific
+        rest-of-header, and parses quoted original datagrams and RFC 4884 extensions. Raw ICMP
+        is accepted directly, which is useful when your capture tool strips the IP header.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 792 · type-specific body</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="icmp-decode-input">hex input <span class="units">ICMP message, IPv4 packet or Ethernet frame</span></label>
+            <textarea id="icmp-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="08 00 cd 82 12 34 00 01 …"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="icmp-decode">Decode ICMP</button>
+            <button class="btn btn--ghost" type="button" id="icmp-decode-example">Load echo packet</button>
+            <button class="btn btn--ghost" type="button" id="icmp-decode-error-example">Load port-unreachable</button>
+            <button class="btn btn--ghost" type="button" id="icmp-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="icmp-decode-status" role="status" aria-live="polite">No ICMP message decoded yet.</div>
+          <div id="icmp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">what the pcap does not tell you</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">ICMPv6 is not ICMPv4</div>
+        <p>ICMPv6 is IPv6 next header <code>58</code> and is defined by RFC 4443. It has a different
+        type/code space, includes Neighbor Discovery (RFC 4861) and uses an IPv6 pseudo-header in
+        its checksum. Do not reuse an ICMPv4 checksum routine or type table for ICMPv6.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>The checksum covers only ICMP.</strong> For ICMPv4, sum the eight-byte header and the entire body. There is no pseudo-header. A receiver summing the message including the checksum should get <code>0xFFFF</code>.</li>
+        <li><strong>Error messages quote the trigger.</strong> Destination Unreachable, Redirect, Source Quench, Time Exceeded and Parameter Problem carry the original IPv4 header and at least eight bytes of its payload. The quote may be truncated or rewritten by NAT.</li>
+        <li><strong>Length is in 32-bit words.</strong> RFC 4884 reuses the sixth octet for the length of the original datagram when an extension structure is present. Zero means no extension. The quoted datagram is padded to a 4-byte boundary.</li>
+        <li><strong>Type 3 code 4 is path-MTU discovery.</strong> The next-hop MTU in the rest-of-header tells the sender how small to fragment. Filtering this message can cause TCP black holes, especially with DF set.</li>
+        <li><strong>TTL expiry is not an error in the transport sense.</strong> Time Exceeded is normal traceroute behavior. The quoted datagram is how the sender knows which probe expired.</li>
+        <li><strong>Redirects are a security liability.</strong> A host that accepts ICMP redirects can be steered through an attacker. Most modern stacks ignore redirects by default or require strict source/interface checks.</li>
+        <li><strong>No authentication.</strong> ICMP has no signature, nonce or source authentication. The checksum detects accidental corruption only. ICMP filtering, rate limiting and quoted-packet validation are operational controls, not protocol guarantees.</li>
+        <li><strong>Deprecated does not mean absent.</strong> RFC 6633 deprecates Source Quench; RFC 6918 deprecates types 6, 15, 16, 17, 18 and 30–39. Old devices and lab traffic still emit them.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc792" target="_blank" rel="noopener">RFC 792</a><span>ICMP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1122" target="_blank" rel="noopener">RFC 1122</a><span>Host requirements</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1812" target="_blank" rel="noopener">RFC 1812</a><span>Router requirements</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1191" target="_blank" rel="noopener">RFC 1191</a><span>Path MTU Discovery</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc950" target="_blank" rel="noopener">RFC 950</a><span>Address Mask Request/Reply</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1256" target="_blank" rel="noopener">RFC 1256</a><span>Router Discovery</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1393" target="_blank" rel="noopener">RFC 1393</a><span>Traceroute message</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4884" target="_blank" rel="noopener">RFC 4884</a><span>ICMP extensions</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8335" target="_blank" rel="noopener">RFC 8335</a><span>Extended Echo / PROBE</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6633" target="_blank" rel="noopener">RFC 6633</a><span>Source Quench deprecation</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6918" target="_blank" rel="noopener">RFC 6918</a><span>Deprecated ICMPv4 types</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4443" target="_blank" rel="noopener">RFC 4443</a><span>ICMPv6</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="tcp.html">TCP flags &amp; TLVs -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="tcp.html">tcp</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/icmp-codec.js"></script>
+<script src="assets/icmp.js"></script>
+</body>
+</html>

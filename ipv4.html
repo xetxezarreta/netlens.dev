@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPv4 header &amp; options — bit diagram, encoder, decoder · packet-headers.sh</title>
+<meta name="description" content="Interactive IPv4 header bit diagram with field offsets, DSCP/ECN, fragmentation flags, options TLV reference, checksum, and a byte-accurate encoder/decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html" aria-current="page">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" class="is-active" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">header layout</a></li>
+        <li><a href="#flags">fragmentation</a></li>
+        <li><a href="#options">options &amp; TLVs</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>bit 0</b> is the MSB of the first octet. Offsets start at the first byte of the IPv4 header.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>ipv4</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>IPv4 header <span class="on">// RFC 791</span></h1>
+      <p class="lead">
+        The twenty-byte baseline that still carries most of the internet. The header is a
+        fixed set of fields followed by an optional TLV list; everything else is payload.
+        Hover any block to get its bit range, allowed values and the clause that defines it.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 791</b> · IPv4</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc2474" target="_blank" rel="noopener">RFC 2474 · DSCP</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3168" target="_blank" rel="noopener">RFC 3168 · ECN</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc6864" target="_blank" rel="noopener">RFC 6864 · ID</a>
+        <span class="badge">20–60 bytes</span>
+        <span class="badge">checksum</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L3 · internet</span>
+        <span><b>header</b> 20 B + 0–40 B options</span>
+        <span><b>checksum</b> header only</span>
+        <span><b>byte order</b> big-endian</span>
+      </div>
+      <div class="stackbar" data-stack="ipv4"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#flags">flags</a></li>
+        <li><a href="#options">options</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Header layout</h2>
+        <span class="section__hint">click a field to pin it · esc clears</span>
+      </div>
+      <p>
+        The first five 32-bit words are mandatory. <strong>IHL</strong> counts 32-bit words,
+        so a value of <code>5</code> means a 20-byte header; each additional word carries
+        options. The header checksum covers the header and options, but never the payload.
+      </p>
+
+      <div id="ipv4-diagram"></div>
+      <div class="field-detail" id="ipv4-inspector"></div>
+      <div id="ipv4-fields"></div>
+
+      <div class="callout">
+        <div class="callout__title">units, not bytes</div>
+        <p><strong>IHL</strong> is in 32-bit words (multiply by 4 for bytes). <strong>Fragment Offset</strong>
+        is in 8-byte units (multiply by 8 for a byte offset). Getting either wrong shifts every
+        field after it by a factor of four or eight.</p>
+      </div>
+    </section>
+
+    <section class="section" id="flags">
+      <div class="section__head">
+        <h2><span class="num">02</span>Fragmentation flags</h2>
+        <span class="section__hint">bits 48–63 of the header</span>
+      </div>
+      <p>
+        Three flag bits and a 13-bit offset decide whether a packet is a complete datagram,
+        the first fragment, a middle fragment, or the last one. Toggle them to see the raw
+        16-bit word and the byte range each offset addresses.
+      </p>
+
+      <div class="flag-box">
+        <div class="flag-box__head"><span>IPv4 flags + fragment offset</span><span>network byte order</span></div>
+        <div class="flag-box__body">
+          <div class="flag-grid">
+            <label class="flag-toggle"><input type="checkbox" id="frag-reserved"><span><span class="bitno">bit 48</span><b>R</b><small>reserved</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="frag-df" checked><span><span class="bitno">bit 49</span><b>DF</b><small>don't frag</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="frag-mf"><span><span class="bitno">bit 50</span><b>MF</b><small>more frags</small></span></label>
+          </div>
+          <div class="field-grid field-grid--three" style="margin-top:12px">
+            <div class="form-field">
+              <label for="frag-offset">fragment offset <span class="units">0–8191 · ×8 bytes</span></label>
+              <input type="number" id="frag-offset" min="0" max="8191" value="0" inputmode="numeric">
+            </div>
+            <div class="form-field">
+              <label for="frag-payload">payload length <span class="units">bytes, for the range</span></label>
+              <input type="number" id="frag-payload" min="0" max="65515" value="1480" inputmode="numeric">
+            </div>
+            <div class="form-field">
+              <label>field value <span class="units">16 bits</span></label>
+              <div class="output" style="min-height:34px;padding:7px 9px"><pre id="frag-word">0x4000</pre></div>
+            </div>
+          </div>
+          <div class="flag-readout">
+            <span>flags <b id="frag-flags">DF</b></span>
+            <span>offset <b id="frag-bytes">0</b> B</span>
+            <span>range <b id="frag-range">0–1479</b></span>
+            <span class="spacer"></span>
+            <span id="frag-valid" class="good-text">consistent</span>
+          </div>
+          <p class="flag-box__note">DF and MF together are contradictory. A non-zero offset with MF=0 is the final fragment; offset 0 with MF=1 is the first. The reserved bit must be zero (RFC 3514's “evil bit” is an April Fools' joke, not a deployment).</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="options">
+      <div class="section__head">
+        <h2><span class="num">03</span>Options &amp; TLVs</h2>
+        <span class="section__hint">0–40 bytes · padded to 4</span>
+      </div>
+      <p>
+        IPv4 options are a type-length-value list. The type octet is split into a
+        <strong>copied</strong> bit, a two-bit <strong>class</strong>, and a five-bit
+        <strong>number</strong>. Every option except EOL and NOP carries a length that
+        includes the type and length octets.
+      </p>
+
+      <div class="diagram diagram--compact">
+        <div class="diagram__head"><div class="diagram__title">option type octet</div><div class="legend"><span>8 bits</span></div></div>
+        <div class="diagram__scroll">
+          <div class="option-bits" aria-label="IPv4 option type layout">
+            <div><b>C</b><small>copied</small></div>
+            <div><b>00</b><small>class · 2</small></div>
+            <div><b>number · 5</b><small>0–31</small></div>
+          </div>
+        </div>
+        <p class="diagram__note">Class 0 = control, 2 = debugging and measurement, 1 and 3 reserved. The copied bit tells routers whether to copy the option into each fragment.</p>
+      </div>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>option type factory</h3><span class="tag">type octet</span></div>
+          <div class="codec-panel__body">
+            <div class="check-row">
+              <label><input type="checkbox" id="opt-copied"> copied (0x80)</label>
+            </div>
+            <div class="field-grid">
+              <div class="form-field">
+                <label for="opt-class">class</label>
+                <select id="opt-class">
+                  <option value="0">0 · control</option>
+                  <option value="2">2 · debugging / measurement</option>
+                  <option value="1">1 · reserved</option>
+                  <option value="3">3 · reserved</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="opt-number">number <span class="units">0–31</span></label>
+                <input type="number" id="opt-number" min="0" max="31" value="7" inputmode="numeric">
+              </div>
+            </div>
+            <div class="output">
+              <div class="output__label">type octet</div>
+              <pre id="opt-type-out">0x07 · RR</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>writing an option</h3><span class="tag">TLV rules</span></div>
+          <div class="codec-panel__body">
+            <pre><code>type   length   data…
++------+--------+----------------+
+| 0x94 |   4    | 00 00          |  Router Alert
++------+--------+----------------+
+| 0x07 |   7    | 04 192.0.2.1   |  Record Route
++------+--------+----------------+</code></pre>
+            <ul class="dashed">
+              <li>EOL (<code>0x00</code>) and NOP (<code>0x01</code>) are one byte; no length.</li>
+              <li>Pad the option list with EOL or NOP to a multiple of 4 bytes.</li>
+              <li>IHL = 5 + (option bytes ÷ 4); the maximum is 15 words / 40 bytes.</li>
+              <li>Source-routing options (LSRR/SSRR) are widely filtered or disabled.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Name</th><th>Length (B)</th><th>Reference</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x00</code></td><td><b>EOL</b></td><td class="num">1</td><td>RFC 791 §3.1</td><td>End of option list; pad the rest.</td></tr>
+            <tr><td><code>0x01</code></td><td><b>NOP</b></td><td class="num">1</td><td>RFC 791 §3.1</td><td>Alignment filler.</td></tr>
+            <tr><td><code>0x07</code></td><td><b>RR</b> · Record Route</td><td class="num">3–39</td><td>RFC 791 §3.1</td><td>Pointer + up to nine IPv4 addresses.</td></tr>
+            <tr><td><code>0x44</code></td><td><b>TS</b> · Timestamp</td><td class="num">4–40</td><td>RFC 791 §3.1</td><td>Overflow/flag nibble; 32-bit timestamps, optionally with addresses.</td></tr>
+            <tr><td><code>0x82</code></td><td><b>Security</b></td><td class="num">11</td><td>RFC 791 · RFC 1108</td><td>Obsolete; basic security option.</td></tr>
+            <tr><td><code>0x83</code></td><td><b>LSRR</b> · Loose Source Route</td><td class="num">3–39</td><td>RFC 791 §3.1</td><td>Loose source route; often dropped.</td></tr>
+            <tr><td><code>0x88</code></td><td><b>SID</b> · Stream ID</td><td class="num">4</td><td>RFC 791 §3.1</td><td>Obsolete SATNET stream identifier.</td></tr>
+            <tr><td><code>0x89</code></td><td><b>SSRR</b> · Strict Source Route</td><td class="num">3–39</td><td>RFC 791 §3.1</td><td>Strict source route; often dropped.</td></tr>
+            <tr><td><code>0x94</code></td><td><b>Router Alert</b></td><td class="num">4</td><td>RFC 2113 · RFC 5350</td><td>Value 0: router shall examine. Value 1: IGMP. Value 2: RSVP.</td></tr>
+            <tr><td><code>0x52</code></td><td><b>Trace</b> · Traceroute</td><td class="num">4</td><td>RFC 1393</td><td>Experimental; 16-bit ID number.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">the parser must trust length, not hope</div>
+        <p>A zero length would loop forever; a length beyond the header is a truncation bug.
+        Always verify that the option length is at least 2, fits inside the IHL-derived header,
+        and that the pointer in RR/TS/LSRR/SSRR stays inside the option.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">checksum computed automatically</span>
+      </div>
+      <p>Fill in the fields and build a valid header. Options are padded to a 4-byte boundary; the resulting hex is ready for a lab tool or a packet builder.</p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an IPv4 header</h3><span class="tag">20–60 B</span></div>
+          <div class="codec-panel__body">
+            <form id="ipv4-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="enc-version">version</label><input type="number" id="enc-version" value="4" min="0" max="15" inputmode="numeric"></div>
+                <div class="form-field"><label for="enc-dscp">DSCP <span class="units">0–63</span></label><input type="number" id="enc-dscp" value="0" min="0" max="63" inputmode="numeric"></div>
+                <div class="form-field"><label for="enc-ecn">ECN <span class="units">0–3</span></label>
+                  <select id="enc-ecn"><option value="0">00 · Not-ECT</option><option value="1">01 · ECT(1)</option><option value="2">10 · ECT(0)</option><option value="3">11 · CE</option></select>
+                </div>
+                <div class="form-field"><label for="enc-id">identification <span class="units">16 bits</span></label><input type="text" id="enc-id" value="0x1c46" spellcheck="false"></div>
+                <div class="form-field"><label for="enc-ttl">TTL <span class="units">0–255</span></label><input type="number" id="enc-ttl" value="64" min="0" max="255" inputmode="numeric"></div>
+                <div class="form-field"><label for="enc-proto">protocol</label>
+                  <select id="enc-proto">
+                    <option value="1">1 · ICMP</option><option value="6" selected>6 · TCP</option><option value="17">17 · UDP</option>
+                    <option value="41">41 · IPv6</option><option value="47">47 · GRE</option><option value="50">50 · ESP</option>
+                    <option value="51">51 · AH</option><option value="58">58 · ICMPv6</option><option value="89">89 · OSPF</option><option value="132">132 · SCTP</option>
+                  </select>
+                </div>
+                <div class="form-field"><label for="enc-frag-offset">fragment offset <span class="units">0–8191</span></label><input type="number" id="enc-frag-offset" value="0" min="0" max="8191" inputmode="numeric"></div>
+                <div class="form-field"><label for="enc-payload-len">payload length <span class="units">bytes</span></label><input type="number" id="enc-payload-len" value="0" min="0" max="65515" inputmode="numeric"></div>
+                <div class="form-field"><label for="enc-checksum">checksum</label><input type="text" id="enc-checksum" value="auto" disabled></div>
+                <div class="form-field span-2"><label for="enc-src">source address</label><input type="text" id="enc-src" value="192.0.2.10" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="enc-dst">destination address</label><input type="text" id="enc-dst" value="198.51.100.20" spellcheck="false"></div>
+                <div class="form-field span-2">
+                  <label for="enc-options">options <span class="units">hex · padded to 4 bytes</span></label>
+                  <input type="text" id="enc-options" class="hex-input" value="" placeholder="94 04 00 00" spellcheck="false">
+                  <div class="presets">
+                    <button type="button" data-ipv4-opt="94 04 00 00">router alert</button>
+                    <button type="button" data-ipv4-opt="07 07 04 00 00 00 00">record route</button>
+                    <button type="button" data-ipv4-opt="01 01 01 00">nop padding</button>
+                    <button type="button" data-ipv4-opt="">clear</button>
+                  </div>
+                </div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px">
+                <label><input type="checkbox" id="enc-df" checked> DF · don't fragment</label>
+                <label><input type="checkbox" id="enc-mf"> MF · more fragments</label>
+                <label><input type="checkbox" id="enc-reserved"> reserved bit</label>
+              </div>
+              <div class="btn-row" style="margin-top:12px">
+                <button class="btn btn--primary" type="button" id="ipv4-build">Build header</button>
+                <button class="btn btn--ghost" type="button" id="ipv4-load-example">Load example</button>
+              </div>
+              <p class="form-note">The checksum is computed over the final header, including options. Reserved bits are kept visible so you can deliberately build malformed test traffic.</p>
+            </form>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="enc-summary-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="ipv4-encode-status" role="status" aria-live="polite">Set the fields and press Build header.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">header hex</div><button class="copy-btn" type="button" data-copy-target="#enc-output">copy</button></div>
+              <pre id="enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">what the encoder will not do</div>
+              <p>It does not add a transport header, compute TCP/UDP checksums, or choose a path MTU.
+              It only makes the IPv4 header self-consistent. Payload length is a promise encoded in
+              <code>Total Length</code>; the actual payload is yours to append.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">paste a header or a full IPv4 packet</span>
+      </div>
+      <p>
+        Paste hex from Wireshark, <code>tcpdump -XX</code>, Scapy or a hex editor. Spaces, colons,
+        dashes and <code>0x</code> prefixes are ignored. An Ethernet II frame with ethertype
+        <code>0x0800</code> is detected automatically; otherwise the first byte must be an IPv4
+        version nibble.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 791 · header + options</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="ipv4-decode-input">hex input <span class="units">header, packet, or Ethernet frame</span></label>
+            <textarea id="ipv4-decode-input" class="hex-input" rows="5" spellcheck="false" placeholder="45 00 00 28 1c 46 40 00 40 06 00 00 c0 00 02 0a c6 33 64 14"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="ipv4-decode">Decode</button>
+            <button class="btn btn--ghost" type="button" id="ipv4-decode-example">Load example</button>
+            <button class="btn btn--ghost" type="button" id="ipv4-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="ipv4-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="ipv4-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">gotchas from the field</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">checksum offload lies</div>
+        <p>Captures taken on the sending host often show an incorrect IPv4 checksum because the
+        NIC computes it after the capture point. Validate checksums on traffic captured after
+        the offload boundary before declaring a bug.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Total Length includes the header.</strong> A 20-byte header with 100 bytes of payload has <code>Total Length = 120</code>. Parsers must use it to find the payload, not the capture length.</li>
+        <li><strong>IHL can be larger than the packet.</strong> If <code>IHL × 4</code> exceeds the available bytes, the header is truncated; do not read options.</li>
+        <li><strong>Fragment offsets count 8-byte units.</strong> Reassembly uses the offset, the MF flag and identification; the last fragment clears MF. Overlapping fragments are a classic evasion technique.</li>
+        <li><strong>Options are part of the header.</strong> The checksum includes them; middleboxes that rewrite options must update it. Padding to 4 bytes is mandatory.</li>
+        <li><strong>TTL is decremented on every router.</strong> A value of 0 at a router yields <a href="icmp.html">ICMP Time Exceeded</a>; initial values are convention (64, 128, 255), not protocol constants.</li>
+        <li><strong>Protocol 41 is IPv6-in-IPv4.</strong> It is not “IPv6 itself”; the inner header starts after the IPv4 header. Protocol 6 and 17 are TCP and UDP.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc791" target="_blank" rel="noopener">RFC 791</a><span>Internet Protocol</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2474" target="_blank" rel="noopener">RFC 2474</a><span>DSCP definition</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3168" target="_blank" rel="noopener">RFC 3168</a><span>ECN</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6864" target="_blank" rel="noopener">RFC 6864</a><span>IPv4 ID field</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1071" target="_blank" rel="noopener">RFC 1071</a><span>Internet checksum</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2113" target="_blank" rel="noopener">RFC 2113</a><span>IP Router Alert</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5350" target="_blank" rel="noopener">RFC 5350</a><span>Router Alert values</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3514" target="_blank" rel="noopener">RFC 3514</a><span>The Evil Bit (humour)</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="icmp.html">ICMP errors &amp; echo -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="tcp.html">tcp</a><a href="tools.html#checksum">checksum tool</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ipv4.js"></script>
+</body>
+</html>

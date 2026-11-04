@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUIC headers, varints &amp; frame formats — bit diagrams &amp; codec · packet-headers.sh</title>
+<meta name="description" content="QUIC v1 wire formats: long and short headers, the 2-bit varint prefix, STREAM/ACK/CRYPTO frame layouts, an interactive frame explorer, encoder and multi-frame decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html" aria-current="page">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" class="is-active" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#headers">packet headers</a></li>
+        <li><a href="#varint">variable integers</a></li>
+        <li><a href="#frames">frame formats</a></li>
+        <li><a href="#encode">frame builder</a></li>
+        <li><a href="#decode">frame decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note">QUIC is <b>encrypted by default</b>. Header protection hides some bits on the wire; the diagrams show the unprotected values after header protection is removed.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>quic</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>QUIC headers &amp; frames <span class="on">// RFC 9000</span></h1>
+      <p class="lead">
+        QUIC runs over UDP but its wire format is a stack of varints, protected headers and
+        typed frames. This page separates the parts you can see on the wire from the parts
+        that only exist after header protection and packet decryption.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 9000</b> · QUIC v1</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001 · TLS</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9221" target="_blank" rel="noopener">RFC 9221 · DATAGRAM</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9369" target="_blank" rel="noopener">RFC 9369 · v2</a>
+        <span class="badge">UDP</span>
+        <span class="badge">varint</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L4+ · transport/TLS</span>
+        <span><b>header</b> long or short</span>
+        <span><b>lengths</b> varint-encoded</span>
+        <span><b>byte order</b> big-endian</span>
+      </div>
+      <div class="stackbar" data-stack="quic"></div>
+      <ul class="toc">
+        <li><a href="#headers">headers</a></li>
+        <li><a href="#varint">varints</a></li>
+        <li><a href="#frames">frames</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="headers">
+      <div class="section__head">
+        <h2><span class="num">01</span>Packet headers</h2>
+        <span class="section__hint">first byte · version · connection IDs</span>
+      </div>
+      <p>
+        The first byte's top bit selects a <strong>long header</strong> (1) or a
+        <strong>short header</strong> (0). Long headers carry a version and both connection IDs;
+        short headers carry only the destination connection ID. The bottom bits are partly
+        protected by header protection, so a passive observer cannot trust them naively.
+      </p>
+
+      <h3>Long header · first byte</h3>
+      <div id="quic-long-first"></div>
+      <h3 class="mt-24">Short header · first byte</h3>
+      <div id="quic-short-first"></div>
+      <div class="field-detail" id="quic-header-inspector"></div>
+
+      <p>
+        Long packet types in QUIC v1: <code>00</code> Initial, <code>01</code> 0-RTT,
+        <code>10</code> Handshake, <code>11</code> Retry. Version <code>0x00000000</code> is a
+        Version Negotiation packet; Retry packets have no packet number and end with a 16-byte
+        Retry Integrity Tag.
+      </p>
+
+      <div class="tabs" role="tablist" data-tabs aria-label="Long header packet types">
+        <button class="tab" type="button" role="tab" id="quic-tab-initial" aria-controls="quic-panel-initial" aria-selected="true">Initial</button>
+        <button class="tab" type="button" role="tab" id="quic-tab-0rtt" aria-controls="quic-panel-0rtt" aria-selected="false">0-RTT</button>
+        <button class="tab" type="button" role="tab" id="quic-tab-handshake" aria-controls="quic-panel-handshake" aria-selected="false">Handshake</button>
+        <button class="tab" type="button" role="tab" id="quic-tab-retry" aria-controls="quic-panel-retry" aria-selected="false">Retry</button>
+      </div>
+      <div class="tab-panel" id="quic-panel-initial" role="tabpanel" aria-labelledby="quic-tab-initial">
+        <div id="quic-long-lane"></div>
+      </div>
+      <div class="tab-panel" id="quic-panel-0rtt" role="tabpanel" aria-labelledby="quic-tab-0rtt" hidden>
+        <div id="quic-0rtt-lane"></div>
+      </div>
+      <div class="tab-panel" id="quic-panel-handshake" role="tabpanel" aria-labelledby="quic-tab-handshake" hidden>
+        <div id="quic-handshake-lane"></div>
+      </div>
+      <div class="tab-panel" id="quic-panel-retry" role="tabpanel" aria-labelledby="quic-tab-retry" hidden>
+        <div id="quic-retry-lane"></div>
+      </div>
+
+      <h3 class="mt-24">Short header</h3>
+      <div id="quic-short-lane"></div>
+      <div class="field-detail" id="quic-structure-inspector"></div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">header protection is not optional</div>
+        <p>Header protection masks the low bits of the first byte and the packet number field with
+        a key derived from the packet's AEAD. The first byte shown here is the logical,
+        unprotected value. On the wire, the reserved bits, key phase and packet-number length
+        may appear different until you remove protection (RFC 9001 §5.4).</p>
+      </div>
+    </section>
+
+    <section class="section" id="varint">
+      <div class="section__head">
+        <h2><span class="num">02</span>Variable-length integers</h2>
+        <span class="section__hint">2-bit prefix · 1, 2, 4 or 8 bytes</span>
+      </div>
+      <p>
+        QUIC varints use the top two bits of the first byte as a length selector.
+        The remaining 6, 14, 30 or 62 bits hold the value. Encoding is big-endian, and
+        non-minimal encodings are legal although senders usually choose the shortest form.
+      </p>
+
+      <div id="quic-varint-first"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Prefix</th><th class="num">Length</th><th class="num">Value bits</th><th>Maximum value</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>00</code></td><td class="num">1 B</td><td class="num">6</td><td><code>63</code> · 0x3f</td><td><code>0x25</code> → 37</td></tr>
+            <tr><td><code>01</code></td><td class="num">2 B</td><td class="num">14</td><td><code>16,383</code> · 0x3fff</td><td><code>0x7b bd</code> → 15293</td></tr>
+            <tr><td><code>10</code></td><td class="num">4 B</td><td class="num">30</td><td><code>1,073,741,823</code> · 0x3fffffff</td><td><code>0x9d 7f 3e 7d</code> → 494878333</td></tr>
+            <tr><td><code>11</code></td><td class="num">8 B</td><td class="num">62</td><td><code>2⁶² − 1</code> · 0x3fffffffffffffff</td><td><code>0xc2 19 7c 5e ff 14 e8 8c</code> → 151288809941952652</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>varint playground</h3><span class="tag">0 to 2⁶²−1</span></div>
+          <div class="codec-panel__body">
+            <div class="form-field">
+              <label for="quic-varint-input">value or bytes</label>
+              <input type="text" id="quic-varint-input" class="hex-input" value="15293" spellcheck="false" placeholder="15293 or 7b bd">
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--primary" type="button" id="quic-varint-encode">Encode value</button>
+              <button class="btn" type="button" id="quic-varint-decode">Decode bytes</button>
+            </div>
+            <div class="codec-status" id="quic-varint-status" role="status" aria-live="polite">Try a decimal value or a hex byte string.</div>
+            <div class="output">
+              <div class="output__label">result</div>
+              <pre id="quic-varint-out">no result yet</pre>
+            </div>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>why not protobuf varints?</h3><span class="tag">different trade-off</span></div>
+          <div class="codec-panel__body">
+            <ul class="dashed">
+              <li>QUIC's prefix is at the <strong>front</strong>, so the decoder knows the length before reading the value.</li>
+              <li>The length is explicit in the top two bits, not discovered by continuation bits.</li>
+              <li>A varint may use more bytes than necessary; the receiver accepts non-minimal forms.</li>
+              <li>Frame types are varints too, but all standard v1 types fit in one byte.</li>
+            </ul>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">offsets are not varints</div>
+              <p>Packet number length is 1–4 bytes and is encoded in the short-header first byte,
+              not as a varint. The length field of a long header <em>is</em> a varint.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="frames">
+      <div class="section__head">
+        <h2><span class="num">03</span>Frame formats</h2>
+        <span class="section__hint">frames live inside encrypted packets</span>
+      </div>
+      <p>
+        After packet protection is removed, the payload is a sequence of frames. A single
+        packet can carry many frames; a UDP datagram can carry several coalesced packets.
+        Frame types are varints, and most frame fields are varints or length-prefixed bytes.
+      </p>
+
+      <div class="row-between" style="margin:14px 0">
+        <div class="form-field" style="min-width:280px;flex:1">
+          <label for="quic-frame-select">inspect a frame type</label>
+          <select id="quic-frame-select"></select>
+        </div>
+        <span class="badge" id="quic-frame-badge">RFC 9000</span>
+      </div>
+      <div id="quic-frame-lane"></div>
+      <div class="field-detail" id="quic-frame-inspector"></div>
+
+      <h3 class="mt-24">STREAM type octet</h3>
+      <p>The STREAM frame type spans <code>0x08</code>–<code>0x0f</code>; three low bits switch optional fields on or off.</p>
+      <div id="quic-stream-type"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Frame</th><th>Payload fields</th><th>RFC</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x00</code></td><td><b>PADDING</b></td><td>zero bytes</td><td>9000 §19.1</td><td>May repeat; used for size and amplification limits.</td></tr>
+            <tr><td><code>0x01</code></td><td><b>PING</b></td><td>—</td><td>9000 §19.2</td><td>Acknowledgement of liveness; no payload.</td></tr>
+            <tr><td><code>0x02/03</code></td><td><b>ACK</b></td><td>largest, delay, range count, first range, ranges, [ECN]</td><td>9000 §19.3</td><td>0x03 adds ECT0/ECT1/CE counts.</td></tr>
+            <tr><td><code>0x04</code></td><td><b>RESET_STREAM</b></td><td>stream id, error code, final size</td><td>9000 §19.4</td><td>Abruptly terminates the sending side.</td></tr>
+            <tr><td><code>0x05</code></td><td><b>STOP_SENDING</b></td><td>stream id, error code</td><td>9000 §19.5</td><td>Requests that the peer stop sending.</td></tr>
+            <tr><td><code>0x06</code></td><td><b>CRYPTO</b></td><td>offset, length, data</td><td>9000 §19.6</td><td>Carries TLS handshake bytes.</td></tr>
+            <tr><td><code>0x07</code></td><td><b>NEW_TOKEN</b></td><td>token length, token</td><td>9000 §19.7</td><td>Address validation token for a future connection.</td></tr>
+            <tr><td><code>0x08–0f</code></td><td><b>STREAM</b></td><td>stream id, [offset], [length], data</td><td>9000 §19.8</td><td>OFF 0x04, LEN 0x02, FIN 0x01.</td></tr>
+            <tr><td><code>0x10</code></td><td><b>MAX_DATA</b></td><td>maximum data</td><td>9000 §19.9</td><td>Connection-level flow control.</td></tr>
+            <tr><td><code>0x11</code></td><td><b>MAX_STREAM_DATA</b></td><td>stream id, maximum</td><td>9000 §19.10</td><td>Stream-level flow control.</td></tr>
+            <tr><td><code>0x12/13</code></td><td><b>MAX_STREAMS</b></td><td>maximum streams</td><td>9000 §19.11</td><td>0x12 bidirectional, 0x13 unidirectional.</td></tr>
+            <tr><td><code>0x14</code></td><td><b>DATA_BLOCKED</b></td><td>maximum data</td><td>9000 §19.12</td><td>Sender is blocked at the connection limit.</td></tr>
+            <tr><td><code>0x15</code></td><td><b>STREAM_DATA_BLOCKED</b></td><td>stream id, maximum</td><td>9000 §19.13</td><td>Sender is blocked at the stream limit.</td></tr>
+            <tr><td><code>0x16/17</code></td><td><b>STREAMS_BLOCKED</b></td><td>maximum streams</td><td>9000 §19.14</td><td>0x16 bidi, 0x17 uni.</td></tr>
+            <tr><td><code>0x18</code></td><td><b>NEW_CONNECTION_ID</b></td><td>sequence, retire prior to, length, CID, reset token</td><td>9000 §19.15</td><td>Provides an alternative connection ID.</td></tr>
+            <tr><td><code>0x19</code></td><td><b>RETIRE_CONNECTION_ID</b></td><td>sequence number</td><td>9000 §19.16</td><td>Retires a previously issued CID.</td></tr>
+            <tr><td><code>0x1a/1b</code></td><td><b>PATH_CHALLENGE / RESPONSE</b></td><td>8-byte data</td><td>9000 §19.17–18</td><td>Path validation; response echoes the challenge.</td></tr>
+            <tr><td><code>0x1c/1d</code></td><td><b>CONNECTION_CLOSE</b></td><td>error code, [frame type], reason length, reason</td><td>9000 §19.19</td><td>0x1d is application-level; 0x1c transport-level.</td></tr>
+            <tr><td><code>0x1e</code></td><td><b>HANDSHAKE_DONE</b></td><td>—</td><td>9000 §19.20</td><td>Server confirms the handshake.</td></tr>
+            <tr><td><code>0x30/31</code></td><td><b>DATAGRAM</b></td><td>[length], data</td><td>RFC 9221</td><td>Unreliable application datagram.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Frame builder</h2>
+        <span class="section__hint">one frame at a time</span>
+      </div>
+      <p>
+        Build a frame and inspect its bytes. Frames are not independently protected; they are
+        plaintext inside the encrypted packet payload. This builder constructs the frame body,
+        not the enclosing QUIC packet header.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>frame parameters</h3><span class="tag">varint-aware</span></div>
+          <div class="codec-panel__body">
+            <div class="form-field">
+              <label for="quic-build-type">frame type</label>
+              <select id="quic-build-type"></select>
+            </div>
+            <div id="quic-build-fields" class="field-grid"></div>
+            <div class="btn-row" style="margin-top:4px">
+              <button class="btn btn--primary" type="button" id="quic-build">Build frame</button>
+              <button class="btn btn--ghost" type="button" id="quic-build-example">Load example</button>
+            </div>
+            <p class="form-note">Values are encoded as QUIC varints. Hex fields accept spaces, colons or <code>0x</code> prefixes. Length prefixes are added automatically.</p>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>frame bytes</h3><span class="tag" id="quic-build-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="quic-build-status" role="status" aria-live="polite">Choose a frame and build it.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">frame hex</div><button class="copy-btn" type="button" data-copy-target="#quic-build-out">copy</button></div>
+              <pre id="quic-build-out" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="quic-build-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">decode it below</div>
+              <p>The decoder accepts a sequence of frames, so you can paste this output and see the
+              parsed fields. A frame is only valid inside the packet number space and encryption
+              level where it was sent.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Frame decoder</h2>
+        <span class="section__hint">paste one or more frames</span>
+      </div>
+      <p>
+        Paste the plaintext payload of a QUIC packet: a sequence of frames, not the encrypted
+        packet itself. The decoder walks frame types and lengths, consumes varints, and reports
+        the bytes each frame occupies. Unknown or malformed frames stop the walk with an offset.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse frames</h3><span class="tag">frame type = varint</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="quic-decode-input">plaintext frame bytes</label>
+            <textarea id="quic-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="01 06 00 08 00 00 00 00 00 00 00 00 08 00 01 02 68 69"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="quic-decode">Decode frames</button>
+            <button class="btn btn--ghost" type="button" id="quic-decode-example">Load example</button>
+            <button class="btn btn--ghost" type="button" id="quic-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="quic-decode-status" role="status" aria-live="polite">No frames decoded yet.</div>
+          <div id="quic-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">before you trust a frame dump</span>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">you cannot parse a protected packet by hand</div>
+        <p>The long/short headers and frame list are logical views. On the wire, header protection
+        masks bits and the payload is AEAD-protected. A “QUIC parser” that ignores keys can only
+        decode the invariant portion of the connection ID and version. Wireshark shows decrypted
+        frames only when you supply the TLS secrets.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Version Negotiation has version 0.</strong> Its long header has no length field and the connection IDs are followed by a list of supported versions.</li>
+        <li><strong>Retry has no packet number.</strong> It ends with a 16-byte Retry Integrity Tag, not a payload.</li>
+        <li><strong>Packet numbers are not frame fields.</strong> They live in the packet header and are used in the AEAD nonce; frame types and stream offsets are separate.</li>
+        <li><strong>STREAM data without LEN runs to the end of the packet.</strong> A parser must not assume another frame follows; the remaining bytes belong to that frame.</li>
+        <li><strong>Coalescing is normal.</strong> Multiple QUIC packets can share one UDP datagram. A frame parser sees only the decrypted payload of one packet.</li>
+        <li><strong>PADDING is a frame, not a byte-stuffing afterthought.</strong> It inflates packets for amplification limits and is protected like everything else.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9000" target="_blank" rel="noopener">RFC 9000</a><span>QUIC transport</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001</a><span>TLS, header protection</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9002" target="_blank" rel="noopener">RFC 9002</a><span>Loss recovery</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9221" target="_blank" rel="noopener">RFC 9221</a><span>Unreliable datagrams</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9369" target="_blank" rel="noopener">RFC 9369</a><span>QUIC v2</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8999" target="_blank" rel="noopener">RFC 8999</a><span>Version-independent properties</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="bgp.html">BGP path attributes -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="tcp.html">tcp</a><a href="tools.html#varint">varint tool</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/quic.js"></script>
+</body>
+</html>
