@@ -21,6 +21,7 @@
     <nav class="site-nav" aria-label="Protocols">
       <a href="ipv4.html" aria-current="page">ipv4</a>
       <a href="icmp.html">icmp</a>
+      <a href="ipv6.html">ipv6</a>
       <a href="tcp.html">tcp</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
@@ -50,6 +51,7 @@
       <ul>
         <li><a href="ipv4.html" class="is-active" data-layer="L3">ipv4</a></li>
         <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
@@ -399,7 +401,7 @@
         <li><strong>Fragment offsets count 8-byte units.</strong> Reassembly uses the offset, the MF flag and identification; the last fragment clears MF. Overlapping fragments are a classic evasion technique.</li>
         <li><strong>Options are part of the header.</strong> The checksum includes them; middleboxes that rewrite options must update it. Padding to 4 bytes is mandatory.</li>
         <li><strong>TTL is decremented on every router.</strong> A value of 0 at a router yields <a href="icmp.html">ICMP Time Exceeded</a>; initial values are convention (64, 128, 255), not protocol constants.</li>
-        <li><strong>Protocol 41 is IPv6-in-IPv4.</strong> It is not “IPv6 itself”; the inner header starts after the IPv4 header. Protocol 6 and 17 are TCP and UDP.</li>
+        <li><strong>Protocol 41 is IPv6-in-IPv4.</strong> It is not “IPv6 itself”; the inner header starts after the IPv4 header. See the <a href="ipv6.html">IPv6 explorer</a>. Protocol 6 and 17 are TCP and UDP.</li>
       </ul>
 
       <h2 class="mt-24">References</h2>
@@ -426,7 +428,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="tcp.html">tcp</a><a href="tools.html#checksum">checksum tool</a><a href="about.html">about</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="tools.html#checksum">checksum tool</a><a href="about.html">about</a></div>
   </div>
 </footer>
 

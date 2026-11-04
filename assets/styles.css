@@ -1958,5 +1958,5 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   .site-nav a { padding-left: 3px; padding-right: 3px; }
 }
 @media (max-width: 1100px) and (min-width: 901px) {
-  .site-nav a { padding-left: 3px; padding-right: 3px; font-size: 0.7rem; }
+  .site-nav a { padding-left: 2px; padding-right: 2px; font-size: 0.67rem; }
 }

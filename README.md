@@ -1,7 +1,8 @@
 # packet-headers.sh
 
-A static, interactive field guide to network wire formats: IPv4 options, ICMP types and
-codes, TCP flags and TLVs, QUIC headers and frames, BGP path attributes, and WireGuard messages.
+A static, interactive field guide to network wire formats: IPv4 options, ICMP types, IPv6
+extension chains, TCP flags and TLVs, QUIC headers and frames, BGP path attributes, and
+WireGuard messages.
 
 Everything is plain HTML, CSS and JavaScript. There is no build step, no package manager,
 and no network request after the page loads (external RFC links open only when clicked).
@@ -22,6 +23,7 @@ is the least surprising option.
 index.html          landing page, protocol index, global search
 ipv4.html           IPv4 header, fragmentation, options, encoder/decoder
 icmp.html           ICMPv4 types, codes, checksums, embedded datagrams, encoder/decoder
+ipv6.html           IPv6 header, addresses, extension chain, jumbograms, encoder/decoder
 ethernet.html       Ethernet II frame, VLAN tags, FCS, encoder/decoder
 arp.html            ARP message, opcodes, Ethernet wrapper, encoder/decoder
 tcp.html            TCP header, flags, options, scan recipes, encoder/decoder
@@ -36,6 +38,7 @@ assets/protocol-meta.js  TCP/IP layer taxonomy and encapsulation paths
 assets/ethernet-codec.js Ethernet/802.1Q/FCS codec
 assets/arp-codec.js      ARP message codec
 assets/icmp-codec.js     ICMPv4 message/packet codec
+assets/ipv6-codec.js     IPv6 header, address and extension-chain codec
 assets/*.js         per-protocol pure codecs and page wiring
 assets/search-index.js  static search index
 fonts/              JetBrains Mono source file (SIL OFL) + license; CSS embeds it for file:// use
@@ -45,7 +48,7 @@ fonts/              JetBrains Mono source file (SIL OFL) + license; CSS embeds i
 
 Protocols are grouped with the TCP/IP model, with OSI numbers as orientation labels:
 Application/control (BGP), Transport (TCP, QUIC), Tunnels/overlays (WireGuard),
-Internet/IP (IPv4, ICMP), Link (Ethernet, ARP), and cross-layer tools. The homepage renders the stack
+Internet/IP (IPv4, ICMP, IPv6), Link (Ethernet, ARP), and cross-layer tools. The homepage renders the stack
 map from `assets/protocol-meta.js`; adding a protocol with a `modelLayer` value places it in
 the map automatically. Protocol pages also carry an encapsulation stack strip. URLs stay
 flat so existing links keep working.

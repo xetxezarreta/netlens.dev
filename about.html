@@ -21,6 +21,7 @@
     <nav class="site-nav" aria-label="Protocols">
       <a href="ipv4.html">ipv4</a>
       <a href="icmp.html">icmp</a>
+      <a href="ipv6.html">ipv6</a>
       <a href="tcp.html">tcp</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
@@ -60,6 +61,7 @@
       <ul>
         <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
         <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
@@ -95,7 +97,7 @@
       <section class="section" id="about">
         <h2>What this is</h2>
         <p>
-          Eight protocol pages — IPv4, ICMP, TCP, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
+          Nine protocol pages — IPv4, ICMP, IPv6, TCP, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
           <a href="tools.html">toolbox</a>. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
@@ -141,7 +143,7 @@
 
         <h3>Byte order</h3>
         <p>
-          Network byte order is big-endian for IPv4, ICMP, TCP, QUIC and BGP. WireGuard is the
+          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, QUIC and BGP. WireGuard is the
           exception: its integer fields are little-endian. The WireGuard page calls this out on
           every field and provides a converter. Bytes inside a field are always written in
           transmission order; only the interpretation of multi-byte integers changes.
@@ -165,7 +167,7 @@
               <tr><td><b>Application / control</b></td><td><code>L7</code></td><td>BGP</td><td>Routing policy over TCP. BGP is an application protocol whose subject is the control plane.</td></tr>
               <tr><td><b>Transport</b></td><td><code>L4</code> / <code>L4+</code></td><td>TCP, QUIC</td><td>Process-to-process delivery. QUIC also carries TLS and application framing.</td></tr>
               <tr><td><b>Tunnels / overlays</b></td><td><code>L3 tunnel</code></td><td>WireGuard</td><td>A cross-layer overlay that carries inner IP over UDP.</td></tr>
-              <tr><td><b>Internet / IP</b></td><td><code>L3</code></td><td>IPv4, ICMP</td><td>Addressing, fragmentation, header checksums, errors, echo and path-MTU signalling.</td></tr>
+              <tr><td><b>Internet / IP</b></td><td><code>L3</code></td><td>IPv4, ICMP, IPv6</td><td>Addressing, fragmentation, checksums, errors, extension chains and path-MTU signalling.</td></tr>
               <tr><td><b>Link</b></td><td><code>L2</code> / <code>L2.5</code></td><td>Ethernet, ARP</td><td>Frames, MAC addressing, VLAN tags, FCS and IPv4-to-MAC resolution.</td></tr>
               <tr><td><b>Cross-layer</b></td><td><code>ALL</code></td><td>Toolbox</td><td>Checksums, varints and TLVs used by several protocols.</td></tr>
             </tbody>
@@ -212,8 +214,8 @@
         <p>
           The cited RFC is the authority. Some protocols have later updates that change field
           semantics without changing the layout: IPv4 DSCP/ECN, ICMP extensions and deprecated
-          message types, TCP timestamps and ECN, BGP four-octet AS numbers and extended messages,
-          QUIC v2 and DATAGRAM. The notes point at
+          message types, IPv6 extension-header rules, TCP timestamps and ECN, BGP four-octet
+          AS numbers and extended messages, QUIC v2 and DATAGRAM. The notes point at
           the relevant updates, but they cannot replace the current document and its errata.
         </p>
         <p>
@@ -255,6 +257,17 @@
           <li><a href="https://www.rfc-editor.org/rfc/rfc6918" target="_blank" rel="noopener">RFC 6918</a><span>deprecated ICMPv4 types</span></li>
           <li><a href="https://www.rfc-editor.org/rfc/rfc8335" target="_blank" rel="noopener">RFC 8335</a><span>Extended Echo</span></li>
           <li><a href="https://www.rfc-editor.org/rfc/rfc4443" target="_blank" rel="noopener">RFC 4443</a><span>ICMPv6</span></li>
+        </ul>
+        <h3>IPv6</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8200" target="_blank" rel="noopener">RFC 8200</a><span>IPv6</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4291" target="_blank" rel="noopener">RFC 4291</a><span>addressing architecture</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc5952" target="_blank" rel="noopener">RFC 5952</a><span>address text</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4007" target="_blank" rel="noopener">RFC 4007</a><span>scoped addresses</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8201" target="_blank" rel="noopener">RFC 8201</a><span>path MTU discovery</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2675" target="_blank" rel="noopener">RFC 2675</a><span>jumbograms</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4443" target="_blank" rel="noopener">RFC 4443</a><span>ICMPv6</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8754" target="_blank" rel="noopener">RFC 8754</a><span>Segment Routing Header</span></li>
         </ul>
         <h3>TCP</h3>
         <ul class="rfc-list">
@@ -321,7 +334,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="tools.html">tools</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="tools.html">tools</a></div>
   </div>
 </footer>
 

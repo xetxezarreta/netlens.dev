@@ -21,6 +21,7 @@
     <nav class="site-nav" aria-label="Protocols">
       <a href="ipv4.html">ipv4</a>
       <a href="icmp.html" aria-current="page">icmp</a>
+      <a href="ipv6.html">ipv6</a>
       <a href="tcp.html">tcp</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
@@ -50,6 +51,7 @@
       <ul>
         <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
         <li><a href="icmp.html" class="is-active" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
@@ -469,7 +471,7 @@
         <div class="callout__title">ICMPv6 is not ICMPv4</div>
         <p>ICMPv6 is IPv6 next header <code>58</code> and is defined by RFC 4443. It has a different
         type/code space, includes Neighbor Discovery (RFC 4861) and uses an IPv6 pseudo-header in
-        its checksum. Do not reuse an ICMPv4 checksum routine or type table for ICMPv6.</p>
+        its checksum. Do not reuse an ICMPv4 checksum routine or type table for ICMPv6. The <a href="ipv6.html">IPv6 explorer</a> covers the base header and next-header chain.</p>
       </div>
       <ul class="dashed">
         <li><strong>The checksum covers only ICMP.</strong> For ICMPv4, sum the eight-byte header and the entire body. There is no pseudo-header. A receiver summing the message including the checksum should get <code>0xFFFF</code>.</li>
@@ -500,7 +502,7 @@
 
       <div class="next-protocol">
         <span>next protocol</span>
-        <a href="tcp.html">TCP flags &amp; TLVs -&gt;</a>
+        <a href="ipv6.html">IPv6 header &amp; extension chain -&gt;</a>
       </div>
     </section>
   </main>
@@ -510,7 +512,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="tcp.html">tcp</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
   </div>
 </footer>
 

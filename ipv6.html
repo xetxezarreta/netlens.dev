@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPv6 header &amp; extension chain — bit diagram, encoder, decoder · packet-headers.sh</title>
+<meta name="description" content="Interactive IPv6 header diagram: version, traffic class, flow label, payload length, next header, hop limit and 128-bit addresses. Includes RFC 5952 address tools, extension-header chain parsing, jumbograms, and byte-accurate encoder/decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="ipv6.html" aria-current="page">ipv6</a>
+      <a href="tcp.html">tcp</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" class="is-active" data-layer="L3">ipv6</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">header layout</a></li>
+        <li><a href="#first-word">traffic &amp; flow</a></li>
+        <li><a href="#addresses">addresses</a></li>
+        <li><a href="#extensions">extensions</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>No header checksum.</b> IPv6 removed the IPv4 header checksum. TCP, UDP and ICMPv6 checksums include an IPv6 pseudo-header and are validated at the upper layer.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>ipv6</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>IPv6 <span class="on">// RFC 8200</span></h1>
+      <p class="lead">
+        A fixed 40-byte header, 128-bit addresses and a next-header chain that replaces IPv4
+        options. IPv6 dropped the header checksum, moved fragmentation to the source and
+        separated routing, fragment and destination options into extension headers. The result
+        is simpler to forward and harder to parse blindly.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 8200</b> · IPv6</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc5952" target="_blank" rel="noopener">RFC 5952 · address text</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4291" target="_blank" rel="noopener">RFC 4291 · addressing</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8201" target="_blank" rel="noopener">RFC 8201 · PMTUD</a>
+        <span class="badge">40 B fixed header</span>
+        <span class="badge">128-bit addresses</span>
+        <span class="badge">no header checksum</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L3 · internet</span>
+        <span><b>header</b> 40 B fixed</span>
+        <span><b>payload length</b> 16 bits · includes extensions</span>
+        <span><b>next header</b> extension chain</span>
+      </div>
+      <div class="stackbar" data-stack="ipv6"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#first-word">traffic</a></li>
+        <li><a href="#addresses">addresses</a></li>
+        <li><a href="#extensions">extensions</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Header layout</h2>
+        <span class="section__hint">fixed 40 bytes · no options in the base header</span>
+      </div>
+      <p>
+        The IPv6 header is always 40 bytes. The first 32 bits pack <strong>Version</strong>,
+        <strong>Traffic Class</strong> and <strong>Flow Label</strong>; then come
+        <strong>Payload Length</strong>, <strong>Next Header</strong>, <strong>Hop Limit</strong>,
+        and the 128-bit source and destination addresses. There is no IHL, no header checksum and
+        no base-header options field.
+      </p>
+
+      <div id="ipv6-diagram"></div>
+      <div class="field-detail" id="ipv6-inspector"></div>
+      <div id="ipv6-fields"></div>
+      <div id="ipv6-frame-lane"></div>
+      <div class="field-detail" id="ipv6-frame-inspector"></div>
+
+      <div class="callout">
+        <div class="callout__title">Payload Length is not the frame length</div>
+        <p><strong>Payload Length</strong> counts everything after the 40-byte base header:
+        extension headers plus the upper-layer payload. It does not include the base header and
+        it does not include Ethernet padding or FCS. A value of zero is valid for an empty packet,
+        or for an RFC 2675 jumbogram when a Hop-by-Hop <strong>Jumbo Payload</strong> option is
+        present.</p>
+      </div>
+    </section>
+
+    <section class="section" id="first-word">
+      <div class="section__head">
+        <h2><span class="num">02</span>Traffic class &amp; flow label</h2>
+        <span class="section__hint">the first 32 bits, packed</span>
+      </div>
+      <p>
+        Version, Traffic Class and Flow Label share the first 32 bits. Traffic Class is the same
+        DSCP/ECN octet used by IPv4 Differentiated Services; Flow Label is a separate 20-bit
+        identifier intended for flow classification and load balancing. It is not a port and it
+        does not identify a connection.
+      </p>
+
+      <div class="flag-box">
+        <div class="flag-box__head"><span>first 32-bit word</span><span>version 6 · traffic class · flow label</span></div>
+        <div class="flag-box__body">
+          <div class="field-grid field-grid--three">
+            <div class="form-field">
+              <label for="ipv6-dscp">DSCP <span class="units">0–63</span></label>
+              <input type="number" id="ipv6-dscp" value="0" min="0" max="63" inputmode="numeric">
+            </div>
+            <div class="form-field">
+              <label for="ipv6-ecn">ECN</label>
+              <select id="ipv6-ecn">
+                <option value="0">00 · Not-ECT</option>
+                <option value="1">01 · ECT(1)</option>
+                <option value="2">10 · ECT(0)</option>
+                <option value="3">11 · CE</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="ipv6-flow-label">flow label <span class="units">20 bits</span></label>
+              <input type="text" id="ipv6-flow-label" value="0x12345" spellcheck="false">
+            </div>
+            <div class="form-field">
+              <label>traffic class octet</label>
+              <div class="output" style="min-height:34px;padding:7px 9px"><pre id="ipv6-tc-value">0 · 0x00</pre></div>
+            </div>
+            <div class="form-field">
+              <label>flow label value</label>
+              <div class="output" style="min-height:34px;padding:7px 9px"><pre id="ipv6-flow-value">0x12345</pre></div>
+            </div>
+            <div class="form-field">
+              <label>first 32 bits</label>
+              <div class="output" style="min-height:34px;padding:7px 9px"><pre id="ipv6-first-word">0x60012345</pre></div>
+            </div>
+          </div>
+          <div class="flag-readout">
+            <span>binary <b id="ipv6-first-bits">0110 0000 0000 0001 0010 0011 0100 0101</b></span>
+          </div>
+          <p class="flag-box__note">The high nibble is the version (<code>6</code>). The next 8 bits are DSCP (6 bits) plus ECN (2 bits). The low 20 bits are the flow label. A flow label of zero means “no label”; routers must not change a non-zero label.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Field</th><th>Bits</th><th>Use</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><b>Version</b></td><td class="num">4</td><td>Always 6 for IPv6; a different value is not an IPv6 header.</td><td>RFC 8200 §3</td></tr>
+            <tr><td><b>Traffic Class</b></td><td class="num">8</td><td>DSCP (6 bits) + ECN (2 bits), same semantics as IPv4 Differentiated Services.</td><td>RFC 2474 · RFC 3168</td></tr>
+            <tr><td><b>Flow Label</b></td><td class="num">20</td><td>Flow identification for load balancing and classification; zero means unlabelled.</td><td>RFC 6437</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="addresses">
+      <div class="section__head">
+        <h2><span class="num">03</span>Addresses</h2>
+        <span class="section__hint">128 bits · RFC 5952 text form</span>
+      </div>
+      <p>
+        An IPv6 address is 128 bits, written as eight 16-bit hexadecimal groups. Leading zeros in
+        a group are removed and the longest run of zero groups is compressed with <code>::</code>.
+        Only one <code>::</code> is allowed. The wire format is always the full 16 bytes; the
+        shortened text form is only a display convention.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>address parser</h3><span class="tag">RFC 5952 · RFC 4291</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid">
+              <div class="form-field span-2">
+                <label for="ipv6-addr-input">address <span class="units">IPv6, optional /prefix and %zone</span></label>
+                <input type="text" id="ipv6-addr-input" value="2001:db8::1" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="ipv6-addr-prefix">prefix length <span class="units">0–128</span></label>
+                <input type="number" id="ipv6-addr-prefix" value="64" min="0" max="128" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label>&nbsp;</label>
+                <div class="presets">
+                  <button type="button" data-ipv6-addr="2001:db8::1" data-ipv6-prefix="64">documentation</button>
+                  <button type="button" data-ipv6-addr="fe80::1" data-ipv6-prefix="64">link-local</button>
+                  <button type="button" data-ipv6-addr="::1" data-ipv6-prefix="128">loopback</button>
+                  <button type="button" data-ipv6-addr="::ffff:192.0.2.1" data-ipv6-prefix="128">IPv4-mapped</button>
+                  <button type="button" data-ipv6-addr="ff02::1:ff00:1" data-ipv6-prefix="128">solicited-node</button>
+                  <button type="button" data-ipv6-addr="2001:db8:0:0:1:0:0:1" data-ipv6-prefix="64">compression test</button>
+                </div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--primary" type="button" id="ipv6-addr-parse">Parse address</button>
+            </div>
+            <div class="codec-status" id="ipv6-addr-status" role="status" aria-live="polite">Enter an IPv6 address.</div>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>parsed address</h3><span class="tag">wire + text</span></div>
+          <div class="codec-panel__body">
+            <div id="ipv6-addr-result"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Prefix</th><th>Meaning</th><th>Notes</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>::/128</code></td><td>Unspecified</td><td>Never a valid destination; a source before an address is assigned.</td><td>RFC 4291 §2.5.2</td></tr>
+            <tr><td><code>::1/128</code></td><td>Loopback</td><td>The local host, equivalent in role to 127.0.0.1 but a single address.</td><td>RFC 4291 §2.5.3</td></tr>
+            <tr><td><code>::ffff:0:0/96</code></td><td>IPv4-mapped</td><td>An IPv4 address embedded in IPv6; displayed as <code>::ffff:192.0.2.1</code>.</td><td>RFC 4291 §2.5.5</td></tr>
+            <tr><td><code>fe80::/10</code></td><td>Link-local unicast</td><td>Valid only on one link; local tools need a zone such as <code>%eth0</code>.</td><td>RFC 4291 §2.5.6</td></tr>
+            <tr><td><code>fc00::/7</code></td><td>Unique local</td><td>Private-use addresses, roughly the IPv6 counterpart of RFC 1918.</td><td>RFC 4193</td></tr>
+            <tr><td><code>ff00::/8</code></td><td>Multicast</td><td>No broadcast. <code>ff02::1</code> is all-nodes on the local link.</td><td>RFC 4291 §2.7</td></tr>
+            <tr><td><code>2001:db8::/32</code></td><td>Documentation</td><td>Reserved for examples and documentation, never for production traffic.</td><td>RFC 3849</td></tr>
+            <tr><td><code>2000::/3</code></td><td>Global unicast</td><td>The current global-unicast range; not every address inside it is routable.</td><td>RFC 4291 §2.4</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">zone identifiers are local syntax</div>
+        <p><code>fe80::1%eth0</code> tells the local stack which interface to use. The
+        <code>%eth0</code> part is not encoded in the IPv6 header and does not travel across the
+        wire. It is scope information, not an address field.</p>
+      </div>
+    </section>
+
+    <section class="section" id="extensions">
+      <div class="section__head">
+        <h2><span class="num">04</span>Extension headers</h2>
+        <span class="section__hint">the next-header chain</span>
+      </div>
+      <p>
+        IPv6 moves optional processing into separate extension headers. Each one starts with a
+        <strong>Next Header</strong> byte and a length field, then type-specific data. Only
+        Hop-by-Hop must be first; the usual order is Hop-by-Hop, Destination Options, Routing,
+        Fragment, AH, ESP, a final Destination Options header, then the upper-layer protocol.
+      </p>
+
+      <div id="ipv6-hbh-diagram"></div>
+      <div class="field-detail" id="ipv6-hbh-inspector"></div>
+
+      <div class="codec" style="margin-top:14px">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>fragment header</h3><span class="tag">8 bytes</span></div>
+          <div class="codec-panel__body">
+            <div id="ipv6-fragment-diagram"></div>
+            <div class="field-detail" id="ipv6-fragment-inspector"></div>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>routing header</h3><span class="tag">8+ bytes</span></div>
+          <div class="codec-panel__body">
+            <div id="ipv6-routing-diagram"></div>
+            <div class="field-detail" id="ipv6-routing-inspector"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Next Header</th><th>Header</th><th>Length rule</th><th>What it does</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>Hop-by-Hop Options</b></td><td>(Hdr Ext Len + 1) × 8 B</td><td>Must be first; Router Alert and Jumbo Payload live here.</td><td>RFC 8200 §4.3</td></tr>
+            <tr><td><code>43</code></td><td><b>Routing</b></td><td>(Hdr Ext Len + 1) × 8 B</td><td>Type 0 source routing is deprecated; type 4 is SRH.</td><td>RFC 8200 §4.4 · RFC 8754</td></tr>
+            <tr><td><code>44</code></td><td><b>Fragment</b></td><td>Always 8 B</td><td>Offset, M flag and 32-bit identification.</td><td>RFC 8200 §4.5</td></tr>
+            <tr><td><code>51</code></td><td><b>AH</b></td><td>(Payload Len + 2) × 4 B</td><td>Authentication header; IPsec integrity and authentication.</td><td>RFC 4302</td></tr>
+            <tr><td><code>60</code></td><td><b>Destination Options</b></td><td>(Hdr Ext Len + 1) × 8 B</td><td>Options for the final destination, before or after routing.</td><td>RFC 8200 §4.6</td></tr>
+            <tr><td><code>50</code></td><td><b>ESP</b></td><td>Encrypted; stop parsing</td><td>The rest is encrypted; the next header is protected inside ESP.</td><td>RFC 4303</td></tr>
+            <tr><td><code>59</code></td><td><b>No Next Header</b></td><td>—</td><td>Ends the packet; there is no upper-layer payload.</td><td>RFC 8200 §4.7</td></tr>
+            <tr><td><code>58</code></td><td><b>ICMPv6</b></td><td>Upper layer</td><td>Errors, echo and Neighbor Discovery.</td><td>RFC 4443 · RFC 4861</td></tr>
+            <tr><td><code>6</code></td><td><b>TCP</b></td><td>Upper layer</td><td>Connection-oriented transport.</td><td>RFC 9293</td></tr>
+            <tr><td><code>17</code></td><td><b>UDP</b></td><td>Upper layer</td><td>Datagram transport; checksum is mandatory in IPv6.</td><td>RFC 768</td></tr>
+            <tr><td><code>132</code></td><td><b>SCTP</b></td><td>Upper layer</td><td>Message-oriented transport with multihoming.</td><td>RFC 9260</td></tr>
+            <tr><td><code>41</code></td><td><b>IPv6 encapsulation</b></td><td>Upper layer</td><td>An inner IPv6 packet; used by tunnels.</td><td>RFC 2473</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mt-24">Common options</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Option</th><th>Type</th><th>Format</th><th>Use</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><b>Pad1</b></td><td><code>0x00</code></td><td>1 byte</td><td>Single-byte alignment padding.</td><td>RFC 8200 §4.2</td></tr>
+            <tr><td><b>PadN</b></td><td><code>0x01</code></td><td>Type + length + N zeros</td><td>Multi-byte alignment padding.</td><td>RFC 8200 §4.2</td></tr>
+            <tr><td><b>Router Alert</b></td><td><code>0x05</code></td><td>Type + 2 + value</td><td>Tells routers to examine the packet; value 0 is MLD.</td><td>RFC 2711</td></tr>
+            <tr><td><b>Jumbo Payload</b></td><td><code>0xC2</code></td><td>Type + 4 + 32-bit length</td><td>Payloads over 65535 bytes; only with Payload Length 0.</td><td>RFC 2675</td></tr>
+            <tr><td><b>Home Address</b></td><td><code>0xC9</code></td><td>Type + 16 + address</td><td>Mobile IPv6 home address option.</td><td>RFC 6275</td></tr>
+            <tr><td><b>Tunnel Encapsulation Limit</b></td><td><code>0x04</code></td><td>Type + 1 + limit</td><td>Limits nested encapsulation.</td><td>RFC 2473</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">the chain is not free-form</div>
+        <p>Only Hop-by-Hop must appear first, but routers and firewalls commonly enforce the
+        recommended order and may drop unexpected combinations. IPv6 fragmentation is performed
+        by the source, not by routers; a fragment header with offset 0 and M=0 is an atomic
+        fragment. AH and ESP change the length accounting and the visibility of the upper layer.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Encoder</h2>
+        <span class="section__hint">base header · payload length auto</span>
+      </div>
+      <p>
+        Build a structurally valid IPv6 base header and append a payload. Payload Length is
+        calculated from the bytes you supply, so it includes any extension headers you paste or
+        generate. The optional presets create a TCP, UDP, ICMPv6, Hop-by-Hop or Fragment example;
+        transport checksums are calculated for the current source and destination when a preset
+        is loaded.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>IPv6 parameters</h3><span class="tag">RFC 8200</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid field-grid--three">
+              <div class="form-field">
+                <label for="ipv6-enc-version">version <span class="units">0–15</span></label>
+                <input type="number" id="ipv6-enc-version" value="6" min="0" max="15" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label for="ipv6-enc-dscp">DSCP <span class="units">0–63</span></label>
+                <input type="number" id="ipv6-enc-dscp" value="0" min="0" max="63" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label for="ipv6-enc-ecn">ECN</label>
+                <select id="ipv6-enc-ecn">
+                  <option value="0">00 · Not-ECT</option>
+                  <option value="1">01 · ECT(1)</option>
+                  <option value="2">10 · ECT(0)</option>
+                  <option value="3">11 · CE</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="ipv6-enc-flow">flow label <span class="units">20 bits</span></label>
+                <input type="text" id="ipv6-enc-flow" value="0x12345" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="ipv6-enc-next">next header <span class="units">0–255</span></label>
+                <input type="number" id="ipv6-enc-next" value="59" min="0" max="255" inputmode="numeric">
+                <div class="codec-help" id="ipv6-enc-next-hint">59 · No Next Header</div>
+              </div>
+              <div class="form-field">
+                <label for="ipv6-enc-hop">hop limit <span class="units">0–255</span></label>
+                <input type="number" id="ipv6-enc-hop" value="64" min="0" max="255" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label for="ipv6-enc-payload-len">payload length <span class="units">auto</span></label>
+                <input type="text" id="ipv6-enc-payload-len" value="0" disabled>
+              </div>
+              <div class="form-field span-2">
+                <label for="ipv6-enc-src">source address</label>
+                <input type="text" id="ipv6-enc-src" value="2001:db8::1" spellcheck="false">
+              </div>
+              <div class="form-field span-2">
+                <label for="ipv6-enc-dst">destination address</label>
+                <input type="text" id="ipv6-enc-dst" value="2001:db8::2" spellcheck="false">
+              </div>
+              <div class="form-field span-2">
+                <label for="ipv6-enc-payload">payload <span class="units">hex · extension headers + upper layer</span></label>
+                <textarea id="ipv6-enc-payload" class="hex-input" rows="4" spellcheck="false"></textarea>
+                <div class="presets">
+                  <button type="button" data-ipv6-preset="empty">empty</button>
+                  <button type="button" data-ipv6-preset="tcp">TCP</button>
+                  <button type="button" data-ipv6-preset="udp">UDP</button>
+                  <button type="button" data-ipv6-preset="icmpv6">ICMPv6 echo</button>
+                  <button type="button" data-ipv6-preset="hbh">HBH + ICMPv6</button>
+                  <button type="button" data-ipv6-preset="fragment">Fragment + UDP</button>
+                  <button type="button" data-ipv6-preset="dest">Destination Options</button>
+                </div>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="ipv6-enc-build">Build IPv6</button>
+              <button class="btn btn--ghost" type="button" id="ipv6-enc-example">Load chain example</button>
+            </div>
+            <p class="form-note">The base header has no checksum. Transport checksums use an IPv6 pseudo-header: source, destination, upper-layer length and next header. If you edit addresses after loading a preset, the preset checksum is no longer valid for the new addresses.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="ipv6-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="ipv6-enc-status" role="status" aria-live="polite">Set the fields and press Build IPv6.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">packet hex</div><button class="copy-btn" type="button" data-copy-target="#ipv6-enc-output">copy</button></div>
+              <pre id="ipv6-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="ipv6-enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">the header is not the whole packet</div>
+              <p>The output includes the 40-byte IPv6 header and the payload you supplied.
+              It does not add Ethernet framing or an FCS, and it does not recompute transport
+              checksums after you edit the addresses. Use the Ethernet explorer for EtherType
+              <code>0x86DD</code> framing.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">06</span>Decoder</h2>
+        <span class="section__hint">IPv6 packet or Ethernet frame</span>
+      </div>
+      <p>
+        Paste a raw IPv6 packet or an Ethernet II frame with EtherType <code>0x86DD</code>.
+        The decoder follows the Next Header chain through Hop-by-Hop, Routing, Fragment, AH and
+        Destination Options headers, reports each length and offset, and stops at the first
+        upper-layer protocol. It also detects RFC 2675 Jumbo Payload options.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 8200 · extension chain</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="ipv6-decode-input">hex input <span class="units">IPv6 packet or Ethernet frame</span></label>
+            <textarea id="ipv6-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="60 00 00 00 00 08 3a 40 20 01 0d b8 …"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="ipv6-decode">Decode IPv6</button>
+            <button class="btn btn--ghost" type="button" id="ipv6-decode-example">Load UDP packet</button>
+            <button class="btn btn--ghost" type="button" id="ipv6-decode-ext-example">Load extension chain</button>
+            <button class="btn btn--ghost" type="button" id="ipv6-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="ipv6-decode-status" role="status" aria-live="polite">No IPv6 packet decoded yet.</div>
+          <div id="ipv6-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">07</span>Wire notes</h2>
+        <span class="section__hint">what changed from IPv4</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">no header checksum</div>
+        <p>IPv6 removed the per-hop header checksum. Link layers and upper layers detect errors;
+        TCP, UDP and ICMPv6 checksums include an IPv6 pseudo-header. This means a router can
+        decrement Hop Limit without recomputing a header checksum, but it also means a corrupted
+        base header may not be detected until the upper layer.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Payload Length includes extension headers.</strong> It is not the length of the upper-layer payload alone. Subtract the chain lengths to find the transport payload. A zero value is meaningful: empty packet or jumbogram with a Jumbo Payload option.</li>
+        <li><strong>Hop Limit is not TTL.</strong> It counts hops, not seconds, and is decremented on every forwarding router. Initial values are convention, not protocol constants. Zero produces ICMPv6 Time Exceeded.</li>
+        <li><strong>Fragmentation belongs to the source.</strong> IPv6 routers do not fragment packets; they send ICMPv6 Packet Too Big when the packet exceeds the path MTU. The Fragment header uses a 32-bit identification and an offset in 8-byte units.</li>
+        <li><strong>Address text is not wire format.</strong> The wire is always 16 bytes. RFC 5952 canonical text compresses the longest zero run, lowercases hex and omits leading zeros. Zone identifiers such as <code>%eth0</code> are local scope syntax.</li>
+        <li><strong>No broadcast.</strong> IPv6 uses multicast and anycast. All-nodes multicast is <code>ff02::1</code>; solicited-node multicast is <code>ff02::1:ff00:0/104</code>. ARP is replaced by Neighbor Discovery over ICMPv6.</li>
+        <li><strong>Extension chains need limits.</strong> A parser must bound the number of extension headers it follows, validate every length before slicing, and stop at ESP because the next header is encrypted.</li>
+        <li><strong>Filtering ICMPv6 breaks IPv6.</strong> Neighbor Discovery, Router Advertisement, Packet Too Big and Time Exceeded are not optional noise. Blanket ICMP drop policies are a common cause of IPv6 black holes.</li>
+        <li><strong>Extension headers are not IPv4 options.</strong> They are chained through Next Header values and counted in Payload Length; AH uses 4-octet length units, while Hop-by-Hop, Routing and Destination Options use 8-octet units.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8200" target="_blank" rel="noopener">RFC 8200</a><span>IPv6 specification</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4291" target="_blank" rel="noopener">RFC 4291</a><span>IPv6 addressing architecture</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5952" target="_blank" rel="noopener">RFC 5952</a><span>IPv6 address text representation</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4007" target="_blank" rel="noopener">RFC 4007</a><span>Scoped IPv6 addresses</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8201" target="_blank" rel="noopener">RFC 8201</a><span>Path MTU Discovery</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6437" target="_blank" rel="noopener">RFC 6437</a><span>IPv6 flow label</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2675" target="_blank" rel="noopener">RFC 2675</a><span>IPv6 jumbograms</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4443" target="_blank" rel="noopener">RFC 4443</a><span>ICMPv6</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4861" target="_blank" rel="noopener">RFC 4861</a><span>Neighbor Discovery</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8754" target="_blank" rel="noopener">RFC 8754</a><span>Segment Routing Header</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="tcp.html">TCP flags &amp; TLVs -&gt;</a>
+      </div>
+    </section>
+
+
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ipv6-codec.js"></script>
+<script src="assets/ipv6.js"></script>
+</body>
+</html>

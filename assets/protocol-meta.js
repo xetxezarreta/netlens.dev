@@ -33,6 +33,23 @@ window.PH_PROTOCOLS = {
       { label: "Payload / quoted datagram", note: "type-specific" }
     ]
   },
+  ipv6: {
+    name: "IPv6",
+    layer: "internet",
+    modelLayer: "internet",
+    modelNote: "40 B · ext chain · 128-bit",
+    tone: "j",
+    layerCode: "L3",
+    layerLabel: "Internet / IP",
+    layerNote: "fixed header · extension chain · RFC 8200",
+    family: "internet",
+    path: [
+      { label: "Ethernet", href: "ethernet.html", note: "L2" },
+      { label: "IPv6", href: "ipv6.html", note: "L3", current: true },
+      { label: "Extension headers", note: "next header chain" },
+      { label: "TCP · UDP · ICMPv6", note: "upper layer" }
+    ]
+  },
   tcp: {
     name: "TCP",
     layer: "transport",
@@ -180,8 +197,7 @@ window.PH_STACK = [
     key: "internet",
     code: "L3",
     name: "Internet / IP",
-    note: "addressing · forwarding · control",
-    planned: ["IPv6"]
+    note: "addressing · forwarding · control"
   },
   {
     key: "link",
