@@ -23,12 +23,14 @@
       <a href="icmp.html">icmp</a>
       <a href="ipv6.html">ipv6</a>
       <a href="tcp.html">tcp</a>
+      <a href="dns.html">dns</a>
       <a href="udp.html" aria-current="page">udp</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
       <a href="wireguard.html">wireguard</a>
       <a href="ethernet.html">ethernet</a>
       <a href="arp.html">arp</a>
+      <a href="dissect.html">dissect</a>
       <a href="tools.html">tools</a>
       <a href="about.html">about</a>
     </nav>
@@ -54,12 +56,14 @@
         <li><a href="icmp.html" data-layer="L3">icmp</a></li>
         <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="dns.html" data-layer="L7">dns</a></li>
         <li><a href="udp.html" class="is-active" data-layer="L4">udp</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
         <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
         <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
         <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+        <li><a href="dissect.html" data-layer="tool">dissect</a></li>
       </ul>
     </div>
     <div class="rail__group">
@@ -182,7 +186,7 @@
         <table class="data-table">
           <thead><tr><th>Port</th><th>Service</th><th>Typical use</th><th>Notes</th></tr></thead>
           <tbody>
-            <tr><td><code>53</code></td><td><b>DNS</b></td><td>Queries and responses</td><td>Also TCP/53 for large responses and zone transfers.</td></tr>
+            <tr><td><code>53</code></td><td><a href="dns.html"><b>DNS</b></a></td><td>Queries and responses</td><td>Also TCP/53 for large responses and zone transfers.</td></tr>
             <tr><td><code>67/68</code></td><td><b>DHCP</b></td><td>Server / client</td><td>Broadcast before the client has an address.</td></tr>
             <tr><td><code>69</code></td><td><b>TFTP</b></td><td>Trivial file transfer</td><td>The server replies from a new ephemeral port.</td></tr>
             <tr><td><code>123</code></td><td><b>NTP</b></td><td>Time synchronization</td><td>Client source port is usually 123 as well.</td></tr>
@@ -366,6 +370,10 @@
               <pre id="udp-enc-output" class="placeholder">no bytes built yet</pre>
             </div>
             <div class="decode-summary" id="udp-enc-summary"></div>
+            <div class="btn-row">
+              <button class="btn btn--ghost" type="button" id="udp-enc-permalink">Copy permalink</button>
+              <button class="btn btn--ghost" type="button" id="udp-enc-export">Download JSON</button>
+            </div>
             <div class="callout" style="margin:0">
               <div class="callout__title">a checksum needs a context</div>
               <p>The UDP header does not contain IP addresses. If you copy the raw datagram
@@ -415,6 +423,9 @@
           </div>
           <div class="codec-status" id="udp-decode-status" role="status" aria-live="polite">No UDP datagram decoded yet.</div>
           <div id="udp-decode-result"></div>
+          <div class="btn-row">
+            <button class="btn btn--ghost" type="button" id="udp-decode-permalink">Copy permalink</button>
+          </div>
         </div>
       </div>
     </section>
@@ -453,7 +464,7 @@
 
       <div class="next-protocol">
         <span>next protocol</span>
-        <a href="quic.html">QUIC headers &amp; frames -&gt;</a>
+        <a href="dns.html">DNS records &amp; name compression -&gt;</a>
       </div>
     </section>
 
@@ -466,7 +477,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="quic.html">quic</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
   </div>
 </footer>
 

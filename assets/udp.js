@@ -262,6 +262,45 @@
     buildFromForm(true);
   }
 
+  function encoderState() {
+    return {
+      page: "udp-enc",
+      srcPort: document.getElementById("udp-enc-src-port").value,
+      dstPort: document.getElementById("udp-enc-dst-port").value,
+      ipVersion: document.getElementById("udp-enc-ip-version").value,
+      outputMode: document.getElementById("udp-enc-output-mode").value,
+      ttl: document.getElementById("udp-enc-ttl").value,
+      v4src: document.getElementById("udp-enc-v4-src").value,
+      v4dst: document.getElementById("udp-enc-v4-dst").value,
+      v6src: document.getElementById("udp-enc-v6-src").value,
+      v6dst: document.getElementById("udp-enc-v6-dst").value,
+      zero: document.getElementById("udp-enc-zero").checked,
+      mode: document.getElementById("udp-enc-data-mode").value,
+      data: document.getElementById("udp-enc-data").value
+    };
+  }
+
+  function applyEncoderState(state) {
+    if (!state) return;
+    const map = {
+      "udp-enc-src-port": state.srcPort, "udp-enc-dst-port": state.dstPort,
+      "udp-enc-ip-version": state.ipVersion, "udp-enc-output-mode": state.outputMode,
+      "udp-enc-ttl": state.ttl, "udp-enc-v4-src": state.v4src, "udp-enc-v4-dst": state.v4dst,
+      "udp-enc-v6-src": state.v6src, "udp-enc-v6-dst": state.v6dst,
+      "udp-enc-data-mode": state.mode, "udp-enc-data": state.data
+    };
+    Object.keys(map).forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && map[id] != null) el.value = map[id];
+    });
+    document.getElementById("udp-enc-zero").checked = !!state.zero;
+    syncContext();
+    updatePortHints(document.getElementById("udp-enc-src-port"), document.getElementById("udp-enc-dst-port"),
+      document.getElementById("udp-enc-src-hint"), document.getElementById("udp-enc-dst-hint"));
+    updateAutoLength();
+    buildFromForm(true);
+  }
+
   function initEncoder() {
     const src = document.getElementById("udp-enc-src-port");
     const dst = document.getElementById("udp-enc-dst-port");
@@ -293,6 +332,21 @@
     });
     document.getElementById("udp-enc-build").addEventListener("click", () => buildFromForm(true));
     document.getElementById("udp-enc-example").addEventListener("click", () => setPreset("dns"));
+    document.getElementById("udp-enc-permalink").addEventListener("click", () => {
+      if (buildFromForm(true)) PH.shareState(encoderState(), "UDP encoder permalink copied");
+    });
+    document.getElementById("udp-enc-export").addEventListener("click", () => {
+      if (!buildFromForm(true)) return;
+      const input = readEncoder();
+      const hex = document.getElementById("udp-enc-output").textContent.trim();
+      PH.downloadText("udp-datagram.json", JSON.stringify({
+        hex,
+        bytes: PH.parseHex(hex).length,
+        parameters: input,
+        checksum: document.getElementById("udp-enc-checksum").value,
+        length: document.getElementById("udp-enc-length").value
+      }, null, 2), "application/json");
+    });
     document.querySelectorAll("[data-udp-preset]").forEach((btn) => {
       btn.addEventListener("click", () => setPreset(btn.getAttribute("data-udp-preset")));
     });
@@ -538,6 +592,13 @@
       input.value = PH.bytesToHex(makeExample(6).bytes);
       run(true);
     });
+    document.getElementById("udp-decode-permalink").addEventListener("click", () => {
+      PH.shareState({
+        page: "udp-dec",
+        kind: document.getElementById("udp-decode-kind").value,
+        hex: document.getElementById("udp-decode-input").value
+      }, "UDP decoder permalink copied");
+    });
     document.getElementById("udp-decode-clear").addEventListener("click", () => {
       input.value = "";
       host.innerHTML = "";
@@ -548,12 +609,26 @@
     });
   }
 
+  function restoreState() {
+    const state = PH.readHashState();
+    if (!state) return false;
+    if (state.page === "udp-enc") { applyEncoderState(state); return true; }
+    if (state.page === "udp-dec") {
+      document.getElementById("udp-decode-kind").value = state.kind || "auto";
+      document.getElementById("udp-decode-input").value = state.hex || "";
+      document.getElementById("udp-decode").click();
+      return true;
+    }
+    return false;
+  }
+
   function init() {
     if (!document.getElementById("udp-diagram")) return;
     initDiagrams();
     initPortExplorer();
     initEncoder();
     initDecoder();
+    restoreState();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

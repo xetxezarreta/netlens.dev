@@ -655,6 +655,7 @@
   }
 
   function init() {
+    if (!document.getElementById("tcp-diagram")) return;
     initDiagram();
     initFlags();
     initEncoder();

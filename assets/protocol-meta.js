@@ -84,6 +84,24 @@ window.PH_PROTOCOLS = {
       { label: "Application", note: "L7" }
     ]
   },
+  dns: {
+    name: "DNS",
+    layer: "application",
+    modelLayer: "application",
+    modelNote: "names · records · EDNS",
+    tone: "g",
+    layerCode: "L7",
+    layerLabel: "Application",
+    layerNote: "name resolution · RFC 1035",
+    family: "application",
+    path: [
+      { label: "Ethernet", note: "link" },
+      { label: "IPv4 / IPv6", note: "L3" },
+      { label: "UDP / TCP", href: "udp.html", note: "L4" },
+      { label: "DNS", href: "dns.html", note: "L7", current: true },
+      { label: "Records · EDNS", note: "sections" }
+    ]
+  },
   quic: {
     name: "QUIC",
     layer: "transport",
@@ -181,6 +199,24 @@ window.PH_PROTOCOLS = {
     layerNote: "byte-level utilities",
     family: "tools",
     path: []
+  },
+  dissect: {
+    name: "Dissector",
+    layer: "tools",
+    modelLayer: "tools",
+    modelNote: "one frame · every layer",
+    tone: "h",
+    layerCode: "ALL",
+    layerLabel: "Cross-layer",
+    layerNote: "link → network → transport → app",
+    family: "tools",
+    path: [
+      { label: "Ethernet", href: "ethernet.html", note: "L2" },
+      { label: "IPv4 / IPv6", href: "ipv4.html", note: "L3" },
+      { label: "TCP / UDP / ICMP", href: "udp.html", note: "L4" },
+      { label: "Application", href: "dns.html", note: "L7" },
+      { label: "Dissector", href: "dissect.html", note: "ALL", current: true }
+    ]
   }
 };
 
@@ -193,7 +229,7 @@ window.PH_STACK = [
     code: "L7",
     name: "Application / control",
     note: "routing, DNS, TLS",
-    planned: ["DNS", "TLS"]
+    planned: ["TLS"]
   },
   {
     key: "transport",

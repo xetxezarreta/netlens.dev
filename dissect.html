@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Packet dissector — follow one frame across every layer · packet-headers.sh</title>
+<meta name="description" content="Cross-layer packet dissector: walk Ethernet, VLAN, ARP, IPv4, IPv6, TCP, UDP, ICMP, DNS, TLS and application payloads in one frame, with offset-linked hex, field detail and links into each protocol explorer.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="ipv6.html">ipv6</a>
+      <a href="tcp.html">tcp</a>
+      <a href="udp.html">udp</a>
+      <a href="dns.html">dns</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="dissect.html" aria-current="page">dissect</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="udp.html" data-layer="L4">udp</a></li>
+        <li><a href="dns.html" data-layer="L7">dns</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+        <li><a href="dissect.html" class="is-active" data-layer="tool">dissect</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#walk">packet walk</a></li>
+        <li><a href="#tree">layer tree</a></li>
+        <li><a href="#method">method</a></li>
+        <li><a href="#limits">limits</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>One frame, every layer.</b> The dissector follows the real encapsulation chain instead of decoding one header in isolation.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>dissect</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Packet dissect <span class="on">// cross-layer</span></h1>
+      <p class="lead">
+        Paste a captured frame and watch the encapsulation unfold: Ethernet II, VLAN tags,
+        IPv4 or IPv6, TCP, UDP or ICMP, then DNS, TLS, HTTP or an unknown payload. Every layer
+        links back to its dedicated explorer, and every byte range maps to a highlighted hex
+        view.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>cross-layer</b> · Ethernet to application</span>
+        <span class="badge">offset-linked hex</span>
+        <span class="badge">per-layer warnings</span>
+        <a class="badge" href="ethernet.html">Ethernet</a>
+        <a class="badge" href="ipv4.html">IPv4</a>
+        <a class="badge" href="ipv6.html">IPv6</a>
+        <a class="badge" href="udp.html">UDP</a>
+        <a class="badge" href="dns.html">DNS</a>
+      </div>
+      <div class="page-meta">
+        <span><b>input</b> hex frame or packet</span>
+        <span><b>walk</b> link → network → transport → app</span>
+        <span><b>output</b> layer tree + hex + fields</span>
+        <span><b>limits</b> no decryption or reassembly</span>
+      </div>
+      <div class="stackbar" data-stack="dissect"></div>
+      <ul class="toc">
+        <li><a href="#walk">walk</a></li>
+        <li><a href="#tree">tree</a></li>
+        <li><a href="#method">method</a></li>
+        <li><a href="#limits">limits</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="walk">
+      <div class="section__head">
+        <h2><span class="num">01</span>Packet walk</h2>
+        <span class="section__hint">paste bytes · choose a starting layer · read the chain</span>
+      </div>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>dissect bytes</h3><span class="tag" id="dissect-tag">waiting</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2">
+              <label for="dissect-input">hex input <span class="units">Ethernet frame, IPv4 packet, IPv6 packet or raw bytes</span></label>
+              <textarea id="dissect-input" class="hex-input" rows="6" spellcheck="false" placeholder="Paste a hex frame, or load one of the examples below."></textarea>
+            </div>
+            <div class="form-field">
+              <label for="dissect-kind">starting layer</label>
+              <select id="dissect-kind">
+                <option value="auto">auto-detect</option>
+                <option value="ethernet">Ethernet frame</option>
+                <option value="ipv4">IPv4 packet</option>
+                <option value="ipv6">IPv6 packet</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="dissect-run">Dissect</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-tcp">TCP SYN</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-dns">DNS over UDP</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-v6">IPv6 DNS</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-arp">ARP request</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-icmp">ICMP echo</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-vlan">VLAN tagged</button>
+            <button class="btn btn--ghost" type="button" id="dissect-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="dissect-status" role="status" aria-live="polite">No frame dissected yet.</div>
+          <div class="decode-summary" id="dissect-summary"></div>
+
+          <div class="dissect-layout" id="tree">
+            <div class="dissect-tree" aria-label="Decoded layer tree">
+              <div class="dissect-tree__head">layer tree</div>
+              <div id="dissect-tree"></div>
+            </div>
+            <div class="dissect-view">
+              <div id="dissect-hexdump" class="dissect-hexdump"></div>
+              <div id="dissect-detail"></div>
+            </div>
+          </div>
+
+          <div id="dissect-warnings"></div>
+
+          <div class="btn-row">
+            <button class="btn btn--ghost" type="button" id="dissect-permalink">Copy permalink</button>
+            <button class="btn btn--ghost" type="button" id="dissect-export">Download JSON</button>
+            <button class="btn btn--ghost" type="button" id="dissect-copy-hex">Copy full hex</button>
+            <button class="btn btn--ghost" type="button" id="dissect-copy-bpf">Copy BPF</button>
+            <button class="btn btn--ghost" type="button" id="dissect-copy-scapy">Copy Scapy</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="method">
+      <div class="section__head">
+        <h2><span class="num">02</span>How the walk works</h2>
+        <span class="section__hint">each layer names the next one</span>
+      </div>
+      <p>
+        A dissector does not guess the whole stack at once. Each header carries the identifier
+        needed to find the next header. Ethernet has an EtherType, IPv4 has a Protocol byte,
+        IPv6 has a Next Header chain, and TCP/UDP have ports that suggest an application
+        protocol. The walk stops when a layer has no decoder, when a length check fails, or
+        when a fragment does not contain the transport header.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Layer</th><th>Selector</th><th>Values followed here</th><th>Next</th></tr></thead>
+          <tbody>
+            <tr><td><b>Ethernet II</b></td><td>EtherType at offset 12</td><td><code>0x0800</code> IPv4 · <code>0x0806</code> ARP · <code>0x86DD</code> IPv6</td><td>IPv4 / IPv6 / ARP</td></tr>
+            <tr><td><b>802.1Q / 802.1ad</b></td><td>TPID <code>0x8100</code> / <code>0x88A8</code></td><td>One or more 4-byte tags</td><td>Inner EtherType</td></tr>
+            <tr><td><b>IPv4</b></td><td>Protocol byte at offset 9</td><td><code>1</code> ICMP · <code>6</code> TCP · <code>17</code> UDP</td><td>Transport header</td></tr>
+            <tr><td><b>IPv6</b></td><td>Next Header byte at offset 6</td><td>Hop-by-Hop, Routing, Fragment, AH, Destination Options</td><td>Terminal transport header</td></tr>
+            <tr><td><b>TCP / UDP</b></td><td>Port numbers and payload shape</td><td>53 DNS · 443 TLS/QUIC · 51820 WireGuard · 179 BGP</td><td>Application layer</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">ports are hints, not proof</div>
+        <p>A UDP datagram to port 53 is usually DNS, but nothing in UDP enforces that. The
+        dissector tries the application decoder only when the payload parses; otherwise it
+        shows an opaque payload layer. Unknown protocols are a normal result, not a failure.</p>
+      </div>
+    </section>
+
+    <section class="section" id="limits">
+      <div class="section__head">
+        <h2><span class="num">03</span>Limits &amp; safety</h2>
+        <span class="section__hint">what this tool deliberately does not do</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>No decryption.</strong> TLS application data, QUIC protected packets, ESP, WireGuard transport data and encrypted BGP sessions remain opaque.</li>
+        <li><strong>No IP reassembly.</strong> A non-initial IPv4 fragment has no transport header. The dissector marks fragment data and stops instead of inventing a payload.</li>
+        <li><strong>No TCP stream reassembly.</strong> One TCP segment is one input. A DNS message split across segments needs a stream reassembler, not a single-frame dissector.</li>
+        <li><strong>No pcap import.</strong> The input is hex bytes. Extract one packet from your capture tool, or use the protocol pages for a specific header.</li>
+        <li><strong>No checksum enforcement.</strong> Invalid checksums are reported as warnings. Offloaded NICs often emit frames before the checksum is filled in, so a capture can legitimately show a bad value.</li>
+        <li><strong>Every parse is bounded.</strong> Pointer chains, extension-header chains and record counts all have guards, so malformed input produces warnings rather than an infinite loop.</li>
+      </ul>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">captures can be hostile</div>
+        <p>Treat pasted bytes as untrusted input. This page never executes payloads, never
+        dereferences pointers outside the buffer, and never makes a network request. It also
+        does not prove that a frame was valid on the wire; it only shows what its bytes say.</p>
+      </div>
+
+      <h2 class="mt-24">Next</h2>
+      <p>
+        Start with the dedicated explorer for the layer you care about, or open
+        <a href="dns.html">DNS</a>, <a href="udp.html">UDP</a>, <a href="ipv6.html">IPv6</a> or
+        <a href="ethernet.html">Ethernet</a> to edit a header field by field.
+      </p>
+
+      <div class="next-protocol">
+        <span>next tool</span>
+        <a href="dns.html">DNS records &amp; compression -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ethernet-codec.js"></script>
+<script src="assets/arp-codec.js"></script>
+<script src="assets/ipv4.js"></script>
+<script src="assets/ipv6-codec.js"></script>
+<script src="assets/tcp.js"></script>
+<script src="assets/udp-codec.js"></script>
+<script src="assets/icmp-codec.js"></script>
+<script src="assets/dns-codec.js"></script>
+<script src="assets/dissect-codec.js"></script>
+<script src="assets/dissect.js"></script>
+</body>
+</html>

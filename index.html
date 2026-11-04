@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>packet-headers.sh — wire formats, bit by bit</title>
-<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, QUIC, BGP, WireGuard, Ethernet and ARP, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
+<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, QUIC, BGP, WireGuard, Ethernet and ARP, plus a cross-layer packet dissector, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
 <meta name="theme-color" content="#0b0e14">
 <meta property="og:type" content="website">
 <meta property="og:title" content="packet-headers.sh — wire formats, bit by bit">
@@ -28,11 +28,13 @@
       <a href="ipv6.html">ipv6</a>
       <a href="tcp.html">tcp</a>
       <a href="udp.html">udp</a>
+      <a href="dns.html">dns</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
       <a href="wireguard.html">wireguard</a>
       <a href="ethernet.html">ethernet</a>
       <a href="arp.html">arp</a>
+      <a href="dissect.html">dissect</a>
       <a href="tools.html">tools</a>
       <a href="about.html">about</a>
     </nav>
@@ -67,7 +69,7 @@
           <a class="btn btn--ghost" href="tools.html">Toolbox</a>
         </div>
         <div class="hero__stats">
-          <span><b>10</b> protocols</span>
+          <span><b>11</b> protocols</span>
           <span><b>30+</b> diagrams</span>
           <span><b>30+</b> RFCs cited</span>
           <span><b>0</b> trackers</span>
@@ -136,21 +138,21 @@
           <p class="kicker">// protocol index</p>
           <h2>Pick a header. See every bit.</h2>
         </div>
-        <p>10 protocols · 13 pages<br>field sheets by layer</p>
+        <p>11 protocols · 15 pages<br>field sheets by layer</p>
       </div>
 
       <div class="protocol-filter" data-protocol-filter>
         <span class="protocol-filter__label">browse by layer</span>
         <div class="protocol-filter__chips" role="group" aria-label="Filter protocols by layer">
-          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>11</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="application" aria-pressed="false">L7 application <b>1</b></button>
+          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>13</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="application" aria-pressed="false">L7 application <b>2</b></button>
           <button type="button" class="layer-chip" data-layer-filter="transport" aria-pressed="false">L4 transport <b>3</b></button>
           <button type="button" class="layer-chip" data-layer-filter="tunnel" aria-pressed="false">L3T tunnel <b>1</b></button>
           <button type="button" class="layer-chip" data-layer-filter="internet" aria-pressed="false">L3 internet <b>3</b></button>
           <button type="button" class="layer-chip" data-layer-filter="link" aria-pressed="false">L2 link <b>2</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="tools" aria-pressed="false">tools <b>1</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="tools" aria-pressed="false">tools <b>2</b></button>
         </div>
-        <span class="protocol-filter__status" role="status" aria-live="polite">11 entries</span>
+        <span class="protocol-filter__status" role="status" aria-live="polite">13 entries</span>
       </div>
 
       <div class="protocol-grid" id="protocol-grid">
@@ -238,8 +240,19 @@
           <div class="protocol-card__meta"><span class="layer">L7 · application/control</span><span>19 B header</span><span>16 attributes</span><span>TCP/179</span></div>
         </a>
 
+        <a class="protocol-card" href="dns.html" data-layer="application">
+          <div class="protocol-card__top"><span class="protocol-card__num">08</span><span class="protocol-card__rfc">RFC 1035</span></div>
+          <h3>DNS records &amp; flags</h3>
+          <p>Header flags, questions, resource records, name-compression pointers, EDNS(0) and a query/response codec.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:16;--tone:var(--tone-a)"></i><i style="--span:1;--tone:var(--tone-b)"></i><i style="--span:4;--tone:var(--tone-c)"></i><i style="--span:11;--tone:var(--tone-d)"></i>
+            <i style="--span:16;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i><i style="--span:16;--tone:var(--tone-g)"></i><i style="--span:16;--tone:var(--tone-h)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">L7 · application</span><span>12 B header</span><span>compression</span><span>EDNS(0)</span></div>
+        </a>
+
         <a class="protocol-card" href="wireguard.html" data-layer="tunnel">
-          <div class="protocol-card__top"><span class="protocol-card__num">08</span><span class="protocol-card__rfc">WG v1</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">09</span><span class="protocol-card__rfc">WG v1</span></div>
           <h3>WireGuard messages</h3>
           <p>Four message types, little-endian indices, MAC1/MAC2, counters and the encrypted transport layout.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -250,7 +263,7 @@
 
 
         <a class="protocol-card" href="ethernet.html" data-layer="link">
-          <div class="protocol-card__top"><span class="protocol-card__num">09</span><span class="protocol-card__rfc">IEEE 802.3</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">10</span><span class="protocol-card__rfc">IEEE 802.3</span></div>
           <h3>Ethernet II frames</h3>
           <p>Destination and source MACs, EtherType, 802.1Q VLAN tags, padding and the CRC-32 frame check sequence.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -263,7 +276,7 @@
         </a>
 
         <a class="protocol-card" href="arp.html" data-layer="link">
-          <div class="protocol-card__top"><span class="protocol-card__num">10</span><span class="protocol-card__rfc">RFC 826</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">11</span><span class="protocol-card__rfc">RFC 826</span></div>
           <h3>ARP</h3>
           <p>IPv4-to-MAC resolution, request/reply opcodes, ARP probes, gratuitous ARP and Ethernet padding.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -272,6 +285,18 @@
             <i style="--span:32;--tone:var(--tone-f)"></i><i style="--span:32;--tone:var(--tone-g)"></i><i style="--span:32;--tone:var(--tone-h)"></i>
           </div>
           <div class="protocol-card__meta"><span class="layer">L2.5 · resolution</span><span>28 B message</span><span>opcodes</span><span>EtherType 0x0806</span></div>
+        </a>
+
+        <a class="protocol-card" href="dissect.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">+</span><span class="protocol-card__rfc">CROSS-LAYER</span></div>
+          <h3>Packet dissector</h3>
+          <p>One frame, every layer: Ethernet, VLAN, IP, TCP/UDP/ICMP, DNS, TLS and opaque payloads with offset-linked hex.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:14;--tone:var(--tone-a)"></i><i style="--span:18;--tone:var(--tone-b)"></i>
+            <i style="--span:20;--tone:var(--tone-c)"></i><i style="--span:12;--tone:var(--tone-d)"></i>
+            <i style="--span:8;--tone:var(--tone-e)"></i><i style="--span:24;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>layer tree</span><span>hex sync</span><span>warnings</span></div>
         </a>
 
         <a class="protocol-card" href="tools.html" data-layer="tools">
@@ -301,7 +326,7 @@
           <input type="search" placeholder="Search 100+ fields, flags, option kinds and RFCs…" aria-label="Search the field index" autocomplete="off" spellcheck="false">
           <button class="btn" type="button" data-search-open>Open full search <span aria-hidden="true">/</span></button>
         </div>
-        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · quic · bgp · wireguard · ethernet · arp · tools</span><span>fuzzy search across every page</span></div>
+        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · quic · bgp · wireguard · ethernet · arp · dissect · tools</span><span>fuzzy search across every page</span></div>
         <ul class="home-search__results"></ul>
       </form>
     </section>
@@ -372,6 +397,8 @@
         <a href="ipv6.html#layout">IPv6 layout</a>
         <a href="tcp.html#flags">TCP flag explorer</a>
         <a href="udp.html#layout">UDP layout</a>
+        <a href="dns.html#layout">DNS header</a>
+        <a href="dissect.html#walk">Packet dissector</a>
         <a href="quic.html#varint">QUIC varints</a>
         <a href="bgp.html#attribute">BGP attribute flags</a>
         <a href="wireguard.html#transport">WireGuard transport</a>
@@ -390,7 +417,7 @@
     </div>
     <div class="foot-note">RFCs are the source of truth. Diagrams are educational; check the current RFC, errata and your implementation before putting anything on the wire.</div>
     <div class="foot-links">
-      <a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="ethernet.html">ethernet</a><a href="arp.html">arp</a><a href="tools.html">tools</a><a href="about.html">about</a>
+      <a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="ethernet.html">ethernet</a><a href="arp.html">arp</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a>
     </div>
   </div>
 </footer>

@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNS — header, flags, records &amp; name compression · packet-headers.sh</title>
+<meta name="description" content="Interactive DNS explorer: header and flag bits, question and resource-record layouts, name compression pointers, EDNS(0), record types, and a byte-accurate encoder/decoder for queries and responses.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
+      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
+    </a>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <nav class="site-nav" aria-label="Protocols">
+      <a href="ipv4.html">ipv4</a>
+      <a href="icmp.html">icmp</a>
+      <a href="ipv6.html">ipv6</a>
+      <a href="tcp.html">tcp</a>
+      <a href="udp.html">udp</a>
+      <a href="dns.html" aria-current="page">dns</a>
+      <a href="quic.html">quic</a>
+      <a href="bgp.html">bgp</a>
+      <a href="wireguard.html">wireguard</a>
+      <a href="ethernet.html">ethernet</a>
+      <a href="arp.html">arp</a>
+      <a href="dissect.html">dissect</a>
+      <a href="tools.html">tools</a>
+      <a href="about.html">about</a>
+    </nav>
+    <div class="header-tools">
+      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span>search</span><span class="kbd-hint">/</span>
+      </button>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span data-theme-name>green</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <ul>
+        <li><a href="ipv4.html" data-layer="L3">ipv4</a></li>
+        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
+        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
+        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
+        <li><a href="udp.html" data-layer="L4">udp</a></li>
+        <li><a href="dns.html" class="is-active" data-layer="L7">dns</a></li>
+        <li><a href="quic.html" data-layer="L4+">quic</a></li>
+        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
+        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
+        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
+        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+        <li><a href="dissect.html" data-layer="tool">dissect</a></li>
+      </ul>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">message layout</a></li>
+        <li><a href="#flags">flags</a></li>
+        <li><a href="#names">names</a></li>
+        <li><a href="#records">records</a></li>
+        <li><a href="#transport">transport &amp; EDNS</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>DNS is a message protocol.</b> The 12-byte header and four sections are shared by queries and responses; the QR bit decides which direction the message is travelling.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>dns</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>DNS <span class="on">// RFC 1035</span></h1>
+      <p class="lead">
+        The Domain Name System turns names into records. Every query and response shares one
+        header, four counted sections and a variable-length name encoding with compression
+        pointers. DNS normally rides UDP/53, falls back to TCP for truncation and zone transfers,
+        and is increasingly carried inside QUIC, TLS and HTTPS.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 1035</b> · DNS</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc6891" target="_blank" rel="noopener">RFC 6891 · EDNS(0)</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3596" target="_blank" rel="noopener">RFC 3596 · AAAA</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc2181" target="_blank" rel="noopener">RFC 2181 · clarifications</a>
+        <span class="badge">12 B header</span>
+        <span class="badge">name compression</span>
+        <span class="badge">UDP · TCP · DoH · DoQ</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> L7 · application</span>
+        <span><b>header</b> 12 B fixed</span>
+        <span><b>transport</b> UDP/53 · TCP/53</span>
+        <span><b>sections</b> question · answer · authority · additional</span>
+      </div>
+      <div class="stackbar" data-stack="dns"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#flags">flags</a></li>
+        <li><a href="#names">names</a></li>
+        <li><a href="#records">records</a></li>
+        <li><a href="#transport">transport</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message layout</h2>
+        <span class="section__hint">twelve bytes · four counted sections</span>
+      </div>
+      <p>
+        A DNS message begins with a fixed 12-byte header. <strong>ID</strong> matches a response
+        to its query; the <strong>flags</strong> word carries direction, opcode, truncation and
+        response code; the four <strong>counts</strong> say how many entries follow in the
+        question, answer, authority and additional sections. Everything after the header is a
+        sequence of names, fixed fields and length-delimited RDATA.
+      </p>
+
+      <div id="dns-diagram"></div>
+      <div class="field-detail" id="dns-inspector"></div>
+      <div id="dns-fields"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Section</th><th>Count field</th><th>Contents</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><b>Question</b></td><td><code>QDCOUNT</code></td><td>QNAME, QTYPE, QCLASS</td><td>Normally exactly one question. The name is not repeated with a type/class header.</td></tr>
+            <tr><td><b>Answer</b></td><td><code>ANCOUNT</code></td><td>Resource records</td><td>Direct answers, CNAME chains and DNSSEC signatures.</td></tr>
+            <tr><td><b>Authority</b></td><td><code>NSCOUNT</code></td><td>Resource records</td><td>Delegation NS records or the SOA that proves a negative answer.</td></tr>
+            <tr><td><b>Additional</b></td><td><code>ARCOUNT</code></td><td>Resource records</td><td>Glue addresses, OPT (EDNS), TSIG and other supporting records.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">counts are declarations, not limits</div>
+        <p>A parser must stop when the bytes run out even if the counts promise more records.
+        Truncated messages, compression loops and bad RDLENGTH values are common in captures.
+        The decoder below reports the first inconsistency instead of guessing.</p>
+      </div>
+    </section>
+
+    <section class="section" id="flags">
+      <div class="section__head">
+        <h2><span class="num">02</span>Flags &amp; response codes</h2>
+        <span class="section__hint">one 16-bit word · direction, policy and status</span>
+      </div>
+      <p>
+        The flags word is dense: one direction bit, a four-bit opcode, five single-bit flags,
+        three DNSSEC-related bits and a four-bit response code. Extended response codes live in
+        the EDNS OPT record, so the effective RCODE can be larger than 15.
+      </p>
+
+      <div id="dns-flags-diagram"></div>
+      <div class="field-detail" id="dns-flags-inspector"></div>
+      <div id="dns-flags-fields"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Bit</th><th>Name</th><th>Meaning</th><th>Set by</th></tr></thead>
+          <tbody>
+            <tr><td><code>15</code></td><td><b>QR</b></td><td>0 = query, 1 = response</td><td>Responder</td></tr>
+            <tr><td><code>14–11</code></td><td><b>Opcode</b></td><td>QUERY (0), IQUERY (1), STATUS (2), NOTIFY (4), UPDATE (5), DSO (6)</td><td>Sender</td></tr>
+            <tr><td><code>10</code></td><td><b>AA</b></td><td>Authoritative Answer: this server owns the zone</td><td>Authoritative server</td></tr>
+            <tr><td><code>9</code></td><td><b>TC</b></td><td>TrunCation: the message did not fit and should be retried over TCP</td><td>Responder</td></tr>
+            <tr><td><code>8</code></td><td><b>RD</b></td><td>Recursion Desired: ask the resolver to chase the answer</td><td>Client</td></tr>
+            <tr><td><code>7</code></td><td><b>RA</b></td><td>Recursion Available: the server is willing to recurse</td><td>Responder</td></tr>
+            <tr><td><code>6</code></td><td><b>Z</b></td><td>Reserved; must be zero</td><td>—</td></tr>
+            <tr><td><code>5</code></td><td><b>AD</b></td><td>Authentic Data: the resolver validated DNSSEC for this answer</td><td>Validating resolver</td></tr>
+            <tr><td><code>4</code></td><td><b>CD</b></td><td>Checking Disabled: do not validate DNSSEC on this path</td><td>Client</td></tr>
+            <tr><td><code>3–0</code></td><td><b>RCODE</b></td><td>Response code: NOERROR (0), FORMERR (1), SERVFAIL (2), NXDOMAIN (3), NOTIMP (4), REFUSED (5)</td><td>Responder</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>RCODE</th><th>Name</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>NOERROR</b></td><td>The query completed. The answer section may still be empty (NODATA).</td></tr>
+            <tr><td><code>1</code></td><td><b>FORMERR</b></td><td>The server could not parse the query.</td></tr>
+            <tr><td><code>2</code></td><td><b>SERVFAIL</b></td><td>The server failed for an internal or upstream reason.</td></tr>
+            <tr><td><code>3</code></td><td><b>NXDOMAIN</b></td><td>The queried name does not exist.</td></tr>
+            <tr><td><code>4</code></td><td><b>NOTIMP</b></td><td>The opcode or query type is not implemented.</td></tr>
+            <tr><td><code>5</code></td><td><b>REFUSED</b></td><td>Policy refused to answer, often because recursion is disabled.</td></tr>
+            <tr><td><code>9</code></td><td><b>NOTAUTH</b></td><td>The server is not authoritative for the zone in the query.</td></tr>
+            <tr><td><code>16</code></td><td><b>BADVERS</b></td><td>EDNS version not supported. Carried in the OPT record.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">NXDOMAIN is not NODATA</div>
+        <p>NXDOMAIN means the <em>name</em> does not exist. NOERROR with an empty answer and an
+        SOA in the authority section means the name exists but has no record of that type. Tools
+        that collapse both into “not found” hide useful DNS behaviour.</p>
+      </div>
+    </section>
+
+    <section class="section" id="names">
+      <div class="section__head">
+        <h2><span class="num">03</span>Names &amp; compression</h2>
+        <span class="section__hint">length-prefixed labels · 14-bit pointers</span>
+      </div>
+      <p>
+        A domain name is a sequence of labels. Each label starts with a length byte (1–63),
+        followed by that many bytes; a zero byte terminates the name. The root is a single zero
+        byte. Total encoded length is at most 255 bytes, and a presentation-format name is at
+        most 253 characters.
+      </p>
+
+      <div id="dns-question-lane"></div>
+      <div class="field-detail" id="dns-question-inspector"></div>
+
+      <p>
+        DNS compresses repeated suffixes. A length byte with its top two bits set is a
+        <strong>pointer</strong>: the remaining 14 bits are an offset from the start of the
+        message. A pointer terminates the current name, so a parser must jump, continue reading,
+        and remember where it should resume after the pointer. Pointers may not point forward in
+        practice, must stay inside the message, and must not loop.
+      </p>
+
+      <div class="callout">
+        <div class="callout__title">compression is per message, not per record</div>
+        <p>The pointer target is an absolute offset from the first byte of the DNS message. A
+        name at offset <code>0x0024</code> that points to <code>0xC00C</code> means “continue at
+        byte 12” — normally the question name. When a decoder reports a name, it should also
+        report how many pointers it followed.</p>
+      </div>
+
+      <div id="dns-answer-lane"></div>
+      <div class="field-detail" id="dns-answer-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Encoding</th><th>First byte</th><th>Meaning</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Label</td><td><code>0x01–0x3F</code></td><td>Length 1–63, followed by label bytes</td><td><code>07 example</code></td></tr>
+            <tr><td>Terminator</td><td><code>0x00</code></td><td>End of name (root label)</td><td><code>00</code></td></tr>
+            <tr><td>Pointer</td><td><code>0xC0–0xFF</code></td><td>14-bit offset from message start</td><td><code>C0 0C</code> → offset 12</td></tr>
+            <tr><td>Reserved</td><td><code>0x40, 0x80</code></td><td>Unsupported label types; reject</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="records">
+      <div class="section__head">
+        <h2><span class="num">04</span>Resource records</h2>
+        <span class="section__hint">name · type · class · TTL · RDLENGTH · RDATA</span>
+      </div>
+      <p>
+        Every answer, authority and additional entry uses the same resource-record envelope.
+        The type decides how to interpret RDATA; RDLENGTH lets a parser skip a record even when
+        it does not understand the type. That length-delimited design is what makes DNS
+        extensible.
+      </p>
+
+      <div id="dns-record-lane"></div>
+      <div class="field-detail" id="dns-record-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Code</th><th>RDATA</th><th>Typical use</th></tr></thead>
+          <tbody>
+            <tr><td><b>A</b></td><td><code>1</code></td><td>4-byte IPv4 address</td><td>Name to IPv4 address.</td></tr>
+            <tr><td><b>NS</b></td><td><code>2</code></td><td>Domain name</td><td>Delegation to an authoritative name server.</td></tr>
+            <tr><td><b>CNAME</b></td><td><code>5</code></td><td>Domain name</td><td>Alias. A CNAME owner cannot have other data at the same name.</td></tr>
+            <tr><td><b>SOA</b></td><td><code>6</code></td><td>MNAME, RNAME, serial, refresh, retry, expire, minimum</td><td>Zone apex metadata and negative-answer authority.</td></tr>
+            <tr><td><b>PTR</b></td><td><code>12</code></td><td>Domain name</td><td>Reverse lookup under <code>in-addr.arpa</code> or <code>ip6.arpa</code>.</td></tr>
+            <tr><td><b>MX</b></td><td><code>15</code></td><td>16-bit preference + exchange name</td><td>Mail routing; lower preference wins.</td></tr>
+            <tr><td><b>TXT</b></td><td><code>16</code></td><td>One or more length-prefixed strings</td><td>SPF, DKIM, site verification, policy text.</td></tr>
+            <tr><td><b>AAAA</b></td><td><code>28</code></td><td>16-byte IPv6 address</td><td>Name to IPv6 address.</td></tr>
+            <tr><td><b>SRV</b></td><td><code>33</code></td><td>Priority, weight, port + target name</td><td>Service discovery; target must not use compression.</td></tr>
+            <tr><td><b>OPT</b></td><td><code>41</code></td><td>EDNS option TLVs</td><td>Pseudo-record: UDP size, extended RCODE, DO bit, options.</td></tr>
+            <tr><td><b>DS</b></td><td><code>43</code></td><td>Key tag, algorithm, digest type, digest</td><td>Delegation signer for DNSSEC.</td></tr>
+            <tr><td><b>RRSIG</b></td><td><code>46</code></td><td>Signature metadata + signature</td><td>DNSSEC signature over an RRset.</td></tr>
+            <tr><td><b>DNSKEY</b></td><td><code>48</code></td><td>Flags, protocol, algorithm, public key</td><td>Zone signing key or key-signing key.</td></tr>
+            <tr><td><b>HTTPS / SVCB</b></td><td><code>65 / 64</code></td><td>Priority + target + service parameters</td><td>HTTPS hints: ALPN, port, IPv4/IPv6 hints, ECH.</td></tr>
+            <tr><td><b>CAA</b></td><td><code>257</code></td><td>Flags, tag, value</td><td>Which certificate authorities may issue for a name.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">TTL is a 31-bit value</div>
+        <p>RFC 2181 restricts TTL to 31 bits; a value with the high bit set is treated as zero by
+        many implementations. TTL is a cache lifetime in seconds, not a timestamp. Resolvers
+        decrement it as records sit in cache.</p>
+      </div>
+    </section>
+
+    <section class="section" id="transport">
+      <div class="section__head">
+        <h2><span class="num">05</span>Transport &amp; EDNS(0)</h2>
+        <span class="section__hint">UDP/53 · TCP/53 · 512 B and beyond</span>
+      </div>
+      <p>
+        DNS is transport-independent. Classic DNS uses a single UDP datagram per message and
+        retries over TCP when the response sets <strong>TC</strong>. TCP carries a two-byte length
+        prefix before each message because a TCP stream has no message boundaries. Zone
+        transfers (<code>AXFR</code>, <code>IXFR</code>) always use TCP.
+      </p>
+
+      <div id="dns-tcp-lane"></div>
+      <div class="field-detail" id="dns-tcp-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Transport</th><th>Framing</th><th>Default limit</th><th>Used for</th></tr></thead>
+          <tbody>
+            <tr><td><b>UDP/53</b></td><td>One message per datagram</td><td>512 B without EDNS(0)</td><td>Ordinary queries and responses.</td></tr>
+            <tr><td><b>TCP/53</b></td><td>2-byte length prefix per message</td><td>65,535 B per message</td><td>Truncated responses, AXFR/IXFR, large DNSSEC answers.</td></tr>
+            <tr><td><b>DoT</b></td><td>TLS record layer over TCP/853</td><td>Same as TCP DNS</td><td>Encrypted DNS to a recursive resolver.</td></tr>
+            <tr><td><b>DoH</b></td><td>HTTP/2 or HTTP/3 POST/GET</td><td>HTTP message limits</td><td>DNS inside HTTPS, often to port 443.</td></tr>
+            <tr><td><b>DoQ</b></td><td>One DNS message per QUIC stream</td><td>QUIC stream limits</td><td>Encrypted DNS over QUIC, port 853.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mt-24">EDNS(0)</h3>
+      <p>
+        EDNS(0) adds one OPT pseudo-record in the additional section. It advertises a larger UDP
+        payload size, carries an extended RCODE and the DNSSEC OK bit, and transports options.
+        OPT is never cached and never appears in a zone file.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>OPT field</th><th>Width</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><b>NAME</b></td><td>1 B</td><td>Root (<code>0x00</code>); the owner name must be empty.</td></tr>
+            <tr><td><b>TYPE</b></td><td>2 B</td><td><code>41</code> (OPT).</td></tr>
+            <tr><td><b>CLASS</b></td><td>2 B</td><td>Requestor's UDP payload size in bytes, not a DNS class.</td></tr>
+            <tr><td><b>TTL</b></td><td>4 B</td><td>Extended RCODE (8 bits), EDNS version (8 bits), flags (16 bits; DO is <code>0x8000</code>).</td></tr>
+            <tr><td><b>RDLENGTH</b></td><td>2 B</td><td>Length of the option area.</td></tr>
+            <tr><td><b>RDATA</b></td><td>var</td><td>Sequence of option code, length and data.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Option</th><th>Code</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><b>ECS</b></td><td><code>8</code></td><td>EDNS Client Subnet: partial client address for authoritative geolocation.</td></tr>
+            <tr><td><b>COOKIE</b></td><td><code>10</code></td><td>Client/server cookies for off-path spoofing resistance.</td></tr>
+            <tr><td><b>Padding</b></td><td><code>12</code></td><td>Pads messages to a size that resists traffic analysis.</td></tr>
+            <tr><td><b>EDE</b></td><td><code>15</code></td><td>Extended DNS Errors: a 16-bit info code plus UTF-8 text.</td></tr>
+            <tr><td><b>NSID</b></td><td><code>3</code></td><td>Name Server Identifier, useful when debugging anycast.</td></tr>
+            <tr><td><b>TCP Keepalive</b></td><td><code>11</code></td><td>Idle timeout for long-lived TCP DNS connections.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">fragmentation is not free</div>
+        <p>Large UDP responses can be fragmented at the IP layer, which is lossy and sometimes
+        filtered. Modern guidance is to advertise an EDNS payload of about 1232 bytes over IPv6
+        and to prefer TCP when the answer is larger. A 4096-byte advertisement is a maximum, not
+        a promise that the path will carry it.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">06</span>Encoder</h2>
+        <span class="section__hint">query or response · raw DNS or UDP datagram</span>
+      </div>
+      <p>
+        Build a DNS message from a question and zero or more resource records. Record lines use
+        <code>name [ttl] TYPE data</code>. Names may be written with or without a trailing dot;
+        the encoder adds root termination and compresses repeated suffixes.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>DNS parameters</h3><span class="tag">RFC 1035</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid field-grid--three">
+              <div class="form-field">
+                <label for="dns-enc-id">transaction ID <span class="units">0–65535</span></label>
+                <input type="text" id="dns-enc-id" value="0x1234" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-opcode">opcode</label>
+                <select id="dns-enc-opcode">
+                  <option value="0">0 · QUERY</option>
+                  <option value="1">1 · IQUERY</option>
+                  <option value="2">2 · STATUS</option>
+                  <option value="4">4 · NOTIFY</option>
+                  <option value="5">5 · UPDATE</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-rcode">response code</label>
+                <select id="dns-enc-rcode">
+                  <option value="0">0 · NOERROR</option>
+                  <option value="1">1 · FORMERR</option>
+                  <option value="2">2 · SERVFAIL</option>
+                  <option value="3">3 · NXDOMAIN</option>
+                  <option value="4">4 · NOTIMP</option>
+                  <option value="5">5 · REFUSED</option>
+                  <option value="9">9 · NOTAUTH</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flag-box" style="margin-top:12px">
+              <div class="flag-box__head"><span>header flags</span><span>QR · AA · TC · RD · RA · AD · CD</span></div>
+              <div class="flag-box__body">
+                <div class="flag-grid flag-grid--compact">
+                  <label class="inline-checks"><input type="checkbox" id="dns-enc-qr"> QR response</label>
+                  <label class="inline-checks"><input type="checkbox" id="dns-enc-aa"> AA authoritative</label>
+                  <label class="inline-checks"><input type="checkbox" id="dns-enc-tc"> TC truncated</label>
+                  <label class="inline-checks"><input type="checkbox" id="dns-enc-rd" checked> RD recursion desired</label>
+                  <label class="inline-checks"><input type="checkbox" id="dns-enc-ra"> RA recursion available</label>
+                  <label class="inline-checks"><input type="checkbox" id="dns-enc-ad"> AD authenticated</label>
+                  <label class="inline-checks"><input type="checkbox" id="dns-enc-cd"> CD checking disabled</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-grid field-grid--three" style="margin-top:12px">
+              <div class="form-field">
+                <label class="inline-checks" style="min-height:34px"><input type="checkbox" id="dns-enc-edns"> EDNS(0) OPT record</label>
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-edns-size">advertised UDP size</label>
+                <input type="number" id="dns-enc-edns-size" value="1232" min="512" max="65535" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label class="inline-checks" style="min-height:34px"><input type="checkbox" id="dns-enc-edns-do"> DNSSEC OK (DO)</label>
+              </div>
+            </div>
+
+            <div class="field-grid field-grid--three" style="margin-top:12px">
+              <div class="form-field">
+                <label for="dns-enc-qname">question name</label>
+                <input type="text" id="dns-enc-qname" value="example.com." spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-qtype">question type</label>
+                <select id="dns-enc-qtype">
+                  <option>A</option><option>AAAA</option><option>NS</option><option>CNAME</option>
+                  <option>MX</option><option>TXT</option><option>SRV</option><option>SOA</option>
+                  <option>PTR</option><option>CAA</option><option>HTTPS</option><option>ANY</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-qclass">question class</label>
+                <select id="dns-enc-qclass"><option>IN</option><option>CH</option><option>HS</option><option>ANY</option></select>
+              </div>
+            </div>
+
+            <div class="form-field" style="margin-top:12px">
+              <label for="dns-enc-answers">answer records <span class="units">one per line · name [ttl] TYPE data</span></label>
+              <textarea id="dns-enc-answers" class="hex-input" rows="5" spellcheck="false" placeholder="example.com. 300 A 192.0.2.10"></textarea>
+            </div>
+            <div class="field-grid" style="margin-top:8px">
+              <div class="form-field">
+                <label for="dns-enc-authority">authority records</label>
+                <textarea id="dns-enc-authority" class="hex-input" rows="3" spellcheck="false" placeholder="example.com. 300 NS ns1.example.com."></textarea>
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-additional">additional records</label>
+                <textarea id="dns-enc-additional" class="hex-input" rows="3" spellcheck="false" placeholder=". 300 OPT 1232"></textarea>
+              </div>
+            </div>
+
+            <div class="field-grid field-grid--three" style="margin-top:12px">
+              <div class="form-field">
+                <label for="dns-enc-output-mode">output</label>
+                <select id="dns-enc-output-mode">
+                  <option value="raw">raw DNS message</option>
+                  <option value="udp4">UDP inside IPv4</option>
+                  <option value="udp6">UDP inside IPv6</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-src-port">source port</label>
+                <input type="number" id="dns-enc-src-port" value="53000" min="0" max="65535" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-dst-port">destination port</label>
+                <input type="number" id="dns-enc-dst-port" value="53" min="0" max="65535" inputmode="numeric">
+              </div>
+            </div>
+            <div class="field-grid" id="dns-enc-v4-fields">
+              <div class="form-field">
+                <label for="dns-enc-v4-src">IPv4 source</label>
+                <input type="text" id="dns-enc-v4-src" value="192.0.2.10" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-v4-dst">IPv4 destination</label>
+                <input type="text" id="dns-enc-v4-dst" value="198.51.100.20" spellcheck="false">
+              </div>
+            </div>
+            <div class="field-grid" id="dns-enc-v6-fields" hidden>
+              <div class="form-field">
+                <label for="dns-enc-v6-src">IPv6 source</label>
+                <input type="text" id="dns-enc-v6-src" value="2001:db8::1" spellcheck="false">
+              </div>
+              <div class="form-field">
+                <label for="dns-enc-v6-dst">IPv6 destination</label>
+                <input type="text" id="dns-enc-v6-dst" value="2001:db8::2" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn--primary" type="button" id="dns-enc-build">Build DNS</button>
+              <button class="btn btn--ghost" type="button" id="dns-enc-example">Load A response</button>
+            </div>
+            <div class="presets" style="margin-top:8px">
+              <button type="button" data-dns-preset="queryA">A query</button>
+              <button type="button" data-dns-preset="responseA">A + AAAA response</button>
+              <button type="button" data-dns-preset="mx">MX</button>
+              <button type="button" data-dns-preset="txt">TXT</button>
+              <button type="button" data-dns-preset="srv">SRV</button>
+              <button type="button" data-dns-preset="nxdomain">NXDOMAIN</button>
+              <button type="button" data-dns-preset="edns">EDNS(0)</button>
+            </div>
+            <p class="form-note">Record syntax: <code>name [ttl] TYPE data</code>. Examples: <code>example.com. 300 A 192.0.2.10</code>, <code>example.com. 300 MX 10 mail.example.com.</code>, <code>example.com. 300 TXT "hello world"</code>, <code>_sip._tcp 300 SRV 10 60 5060 sip.example.com.</code>. Output counts are derived from the parsed records.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="dns-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="dns-enc-status" role="status" aria-live="polite">Set the fields and press Build DNS.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">DNS message hex</div><button class="copy-btn" type="button" data-copy-target="#dns-enc-output">copy</button></div>
+              <pre id="dns-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="dns-enc-summary"></div>
+            <div class="flag-readout">
+              <span>message <b id="dns-enc-length">—</b></span>
+              <span>questions <b id="dns-enc-qcount">—</b></span>
+              <span>answers <b id="dns-enc-acount">—</b></span>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--ghost" type="button" id="dns-enc-permalink">Copy permalink</button>
+              <button class="btn btn--ghost" type="button" id="dns-enc-export">Download JSON</button>
+            </div>
+            <div class="callout" style="margin-top:14px">
+              <div class="callout__title">compression pointers are relative</div>
+              <p>The encoder reuses earlier suffixes by writing a pointer to their offset. A DNS
+              message is therefore not self-contained per record: RDATA names can point into the
+              question section. Re-ordering sections without rebuilding pointers breaks it.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">07</span>Decoder</h2>
+        <span class="section__hint">raw DNS · UDP · TCP · IPv4 · IPv6 · Ethernet</span>
+      </div>
+      <p>
+        Paste a DNS message, a UDP datagram, a TCP DNS payload with its two-byte length prefix,
+        a complete IP packet, or an Ethernet frame. The decoder follows compression pointers,
+        validates RDLENGTH, expands the sections and reports the transport context when it is
+        visible.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 1035 · pointers · EDNS</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2">
+              <label for="dns-decode-input">hex input <span class="units">DNS, UDP/TCP payload, IP packet or Ethernet frame</span></label>
+              <textarea id="dns-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="12 34 01 00 00 01 00 00 00 00 00 00 07 65 78 61 6d 70 6c 65 03 63 6f 6d 00 00 01 00 01"></textarea>
+            </div>
+            <div class="form-field">
+              <label for="dns-decode-kind">input type</label>
+              <select id="dns-decode-kind">
+                <option value="auto">auto-detect</option>
+                <option value="dns">raw DNS message</option>
+                <option value="udp">raw UDP datagram</option>
+                <option value="ipv4">IPv4 packet / Ethernet</option>
+                <option value="ipv6">IPv6 packet / Ethernet</option>
+                <option value="ethernet">Ethernet frame</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="dns-decode">Decode DNS</button>
+            <button class="btn btn--ghost" type="button" id="dns-decode-query">Load A query</button>
+            <button class="btn btn--ghost" type="button" id="dns-decode-response">Load A response</button>
+            <button class="btn btn--ghost" type="button" id="dns-decode-nx">Load NXDOMAIN</button>
+            <button class="btn btn--ghost" type="button" id="dns-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="dns-decode-status" role="status" aria-live="polite">No DNS message decoded yet.</div>
+          <div id="dns-decode-result"></div>
+          <div class="btn-row">
+            <button class="btn btn--ghost" type="button" id="dns-decode-permalink">Copy permalink</button>
+            <button class="btn btn--ghost" type="button" id="dns-decode-export">Download JSON</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">08</span>Wire notes</h2>
+        <span class="section__hint">small messages, large operational surface</span>
+      </div>
+      <div class="callout">
+        <div class="callout__title">DNS is case-insensitive on the wire, but case is preserved</div>
+        <p>Name comparisons ignore ASCII case, yet resolvers may randomise the case of query
+        labels (DNS 0x20 encoding) and check that the response echoes it. A canonicalising
+        decoder should preserve the original bytes even when it compares names case-insensitively.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>ID is not authentication.</strong> A 16-bit transaction ID plus source-port randomisation raises the cost of off-path spoofing, but DNS cookies and DNSSEC are the actual defences.</li>
+        <li><strong>Compression pointers must not loop.</strong> A pointer may jump backwards but must terminate. Parsers need a jump limit and a bound check on every target offset.</li>
+        <li><strong>RDLENGTH is authoritative for skipping.</strong> A parser that does not understand a type can still walk the message because RDATA is length-delimited. Never parse past RDLENGTH.</li>
+        <li><strong>TC means retry over TCP.</strong> A truncated UDP response is not a complete answer. The client should repeat the query over TCP rather than guess at the missing records.</li>
+        <li><strong>UDP payload size is advertised, not guaranteed.</strong> EDNS CLASS is the requestor's receive buffer. Path MTU, fragmentation and middleboxes still decide what arrives.</li>
+        <li><strong>CNAME chains end at the queried type.</strong> A response may contain a CNAME and then records for the canonical target. The owner name in each record is absolute after compression resolution.</li>
+        <li><strong>DNSSEC does not encrypt.</strong> RRSIG and DNSKEY prove integrity and origin for signed zones. Names and addresses remain visible unless the transport is encrypted (DoT, DoH, DoQ).</li>
+        <li><strong>mDNS and LLMNR are different protocols.</strong> They use DNS message format on multicast addresses and local ports; they are not part of the global DNS hierarchy.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1035" target="_blank" rel="noopener">RFC 1035</a><span>DNS implementation and specification</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2181" target="_blank" rel="noopener">RFC 2181</a><span>DNS clarifications · TTL and CNAME rules</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2308" target="_blank" rel="noopener">RFC 2308</a><span>Negative caching · NXDOMAIN vs NODATA</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3596" target="_blank" rel="noopener">RFC 3596</a><span>AAAA and IPv6 reverse mapping</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6891" target="_blank" rel="noopener">RFC 6891</a><span>EDNS(0)</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7873" target="_blank" rel="noopener">RFC 7873</a><span>DNS cookies</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8914" target="_blank" rel="noopener">RFC 8914</a><span>Extended DNS Errors</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8484" target="_blank" rel="noopener">RFC 8484</a><span>DNS over HTTPS</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9250" target="_blank" rel="noopener">RFC 9250</a><span>DNS over QUIC</span></li>
+        <li><a href="https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml" target="_blank" rel="noopener">IANA registry</a><span>DNS parameters, types, opcodes and rcodes</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="quic.html">QUIC headers &amp; frames -&gt;</a>
+      </div>
+    </section>
+
+
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
+    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
+    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a></div>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ethernet-codec.js"></script>
+<script src="assets/arp-codec.js"></script>
+<script src="assets/ipv4.js"></script>
+<script src="assets/ipv6-codec.js"></script>
+<script src="assets/tcp.js"></script>
+<script src="assets/udp-codec.js"></script>
+<script src="assets/icmp-codec.js"></script>
+<script src="assets/dns-codec.js"></script>
+<script src="assets/dissect-codec.js"></script>
+<script src="assets/dns.js"></script>
+</body>
+</html>

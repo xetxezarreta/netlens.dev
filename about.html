@@ -24,11 +24,13 @@
       <a href="ipv6.html">ipv6</a>
       <a href="tcp.html">tcp</a>
       <a href="udp.html">udp</a>
+      <a href="dns.html">dns</a>
       <a href="quic.html">quic</a>
       <a href="bgp.html">bgp</a>
       <a href="wireguard.html">wireguard</a>
       <a href="ethernet.html">ethernet</a>
       <a href="arp.html">arp</a>
+      <a href="dissect.html">dissect</a>
       <a href="tools.html">tools</a>
       <a href="about.html" aria-current="page">about</a>
     </nav>
@@ -65,11 +67,13 @@
         <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
         <li><a href="tcp.html" data-layer="L4">tcp</a></li>
         <li><a href="udp.html" data-layer="L4">udp</a></li>
+        <li><a href="dns.html" data-layer="L7">dns</a></li>
         <li><a href="quic.html" data-layer="L4+">quic</a></li>
         <li><a href="bgp.html" data-layer="L7">bgp</a></li>
         <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
         <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
         <li><a href="arp.html" data-layer="L2.5">arp</a></li>
+        <li><a href="dissect.html" data-layer="tool">dissect</a></li>
       </ul>
     </div>
     <p class="rail__note"><b>build:</b> plain HTML, CSS and JavaScript. No frameworks, no build step, no analytics.</p>
@@ -99,10 +103,17 @@
       <section class="section" id="about">
         <h2>What this is</h2>
         <p>
-          Ten protocol pages — IPv4, ICMP, IPv6, TCP, UDP, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
-          <a href="tools.html">toolbox</a>. Each protocol page has an interactive bit or byte
+          Eleven protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, QUIC, BGP, WireGuard, Ethernet and ARP — plus a small
+          <a href="tools.html">toolbox</a> and a cross-layer <a href="dissect.html">packet dissector</a>. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
+        </p>
+        <p>
+          Every protocol page has a <strong>copy page link</strong> button that serializes the visible
+          codec fields into the URL hash. A permalink restores the inputs; encoder panels rebuild
+          their output, and the DNS, UDP and dissector links also re-run their decoders. Every page can
+          download a JSON snapshot of its fields and outputs; the packet dissector can also copy
+          a BPF filter or a Scapy snippet for the frame on screen. Nothing is uploaded: the URL is the entire state.
         </p>
         <p>
           The design borrows the density and keyboard-friendly feel of a systems reference:
@@ -145,7 +156,7 @@
 
         <h3>Byte order</h3>
         <p>
-          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, QUIC and BGP. WireGuard is the
+          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, QUIC and BGP. WireGuard is the
           exception: its integer fields are little-endian. The WireGuard page calls this out on
           every field and provides a converter. Bytes inside a field are always written in
           transmission order; only the interpretation of multi-byte integers changes.
@@ -166,12 +177,12 @@
           <table class="data-table">
             <thead><tr><th>Group</th><th>Layer labels</th><th>Protocols</th><th>Why</th></tr></thead>
             <tbody>
-              <tr><td><b>Application / control</b></td><td><code>L7</code></td><td>BGP</td><td>Routing policy over TCP. BGP is an application protocol whose subject is the control plane.</td></tr>
+              <tr><td><b>Application / control</b></td><td><code>L7</code></td><td>BGP, DNS</td><td>Routing policy over TCP and name resolution over UDP or TCP. Both are application protocols whose subject is control-plane data.</td></tr>
               <tr><td><b>Transport</b></td><td><code>L4</code> / <code>L4+</code></td><td>TCP, UDP, QUIC</td><td>Process-to-process delivery: streams over TCP, datagrams over UDP, and encrypted transport with QUIC.</td></tr>
               <tr><td><b>Tunnels / overlays</b></td><td><code>L3 tunnel</code></td><td>WireGuard</td><td>A cross-layer overlay that carries inner IP over UDP.</td></tr>
               <tr><td><b>Internet / IP</b></td><td><code>L3</code></td><td>IPv4, ICMP, IPv6</td><td>Addressing, fragmentation, checksums, errors, extension chains and path-MTU signalling.</td></tr>
               <tr><td><b>Link</b></td><td><code>L2</code> / <code>L2.5</code></td><td>Ethernet, ARP</td><td>Frames, MAC addressing, VLAN tags, FCS and IPv4-to-MAC resolution.</td></tr>
-              <tr><td><b>Cross-layer</b></td><td><code>ALL</code></td><td>Toolbox</td><td>Checksums, varints and TLVs used by several protocols.</td></tr>
+              <tr><td><b>Cross-layer</b></td><td><code>ALL</code></td><td>Toolbox, Dissector</td><td>Checksums, varints and TLVs, plus a walk across an entire frame from Ethernet to application payload.</td></tr>
             </tbody>
           </table>
         </div>
@@ -297,6 +308,17 @@
           <li><a href="https://www.rfc-editor.org/rfc/rfc6936" target="_blank" rel="noopener">RFC 6936</a><span>UDP zero checksum</span></li>
           <li><a href="https://www.rfc-editor.org/rfc/rfc3828" target="_blank" rel="noopener">RFC 3828</a><span>UDP-Lite</span></li>
         </ul>
+        <h3>DNS</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc1035" target="_blank" rel="noopener">RFC 1035</a><span>DNS</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2181" target="_blank" rel="noopener">RFC 2181</a><span>clarifications</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2308" target="_blank" rel="noopener">RFC 2308</a><span>negative caching</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc3596" target="_blank" rel="noopener">RFC 3596</a><span>AAAA</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6891" target="_blank" rel="noopener">RFC 6891</a><span>EDNS(0)</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8914" target="_blank" rel="noopener">RFC 8914</a><span>Extended DNS Errors</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8484" target="_blank" rel="noopener">RFC 8484</a><span>DNS over HTTPS</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9250" target="_blank" rel="noopener">RFC 9250</a><span>DNS over QUIC</span></li>
+        </ul>
         <h3>BGP</h3>
         <ul class="rfc-list">
           <li><a href="https://www.rfc-editor.org/rfc/rfc4271" target="_blank" rel="noopener">RFC 4271</a><span>BGP-4</span></li>
@@ -345,7 +367,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="tools.html">tools</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a></div>
   </div>
 </footer>
 

@@ -719,7 +719,7 @@
       rows +
       `<div class="stack-model__foot"><span class="layer-code">ALL</span>` +
       `<div><b>Cross-layer toolbox</b><small>${esc(toolNote)}</small></div>` +
-      `<a href="tools.html">open toolbox →</a></div>`;
+      `<a href="tools.html">toolbox →</a><a href="dissect.html">dissect →</a></div>`;
   }
 
   function initProtocolFilter() {
@@ -1026,6 +1026,162 @@
   }
 
 
+  /* ---------- shareable state (URL hash) and text export ---------- */
+
+  function bytesToBase64Url(bytes) {
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+    }
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function base64UrlToBytes(text) {
+    const normalized = String(text).replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  function encodeState(value) {
+    const json = JSON.stringify(value);
+    const bytes = typeof TextEncoder !== "undefined"
+      ? new TextEncoder().encode(json)
+      : Uint8Array.from(Array.from(json).map((c) => c.charCodeAt(0) & 255));
+    return bytesToBase64Url(bytes);
+  }
+
+  function decodeState(text) {
+    try {
+      const bytes = base64UrlToBytes(text);
+      const json = typeof TextDecoder !== "undefined"
+        ? new TextDecoder().decode(bytes)
+        : String.fromCharCode.apply(null, Array.from(bytes));
+      return JSON.parse(json);
+    } catch (_) { return null; }
+  }
+
+  function readHashState() {
+    const match = String(location.hash || "").match(/[#&]s=([^&]+)/);
+    return match ? decodeState(match[1]) : null;
+  }
+
+  function hashForState(value) {
+    return "#s=" + encodeState(value);
+  }
+
+  function shareState(value, message) {
+    const url = location.origin && location.origin !== "null"
+      ? location.origin + location.pathname + location.search + hashForState(value)
+      : location.href.split("#")[0] + hashForState(value);
+    history.replaceState(null, "", hashForState(value));
+    copyText(url).then(() => toast(message || "permalink copied"), () => toast("could not copy permalink"));
+    return url;
+  }
+
+  function downloadText(filename, text, mime) {
+    const blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function captureFormState() {
+    const values = {};
+    $$("main input[id], main select[id], main textarea[id]").forEach((el) => {
+      const type = (el.getAttribute("type") || "").toLowerCase();
+      if (["button", "submit", "reset", "file", "image"].includes(type)) return;
+      if (el.type === "checkbox" || el.type === "radio") values[el.id] = el.checked;
+      else values[el.id] = el.value;
+    });
+    return values;
+  }
+
+  function applyFormState(values) {
+    if (!values) return;
+    Object.keys(values).forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === "checkbox" || el.type === "radio") el.checked = !!values[id];
+      else el.value = values[id];
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  function stateForPage() {
+    return {
+      page: "form",
+      path: location.pathname,
+      values: captureFormState()
+    };
+  }
+
+  function restorePageState() {
+    const state = readHashState();
+    if (!state || state.page !== "form" || state.path !== location.pathname) return false;
+    setTimeout(() => applyFormState(state.values), 0);
+    return true;
+  }
+
+  function pageSnapshot() {
+    const outputs = {};
+    $$("main pre[id]").forEach((el) => {
+      const text = el.textContent.trim();
+      if (text) outputs[el.id] = text;
+    });
+    return {
+      page: "snapshot",
+      path: location.pathname,
+      title: document.title,
+      url: location.href.split("#")[0],
+      values: captureFormState(),
+      outputs
+    };
+  }
+
+  function initPermalink() {
+    const head = $(".page-head");
+    if (!head || $("[data-state-permalink]", head)) return;
+    const row = document.createElement("div");
+    row.className = "btn-row";
+    row.style.marginTop = "8px";
+    row.setAttribute("data-page-actions", "");
+
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "btn btn--ghost";
+    link.setAttribute("data-state-permalink", "");
+    link.textContent = "copy page link";
+    link.addEventListener("click", () => {
+      shareState(stateForPage(), "page-state permalink copied");
+    });
+
+    const json = document.createElement("button");
+    json.type = "button";
+    json.className = "btn btn--ghost";
+    json.textContent = "download state JSON";
+    json.addEventListener("click", () => {
+      const name = (location.pathname.split("/").pop() || "page").replace(/\.html$/, "");
+      downloadText(name + "-state.json", JSON.stringify(pageSnapshot(), null, 2), "application/json");
+    });
+
+    row.appendChild(link);
+    row.appendChild(json);
+    const badges = head.querySelector(".badges");
+    if (badges) badges.insertAdjacentElement("afterend", row);
+    else head.appendChild(row);
+    restorePageState();
+  }
+
   function initScrollRegions() {
     const selector = ".table-wrap, .diagram__scroll, .byte-lane__scroll, .hexdump, pre";
     let raf = null;
@@ -1065,6 +1221,7 @@
     initStacks();
     initStackModel();
     initProtocolFilter();
+    initPermalink();
     initScrollRegions();
   }
 
@@ -1072,7 +1229,9 @@
     $, $$, esc, hex, bin, parseNumber, parseHex, bytesToHex, bytesToAscii, concatBytes,
     u8, u16be, u16le, u32be, u32le, u64le, put16be, put16le, put32be, put32le, put64le,
     checksum16, checksumValid, parseIPv4, ipv4String, toast, copyText, setStatus,
-    hexdump, diagram, fieldTable, byteLane, renderInspector, tabs, applyTheme, openSearch, initStacks
+    hexdump, diagram, fieldTable, byteLane, renderInspector, tabs, applyTheme, openSearch, initStacks,
+    encodeState, decodeState, readHashState, hashForState, shareState, downloadText,
+    bytesToBase64Url, base64UrlToBytes, captureFormState, applyFormState, pageSnapshot
   });
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

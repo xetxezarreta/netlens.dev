@@ -5,11 +5,13 @@ window.PH_SEARCH = [
   {kind:"protocol", p:"ipv6", name:"IPv6 header & extension chain", meta:"L3 · RFC 8200 · 40 B", href:"ipv6.html", text:"internet layer network l3 ipv6 version traffic class dscp ecn flow label payload length next header hop limit source destination extension headers hop by hop routing fragment ah destination options jumbogram address"},
   {kind:"protocol", p:"tcp", name:"TCP header", meta:"L4 · RFC 9293 · 20–60 B", href:"tcp.html", text:"transport layer l4 ports sequence acknowledgment data offset flags window checksum urgent pointer options mss sack timestamp"},
   {kind:"protocol", p:"udp", name:"UDP datagrams", meta:"L4 · RFC 768 · 8 B", href:"udp.html", text:"transport layer l4 udp source port destination port length checksum pseudo header ipv4 ipv6 dns dhcp ntp quic wireguard"},
+  {kind:"protocol", p:"dns", name:"DNS messages", meta:"L7 · RFC 1035 · 12 B header", href:"dns.html", text:"application layer l7 domain name system dns query response header flags question answer authority additional resource record name compression pointer edns opt ttl a aaaa cname mx txt soa srv dnssec doh dot doq"},
   {kind:"protocol", p:"quic", name:"QUIC frames & headers", meta:"L4+ · RFC 9000 · varint", href:"quic.html", text:"transport encrypted tls l4 long header short header frame stream ack crypto connection close varint spin key phase"},
   {kind:"protocol", p:"bgp", name:"BGP path attributes", meta:"L7 routing · RFC 4271 · UPDATE", href:"bgp.html", text:"routing control plane application layer l7 tcp 179 origin as_path next_hop med local_pref communities mp_reach nlri flags transitive optional"},
   {kind:"protocol", p:"wireguard", name:"WireGuard messages", meta:"L3 tunnel · protocol v1 · UDP", href:"wireguard.html", text:"tunnel overlay l3 little endian handshake initiation response cookie transport data index counter mac1 mac2"},
   {kind:"protocol", p:"ethernet", name:"Ethernet II frames", meta:"L2 · IEEE 802.3 · FCS", href:"ethernet.html", text:"link layer l2 ethernet frame mac address ethertype 802.1q vlan pcp dei vid fcs crc32 payload preamble broadcast multicast"},
   {kind:"protocol", p:"arp", name:"ARP", meta:"L2.5 · RFC 826 · 28 B", href:"arp.html", text:"link layer address resolution protocol arp ipv4 mac broadcast request reply opcode gratuitous probe ethernet 0x0806"},
+  {kind:"protocol", p:"dissect", name:"Packet dissector", meta:"cross-layer · one frame", href:"dissect.html", text:"packet dissector cross layer layer tree ethernet vlan arp ipv4 ipv6 tcp udp icmp dns tls http payload hex offsets warnings"},
   {kind:"protocol", p:"tools", name:"Toolbox", meta:"cross-layer · checksums · TLVs", href:"tools.html", text:"toolbox cross layer checksum hex binary tlv varint converter bitmask"},
   {kind:"protocol", p:"about", name:"About & conventions", meta:"reference · conventions", href:"about.html", text:"tcp/ip stack model layer grouping bit numbering network order endianness rfc sources keyboard shortcuts"},
 
@@ -157,6 +159,31 @@ window.PH_SEARCH = [
   {kind:"field", p:"udp", name:"mDNS", meta:"port 5353 · UDP", href:"udp.html#ports", text:"multicast dns mdns 5353 bonjour"},
   {kind:"field", p:"udp", name:"Ephemeral port", meta:"49152–65535 · UDP", href:"udp.html#ports", text:"ephemeral dynamic private source port range"},
 
+  /* DNS */
+  {kind:"field", p:"dns", name:"DNS transaction ID", meta:"bits 0–15 · DNS", href:"dns.html#layout", text:"id transaction identifier 16 bit match query response", popular:true},
+  {kind:"field", p:"dns", name:"DNS flags", meta:"bits 16–31 · DNS", href:"dns.html#flags", text:"qr opcode aa tc rd ra z ad cd rcode response query authoritative truncated recursion dnssec", popular:true},
+  {kind:"field", p:"dns", name:"QDCOUNT / ANCOUNT", meta:"bits 32–63 · DNS", href:"dns.html#layout", text:"question count answer count nscount arcount sections"},
+  {kind:"field", p:"dns", name:"QNAME", meta:"offset 12 · DNS", href:"dns.html#names", text:"question name labels length prefixed root domain", popular:true},
+  {kind:"field", p:"dns", name:"Compression pointer", meta:"0xC0–0xFF · DNS", href:"dns.html#names", text:"name compression pointer 14 bit offset loop message c00c", popular:true},
+  {kind:"field", p:"dns", name:"QTYPE / QCLASS", meta:"question tail · DNS", href:"dns.html#names", text:"query type class a aaaa mx txt any in ch"},
+  {kind:"field", p:"dns", name:"Resource record envelope", meta:"name type class ttl · DNS", href:"dns.html#records", text:"resource record rr name type class ttl rdlength rdata"},
+  {kind:"field", p:"dns", name:"TTL", meta:"32 bits · DNS", href:"dns.html#records", text:"time to live cache 31 bit rfc 2181"},
+  {kind:"field", p:"dns", name:"A record", meta:"type 1 · DNS", href:"dns.html#records", text:"ipv4 address 4 bytes host"},
+  {kind:"field", p:"dns", name:"AAAA record", meta:"type 28 · DNS", href:"dns.html#records", text:"ipv6 address 16 bytes rfc 3596", popular:true},
+  {kind:"field", p:"dns", name:"CNAME record", meta:"type 5 · DNS", href:"dns.html#records", text:"canonical name alias cname chain"},
+  {kind:"field", p:"dns", name:"MX record", meta:"type 15 · DNS", href:"dns.html#records", text:"mail exchange preference exchange host"},
+  {kind:"field", p:"dns", name:"TXT / SPF record", meta:"type 16 · DNS", href:"dns.html#records", text:"text strings spf dkim domain verification"},
+  {kind:"field", p:"dns", name:"SOA record", meta:"type 6 · DNS", href:"dns.html#records", text:"start of authority serial refresh retry expire minimum negative caching"},
+  {kind:"field", p:"dns", name:"SRV record", meta:"type 33 · DNS", href:"dns.html#records", text:"service location priority weight port target sip"},
+  {kind:"field", p:"dns", name:"OPT / EDNS(0)", meta:"type 41 · DNS", href:"dns.html#transport", text:"edns opt udp payload size extended rcode version do dnssec ok rfc 6891", popular:true},
+  {kind:"field", p:"dns", name:"EDNS Client Subnet", meta:"option 8 · DNS", href:"dns.html#transport", text:"ecs client subnet address prefix scope"},
+  {kind:"field", p:"dns", name:"DNS cookie", meta:"option 10 · DNS", href:"dns.html#transport", text:"cookie client server spoofing rfc 7873"},
+  {kind:"field", p:"dns", name:"Extended DNS Error", meta:"option 15 · DNS", href:"dns.html#transport", text:"ede extended dns error info code text rfc 8914"},
+  {kind:"field", p:"dns", name:"DNSSEC DS / DNSKEY", meta:"types 43 / 48 · DNS", href:"dns.html#records", text:"dnssec delegation signer dnskey rrsig nsec validation"},
+  {kind:"field", p:"dns", name:"NXDOMAIN", meta:"rcode 3 · DNS", href:"dns.html#flags", text:"name does not exist negative answer nodata rfc 2308"},
+  {kind:"field", p:"dns", name:"DNS over HTTPS / QUIC", meta:"DoH · DoQ · DNS", href:"dns.html#transport", text:"doh dot doq dns over https tls quic encrypted dns rfc 8484 9250"},
+  {kind:"field", p:"dns", name:"DNS over TCP length prefix", meta:"2 B · DNS", href:"dns.html#transport", text:"tcp length prefix framing zone transfer axfr ixfr"},
+
   /* QUIC */
   {kind:"field", p:"quic", name:"QUIC varint", meta:"RFC 9000 §16 · QUIC", href:"quic.html#varint", text:"variable length integer 62 bit 2 bit prefix 1 2 4 8 bytes", popular:true},
   {kind:"field", p:"quic", name:"Long Header", meta:"RFC 9000 §17.2 · QUIC", href:"quic.html#headers", text:"initial 0-rtt handshake retry version dcid scid token length packet number 0x01", popular:true},
@@ -203,6 +230,16 @@ window.PH_SEARCH = [
   {kind:"field", p:"wireguard", name:"Transport data", meta:"type 4 · WireGuard", href:"wireguard.html#transport", text:"encrypted payload chacha20poly1305 padding"},
   {kind:"field", p:"wireguard", name:"Reserved bytes", meta:"offset 1 · WireGuard", href:"wireguard.html#messages", text:"must be zero little endian"},
 
+
+  /* dissector */
+  {kind:"tool", p:"dissect", name:"Packet walk", meta:"cross-layer · tool", href:"dissect.html#walk", text:"packet walk dissector paste frame ethernet ip tcp udp dns layer chain", popular:true},
+  {kind:"tool", p:"dissect", name:"Layer tree", meta:"cross-layer · tool", href:"dissect.html#tree", text:"layer tree encapsulation expand layers offsets highlights"},
+  {kind:"tool", p:"dissect", name:"Ethernet frame dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"ethernet frame mac vlan ethertype fcs dissect"},
+  {kind:"tool", p:"dissect", name:"IPv4 packet dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"ipv4 packet protocol tcp udp icmp dissect"},
+  {kind:"tool", p:"dissect", name:"IPv6 packet dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"ipv6 packet extension header next header dissect"},
+  {kind:"tool", p:"dissect", name:"DNS payload dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"dns payload udp 53 query response records dissect"},
+  {kind:"tool", p:"dissect", name:"TLS record dissect", meta:"cross-layer · tool", href:"dissect.html#limits", text:"tls record handshake application data encrypted dissect"},
+  {kind:"tool", p:"dissect", name:"Dissector limits", meta:"cross-layer · tool", href:"dissect.html#limits", text:"no decryption no reassembly fragments tcp stream opaque payload"},
   /* tools */
   {kind:"tool", p:"tools", name:"Internet checksum", meta:"RFC 1071 · tool", href:"tools.html#checksum", text:"ones complement checksum verify ipv4 tcp udp 0xffff rfc 1071", popular:true},
   {kind:"tool", p:"tools", name:"QUIC varint", meta:"RFC 9000 §16 · tool", href:"tools.html#varint", text:"encode decode variable length integer"},
