@@ -16,23 +16,6 @@ window.PH_PROTOCOLS = {
       { label: "TCP · UDP · ICMP", note: "next header" }
     ]
   },
-  icmp: {
-    name: "ICMP",
-    layer: "internet",
-    modelLayer: "internet",
-    modelNote: "errors · echo · PMTUD",
-    tone: "i",
-    layerCode: "2",
-    layerLabel: "Internet / control",
-    layerNote: "errors & diagnostics · RFC 792",
-    family: "internet",
-    path: [
-      { label: "Ethernet", note: "link" },
-      { label: "IPv4", href: "ipv4.html", note: "internet" },
-      { label: "ICMP", href: "icmp.html", note: "internet", current: true },
-      { label: "Payload / quoted datagram", note: "type-specific" }
-    ]
-  },
   ipv6: {
     name: "IPv6",
     layer: "internet",
@@ -48,6 +31,23 @@ window.PH_PROTOCOLS = {
       { label: "IPv6", href: "ipv6.html", note: "internet", current: true },
       { label: "Extension headers", note: "next header chain" },
       { label: "TCP · UDP · ICMPv6", note: "upper layer" }
+    ]
+  },
+  icmp: {
+    name: "ICMP",
+    layer: "internet",
+    modelLayer: "internet",
+    modelNote: "errors · echo · PMTUD",
+    tone: "i",
+    layerCode: "2",
+    layerLabel: "Internet / control",
+    layerNote: "errors & diagnostics · RFC 792",
+    family: "internet",
+    path: [
+      { label: "Ethernet", note: "link" },
+      { label: "IPv4", href: "ipv4.html", note: "internet" },
+      { label: "ICMP", href: "icmp.html", note: "internet", current: true },
+      { label: "Payload / quoted datagram", note: "type-specific" }
     ]
   },
   tcp: {
