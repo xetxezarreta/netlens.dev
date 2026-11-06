@@ -395,6 +395,48 @@ a.badge:hover { color: var(--accent); border-color: var(--accent-line); backgrou
 }
 .toc a:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
 
+.mobile-toc { display: none; }
+.mobile-toc summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  list-style: none;
+}
+.mobile-toc summary::-webkit-details-marker { display: none; }
+.mobile-toc summary::after {
+  content: "+";
+  color: var(--accent);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.mobile-toc[open] summary { border-bottom: 1px dashed var(--line); }
+.mobile-toc[open] summary::after { content: "−"; }
+.mobile-toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 14px;
+}
+.mobile-toc a {
+  display: block;
+  padding: 5px 0;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+}
+.mobile-toc a:hover,
+.mobile-toc a.is-active { color: var(--accent); }
+.mobile-toc a.is-active::before { content: "> "; white-space: pre; }
+
 /* ---------- sections ---------- */
 .section {
   margin: 0 0 52px;
@@ -1858,6 +1900,9 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   .page-shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 26px; }
   .rail { display: none; }
   .mobile-nav-btn { display: inline-flex; }
+  .mobile-toc { display: block; margin: 0 0 18px; border: 1px solid var(--line-strong); background: var(--panel); }
+  .shell > .mobile-toc { margin-top: 18px; margin-bottom: 0; }
+  .toc { display: none; }
   .hero__inner { grid-template-columns: minmax(0, 1fr); }
   .hero-art { max-width: 560px; transform: none; }
   .hero-art::before { display: none; }
@@ -1929,6 +1974,7 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   .header-tools .icon-btn { padding: 0 8px; }
   .header-tools > a[href="about.html"] { display: none; }
   .mobile-nav ul { grid-template-columns: 1fr; }
+  .mobile-toc ul { grid-template-columns: 1fr; }
   .flag-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .badges .badge:nth-child(n+5) { display: none; }
   .hero__actions .btn { flex: 1 1 100%; }

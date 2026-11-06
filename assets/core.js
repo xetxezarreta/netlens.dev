@@ -1104,21 +1104,72 @@
       .map((key) => {
         const p = protocols[key];
         const active = key === current ? ' class="is-active"' : "";
-        const layer = p.railLayer || p.layerCode || "";
-        return `<li><a href="${esc(key)}.html"${active} data-layer="${esc(layer)}">${esc(key)}</a></li>`;
+        const layer = p.railLayer || p.modelLayer || "";
+        return `<li><a href="${esc(key)}.html"${active} data-layer="${esc(layer)}" title="${esc(layer)}">${esc(key)}</a></li>`;
       });
     host.innerHTML = "<ul>" + items.join("") + "</ul>";
   }
 
+  function initMobileToc() {
+    const main = $("main");
+    if (!main || $("[data-mobile-toc]")) return;
+    const seen = new Set();
+    let links = $$('.rail a[href^="#"]')
+      .filter((a) => {
+        const href = a.getAttribute("href");
+        if (!href || seen.has(href)) return false;
+        seen.add(href);
+        return true;
+      })
+      .map((a) => ({ href: a.getAttribute("href"), label: a.textContent.trim() }));
+    let insertAfter = main.querySelector(".page-head");
+    let insertBefore = null;
+
+    if (!links.length) {
+      const sections = $$("main section[id]");
+      links = sections
+        .map((section) => {
+          const heading = section.querySelector("h2");
+          if (!heading) return null;
+          return { href: "#" + section.id, label: heading.textContent.trim() };
+        })
+        .filter(Boolean);
+      if (!links.length) return;
+      insertAfter = null;
+      insertBefore = sections[0];
+    }
+
+    const details = document.createElement("details");
+    details.className = "mobile-toc";
+    details.setAttribute("data-mobile-toc", "");
+    details.innerHTML =
+      "<summary>on this page</summary><ul>" +
+      links.map((link) => `<li><a href="${esc(link.href)}">${esc(link.label)}</a></li>`).join("") +
+      "</ul>";
+
+    if (insertAfter) insertAfter.insertAdjacentElement("afterend", details);
+    else if (insertBefore && insertBefore.parentNode) insertBefore.parentNode.insertBefore(details, insertBefore);
+    else main.prepend(details);
+
+    details.addEventListener("click", (event) => {
+      if (event.target.closest("a")) details.open = false;
+    });
+  }
+
   function initRail() {
-    const links = $$('.rail a[href^="#"]');
+    const links = $$('.rail a[href^="#"], .mobile-toc a[href^="#"]');
     if (!links.length || !("IntersectionObserver" in window)) return;
     const sections = links.map((a) => document.getElementById(a.getAttribute("href").slice(1))).filter(Boolean);
     if (!sections.length) return;
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
-        links.forEach((a) => a.classList.toggle("is-active", a.getAttribute("href") === "#" + entry.target.id));
+        links.forEach((a) => {
+          const on = a.getAttribute("href") === "#" + entry.target.id;
+          a.classList.toggle("is-active", on);
+          if (on) a.setAttribute("aria-current", "location");
+          else a.removeAttribute("aria-current");
+        });
       });
     }, { rootMargin: "-15% 0px -70% 0px", threshold: 0 });
     sections.forEach((s) => observer.observe(s));
@@ -1362,6 +1413,7 @@
     initMobileNav();
     initSiteFooter();
     initRailProtocols();
+    initMobileToc();
     initRail();
     initTabs();
     initYear();
