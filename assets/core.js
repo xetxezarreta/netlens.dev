@@ -996,6 +996,36 @@
     });
   }
 
+  function initSiteHeader() {
+    const hosts = $$("[data-site-header]");
+    if (!hosts.length) return;
+    const current = (location.pathname.split("/").pop() || "").replace(/\.html$/, "");
+    const about = current === "about"
+      ? ""
+      : '<a class="icon-btn" href="about.html">about</a>';
+    const html =
+      '<div class="site-header__inner">' +
+      '<a class="brand" href="index.html" aria-label="packet-headers.sh home">' +
+      '<span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>' +
+      '</a>' +
+      '<span class="brand__rule" aria-hidden="true"></span>' +
+      '<div class="header-tools">' +
+      '<button class="icon-btn icon-btn--search" type="button" data-search-open aria-label="Search protocols and fields">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>' +
+      '<span>search</span><span class="kbd-hint">/</span>' +
+      '</button>' +
+      about +
+      '<a class="icon-btn icon-btn--square" href="https://github.com/xetxezarreta/packet-headers.sh" target="_blank" rel="noopener" aria-label="View source on GitHub" title="View source on GitHub">' +
+      '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 4.97 3.22 9.18 7.69 10.67.56.1.77-.24.77-.54 0-.27-.01-1.16-.02-2.1-3.13.68-3.79-1.51-3.79-1.51-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.72.39-1.22.71-1.5-2.5-.28-5.13-1.25-5.13-5.57 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.42.11-2.96 0 0 .95-.3 3.1 1.15a10.8 10.8 0 0 1 5.64 0c2.15-1.45 3.1-1.15 3.1-1.15.61 1.54.23 2.68.11 2.96.72.79 1.16 1.79 1.16 3.02 0 4.33-2.64 5.29-5.15 5.56.4.35.76 1.04.76 2.1 0 1.52-.01 2.74-.01 3.11 0 .3.2.65.78.54a11.26 11.26 0 0 0 7.68-10.67C23.25 5.48 18.27.5 12 .5z"></path></svg>' +
+      '</a>' +
+      '<button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>' +
+      '<span data-theme-name>green</span>' +
+      '</button>' +
+      '</div></div>';
+    hosts.forEach((host) => { host.innerHTML = html; });
+  }
+
   function initSiteFooter() {
     const hosts = $$("[data-site-footer]");
     if (!hosts.length) return;
@@ -1006,6 +1036,7 @@
       links.push(`<a href="${esc(key)}.html">${esc(key)}</a>`);
     });
     links.push('<a href="about.html">about</a>');
+    links.push('<a href="about.html#contact">contact</a>');
     const html =
       '<div class="site-footer__inner">' +
       '<div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>' +
@@ -1048,6 +1079,7 @@
 
     html += '<div class="mobile-nav__group"><p class="rail__label">about</p><ul>' +
       `<li><a href="about.html"${current === "about" ? ' class="is-active" aria-current="page"' : ""}>about &amp; conventions</a></li>` +
+      '<li><a href="about.html#contact">contact</a></li>' +
       "</ul></div>";
 
     const btn = document.createElement("button");
@@ -1315,6 +1347,7 @@
   function initPermalink() {
     const head = $(".page-head");
     if (!head || $("[data-state-permalink]", head)) return;
+    if (!$("main input[id], main select[id], main textarea[id]")) return;
     const row = document.createElement("div");
     row.className = "btn-row";
     row.style.marginTop = "8px";
@@ -1407,6 +1440,7 @@
   }
 
   function init() {
+    initSiteHeader();
     initTheme();
     initCopy();
     bindSearch();

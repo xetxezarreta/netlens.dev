@@ -50,8 +50,10 @@ script that uses them. `dissect-codec.js` optionally uses `DNSCodec`, `TLSCodec`
 
 Do not hardcode repeated navigation lists. The following are generated at runtime:
 
+- **Header** — brand, search, about, GitHub and theme controls into `[data-site-header]`;
+  the about link is omitted on `about.html`
 - **Rail protocol list** — from `PH_PROTOCOLS` into `[data-rail-protocols]`
-- **Footer** — from `PH_PROTOCOLS` into `[data-site-footer]`
+- **Footer** — from `PH_PROTOCOLS` plus About/Contact into `[data-site-footer]`
 - **Mobile navigation** — from `PH_STACK` + `PH_PROTOCOLS`, injected into `.header-tools`
 - **Mobile “on this page” TOC** — from rail hash links, or from `main section[id]` headings
   when a page has no rail
@@ -121,8 +123,8 @@ Diagram fields accept `id`, `name`, `bits` (or `bytes` for lanes), `range`, `des
 
 ### UI conventions
 
-- The header is deliberately minimal: brand, search, about, theme. On mobile, a menu button is
-  injected at `≤980px`. Do not reintroduce the old 16-link desktop header nav.
+- The header is deliberately minimal: brand, search, about, GitHub, theme. On mobile, a menu
+  button is injected at `≤980px`. Do not reintroduce the old 16-link desktop header nav.
 - The left rail is the primary desktop protocol navigation. It is hidden at `≤980px`.
 - The mobile menu and mobile “on this page” TOC are generated; do not add duplicate markup.
 - The TCP/IP model has exactly four layers: Application, Transport, Internet, Link. Do not add

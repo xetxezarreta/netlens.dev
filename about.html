@@ -12,23 +12,8 @@
 <body>
 <a class="skip-link" href="#main">skip to content</a>
 
-<header class="site-header">
-  <div class="site-header__inner">
-    <a class="brand" href="index.html" aria-label="packet-headers.sh home">
-      <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
-    </a>
-    <span class="brand__rule" aria-hidden="true"></span>
-    <div class="header-tools">
-      <button class="icon-btn icon-btn--search" type="button" data-search-open aria-label="Search protocols and fields">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
-        <span>search</span><span class="kbd-hint">/</span>
-      </button>
-      <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
-        <span data-theme-name>green</span>
-      </button>
-    </div>
-  </div>
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="packet-headers.sh home"><span class="brand__box"><span class="prompt">$</span> packet-headers.sh</span></a></div></noscript>
 </header>
 
 <div class="shell page-shell">
@@ -41,6 +26,7 @@
         <li><a href="#keyboard">keyboard</a></li>
         <li><a href="#accuracy">accuracy</a></li>
         <li><a href="#sources">sources</a></li>
+        <li><a href="#contact">contact</a></li>
       </ul>
     </div>
     <p class="rail__note"><b>build:</b> plain HTML, CSS and JavaScript. No frameworks, no build step, no analytics.</p>
@@ -328,6 +314,20 @@
           client-side storage is a theme preference in <code>localStorage</code>. The typeface is
           JetBrains Mono (SIL Open Font License); the license text is in <a href="fonts/OFL.txt">fonts/OFL.txt</a>. Everything else is hand-written HTML, CSS and
           JavaScript. External RFC links open only when you click them.
+        </p>
+      </section>
+
+      <section class="section" id="contact">
+        <h2>Contact</h2>
+        <p>
+          For bug reports, corrections and feature requests, open an issue on
+          <a href="https://github.com/xetxezarreta/packet-headers.sh/issues" target="_blank" rel="noopener">GitHub</a>.
+          For private or security-related reports, email
+          <a href="mailto:contact@packet-header.sh">contact@packet-header.sh</a>.
+        </p>
+        <p class="small dim">
+          Please include the page, the bytes or field values involved, and what you expected to happen.
+          Do not send secrets or live credentials.
         </p>
       </section>
     </div>

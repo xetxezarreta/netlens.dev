@@ -10,6 +10,10 @@ field, then build or decode real bytes in the browser.
 Plain HTML, CSS and JavaScript. No build step, no dependencies, no tracking, and no runtime
 network requests. External RFC links open only when clicked.
 
+Source: <https://github.com/xetxezarreta/packet-headers.sh>
+
+Contact: <contact@packet-header.sh> · [GitHub Issues](https://github.com/xetxezarreta/packet-headers.sh/issues)
+
 ## Run it
 
 ```sh

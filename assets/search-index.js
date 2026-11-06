@@ -294,4 +294,5 @@ window.PH_SEARCH = [
   {kind:"tool", p:"http", name:"HPACK encoder / decoder", meta:"tool · HTTP/2", href:"http.html#hpack", text:"hpack encode decode huffman static dynamic table header block"},
   {kind:"tool", p:"tls", name:"TLS record decoder", meta:"tool · TLS", href:"tls.html#decode", text:"tls decode records handshake clienthello serverhello extensions"},
   {kind:"tool", p:"tls", name:"TLS key schedule", meta:"tool · TLS", href:"tls.html#keyschedule", text:"tls key schedule hkdf traffic secret"},
+  {kind:"tool", p:"about", name:"Contact", meta:"GitHub Issues · email", href:"about.html#contact", text:"contact email github issues bug reports corrections feature requests security"},
 ];
