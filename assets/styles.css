@@ -638,7 +638,7 @@ input[type="checkbox"]:checked { border-color: var(--accent); }
   margin-bottom: 20px;
 }
 .home-section__head h2 { margin: 0; }
-.home-section__head p { margin: 0; color: var(--dim); font-size: 0.72rem; text-align: right; }
+.home-section__head > p { margin: 0; color: var(--dim); font-size: 0.72rem; text-align: right; }
 .kicker { color: var(--accent); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 6px; }
 
 .protocol-grid {
@@ -1849,7 +1849,7 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   .page-shell { padding-top: 18px; padding-bottom: 50px; }
   .home-section { padding-top: 32px; }
   .home-section__head { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .home-section__head p { text-align: left; }
+  .home-section__head > p { text-align: left; }
   .protocol-filter__status { margin-left: 0; width: 100%; }
   .stackbar { gap: 7px 12px; }
   .stackbar__layer { width: 100%; padding-right: 0; padding-bottom: 7px; border-right: 0; border-bottom: 1px dashed var(--line); }

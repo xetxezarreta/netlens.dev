@@ -36,7 +36,6 @@ tls.html            TLS 1.3 records, handshakes, extensions, key schedule
 quic.html           QUIC long/short headers, varints, frames, frame codec
 bgp.html            BGP message/UPDATE layout, path attributes, encoder/decoder
 wireguard.html      WireGuard message layouts, endianness, transport builder/decoder
-tools.html          checksum, QUIC varint, TLV parser, hex/bits, bitmask
 about.html          conventions, shortcuts, sources
 assets/styles.css   design system and layout
 assets/core.js      shared utilities, bit/byte diagram engines, search, theme
@@ -71,7 +70,7 @@ the URL.
 
 Protocols are grouped with the four-layer TCP/IP model: Application (BGP, DNS, HTTP, TLS),
 Transport (TCP, UDP, QUIC), Internet (IPv4, ICMP, IPv6) and Link (Ethernet, ARP), plus
-cross-layer tools and a packet dissector. The homepage renders the stack map from
+a cross-layer packet dissector. The homepage renders the stack map from
 `assets/protocol-meta.js`; adding a protocol with a `modelLayer` value places it in the map
 automatically. WireGuard remains available as a standalone page but is not part of the
 four-layer map. Protocol pages also carry an encapsulation stack strip. URLs stay flat so

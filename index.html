@@ -51,7 +51,7 @@
           <a class="btn btn--primary" href="ipv4.html">Start with IPv4 <span aria-hidden="true">-&gt;</span></a>
           <a class="btn" href="#stack">TCP/IP map</a>
           <a class="btn" href="#protocols">All protocols</a>
-          <a class="btn btn--ghost" href="tools.html">Toolbox</a>
+          <a class="btn btn--ghost" href="dissect.html">Packet dissector</a>
         </div>
         <div class="hero__stats">
           <span><b>12</b> protocols</span>
@@ -123,20 +123,20 @@
           <p class="kicker">// protocol index</p>
           <h2>Pick a header. See every bit.</h2>
         </div>
-        <p>12 protocols · 17 pages<br>field sheets by layer</p>
+        <p>12 protocols · 16 pages<br>field sheets by layer</p>
       </div>
 
       <div class="protocol-filter" data-protocol-filter>
         <span class="protocol-filter__label">browse by layer</span>
         <div class="protocol-filter__chips" role="group" aria-label="Filter protocols by layer">
-          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>14</b></button>
+          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>13</b></button>
           <button type="button" class="layer-chip" data-layer-filter="application" aria-pressed="false">application <b>4</b></button>
           <button type="button" class="layer-chip" data-layer-filter="transport" aria-pressed="false">transport <b>3</b></button>
           <button type="button" class="layer-chip" data-layer-filter="internet" aria-pressed="false">internet <b>3</b></button>
           <button type="button" class="layer-chip" data-layer-filter="link" aria-pressed="false">link <b>2</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="tools" aria-pressed="false">tools <b>2</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="tools" aria-pressed="false">cross-layer <b>1</b></button>
         </div>
-        <span class="protocol-filter__status" role="status" aria-live="polite">14 entries</span>
+        <span class="protocol-filter__status" role="status" aria-live="polite">13 entries</span>
       </div>
 
       <div class="protocol-grid" id="protocol-grid">
@@ -296,18 +296,6 @@
           </div>
           <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>layer tree</span><span>hex sync</span><span>warnings</span></div>
         </a>
-
-        <a class="protocol-card" href="tools.html" data-layer="tools">
-          <div class="protocol-card__top"><span class="protocol-card__num">+</span><span class="protocol-card__rfc">TOOLBOX</span></div>
-          <h3>Checksums &amp; TLVs</h3>
-          <p>Internet checksum, QUIC varints, a generic type-length-value parser and hex/bit conversion. Cross-protocol utilities.</p>
-          <div class="protocol-card__bits" aria-hidden="true">
-            <i style="--span:16;--tone:var(--tone-a)"></i><i style="--span:16;--tone:var(--tone-b)"></i>
-            <i style="--span:8;--tone:var(--tone-c)"></i><i style="--span:24;--tone:var(--tone-d)"></i>
-            <i style="--span:12;--tone:var(--tone-e)"></i><i style="--span:20;--tone:var(--tone-f)"></i>
-          </div>
-          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>RFC 1071</span><span>hex</span><span>bitmasks</span></div>
-        </a>
       </div>
     </section>
 
@@ -324,86 +312,9 @@
           <input type="search" placeholder="Search 100+ fields, flags, option kinds and RFCs…" aria-label="Search the field index" autocomplete="off" spellcheck="false">
           <button class="btn" type="button" data-search-open>Open full search <span aria-hidden="true">/</span></button>
         </div>
-        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · http · tls · quic · bgp · ethernet · arp · dissect · tools</span><span>fuzzy search across every page</span></div>
+        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · http · tls · quic · bgp · ethernet · arp · dissect</span><span>fuzzy search across every page</span></div>
         <ul class="home-search__results"></ul>
       </form>
-    </section>
-
-    <section class="home-section" id="why">
-      <div class="home-section__head">
-        <div>
-          <p class="kicker">// why this exists</p>
-          <h2>Less guessing at 03:00.</h2>
-        </div>
-        <p>the diagram and the bytes should agree</p>
-      </div>
-      <div class="feature-grid">
-        <article class="feature">
-          <div class="feature__icon" aria-hidden="true">[0x00]</div>
-          <h3>Offsets are explicit</h3>
-          <p>Every block is labelled with its absolute bit range and octet offset. No “somewhere in the first word” diagrams.</p>
-        </article>
-        <article class="feature">
-          <div class="feature__icon" aria-hidden="true">[rfc]</div>
-          <h3>Citations, not folklore</h3>
-          <p>Field definitions point at the RFC section that defines them, including the updates that changed them.</p>
-        </article>
-        <article class="feature">
-          <div class="feature__icon" aria-hidden="true">[hex]</div>
-          <h3>Encoders that validate</h3>
-          <p>Ranges, reserved bits and lengths are checked before you paste bytes into a lab device. Decoders explain what broke.</p>
-        </article>
-        <article class="feature">
-          <div class="feature__icon" aria-hidden="true">[tcp]</div>
-          <h3>Flags in context</h3>
-          <p>Toggle SYN, ACK, SACK and the rest. See the raw octet, tcpdump notation and the scan recipes that abuse them.</p>
-        </article>
-        <article class="feature">
-          <div class="feature__icon" aria-hidden="true">[tlv]</div>
-          <h3>Variable fields handled</h3>
-          <p>Options, path attributes and QUIC frames are decoded as TLVs, with per-item lengths, padding and truncation warnings.</p>
-        </article>
-        <article class="feature">
-          <div class="feature__icon" aria-hidden="true">[off]</div>
-          <h3>Static by design</h3>
-          <p>Plain HTML, CSS and JavaScript. No build step, no telemetry, no CDN. Open it from a laptop on an isolated network.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="home-section" id="conventions">
-      <div class="home-section__head">
-        <div>
-          <p class="kicker">// reading the diagrams</p>
-          <h2>One convention, everywhere.</h2>
-        </div>
-        <p><a href="about.html#conventions">full conventions -&gt;</a></p>
-      </div>
-      <div class="callout">
-        <div class="callout__title">bit 0 is the MSB</div>
-        <p>Diagrams are drawn left-to-right, most-significant bit first, in network byte order.
-        A field labelled <code>bits 0–3</code> occupies the top four bits of the first octet.
-        Offsets count from the first byte of the structure being described, not from the start of the frame.
-        </p>
-      </div>
-      <div class="toc" aria-label="Quick links">
-        <a href="#stack">TCP/IP model</a>
-        <a href="ethernet.html#layout">Ethernet layout</a>
-        <a href="arp.html#layout">ARP layout</a>
-        <a href="ipv4.html#layout">IPv4 layout</a>
-        <a href="icmp.html#layout">ICMP layout</a>
-        <a href="ipv6.html#layout">IPv6 layout</a>
-        <a href="tcp.html#flags">TCP flag explorer</a>
-        <a href="udp.html#layout">UDP layout</a>
-        <a href="dns.html#layout">DNS header</a>
-        <a href="http.html#message">HTTP message</a>
-        <a href="tls.html#record">TLS record</a>
-        <a href="dissect.html#walk">Packet dissector</a>
-        <a href="quic.html#varint">QUIC varints</a>
-        <a href="bgp.html#attribute">BGP attribute flags</a>
-        <a href="tools.html#checksum">checksum tool</a>
-        <a href="about.html#sources">RFC sources</a>
-      </div>
     </section>
   </div>
 </main>
@@ -416,7 +327,7 @@
     </div>
     <div class="foot-note">RFCs are the source of truth. Diagrams are educational; check the current RFC, errata and your implementation before putting anything on the wire.</div>
     <div class="foot-links">
-      <a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="ethernet.html">ethernet</a><a href="arp.html">arp</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a>
+      <a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="ethernet.html">ethernet</a><a href="arp.html">arp</a><a href="dissect.html">dissect</a><a href="about.html">about</a>
     </div>
   </div>
 </footer>

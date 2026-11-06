@@ -687,7 +687,6 @@
       p._tone = p.tone || tones[i % tones.length];
       byLayer[p.modelLayer].push(p);
     });
-    const tools = protocols.tools;
     const rows = layers.map((layer) => {
       const items = byLayer[layer.key] || [];
       const planned = (layer.planned || []).filter((name) => !entries.some((p) => p.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(p.name.toLowerCase())));
@@ -713,14 +712,13 @@
         `<div class="stack-layer__body">${nodes}${plannedNodes || (items.length ? "" : '<span class="stack-layer__placeholder">no protocol page yet</span>')}</div>` +
         `</div>`;
     }).join("");
-    const toolNote = tools ? (tools.modelNote || "checksums · varints · TLVs") : "checksums · varints · TLVs";
     host.hidden = false;
     host.innerHTML =
       `<div class="stack-model__head"><span>TCP/IP model</span><span data-stack-model-status>${entries.length} protocol pages · ${layers.length} layers</span></div>` +
       rows +
       `<div class="stack-model__foot"><span class="layer-code">ALL</span>` +
-      `<div><b>Cross-layer toolbox</b><small>${esc(toolNote)}</small></div>` +
-      `<a href="tools.html">toolbox →</a><a href="dissect.html">dissect →</a></div>`;
+      `<div><b>Packet dissector</b><small>one frame · every layer · hex sync</small></div>` +
+      `<a href="dissect.html">open dissector →</a></div>`;
   }
 
   function initProtocolFilter() {

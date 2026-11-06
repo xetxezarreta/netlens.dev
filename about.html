@@ -43,12 +43,6 @@
         <li><a href="#sources">sources</a></li>
       </ul>
     </div>
-    <div class="rail__group">
-      <p class="rail__label">protocols</p>
-      <div data-rail-protocols>
-        <noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript>
-      </div>
-    </div>
     <p class="rail__note"><b>build:</b> plain HTML, CSS and JavaScript. No frameworks, no build step, no analytics.</p>
   </aside>
 
@@ -76,8 +70,8 @@
       <section class="section" id="about">
         <h2>What this is</h2>
         <p>
-          Twelve protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP, TLS, QUIC, BGP, Ethernet and ARP — plus a small
-          <a href="tools.html">toolbox</a> and a cross-layer <a href="dissect.html">packet dissector</a>. Each protocol page has an interactive bit or byte
+          Twelve protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP, TLS, QUIC, BGP, Ethernet and ARP — plus a cross-layer
+          <a href="dissect.html">packet dissector</a>. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
         </p>
@@ -154,7 +148,7 @@
               <tr><td><b>Transport</b></td><td><code>3</code></td><td>TCP, UDP, QUIC</td><td>Process-to-process delivery: streams over TCP, datagrams over UDP, and encrypted transport with QUIC.</td></tr>
               <tr><td><b>Internet</b></td><td><code>2</code></td><td>IPv4, ICMP, IPv6</td><td>Addressing, fragmentation, checksums, errors, extension chains and path-MTU signalling.</td></tr>
               <tr><td><b>Link</b></td><td><code>1</code></td><td>Ethernet, ARP</td><td>Frames, MAC addressing, VLAN tags, FCS and IPv4-to-MAC resolution.</td></tr>
-              <tr><td><b>Cross-layer</b></td><td><code>—</code></td><td>Toolbox, Dissector</td><td>Checksums, varints and TLVs, plus a walk across an entire frame from Ethernet to application payload.</td></tr>
+              <tr><td><b>Cross-layer</b></td><td><code>—</code></td><td>Dissector</td><td>One frame, every layer: layer tree, offset-linked hex, warnings, structured export and copyable filter snippets.</td></tr>
             </tbody>
           </table>
         </div>
@@ -358,7 +352,7 @@
   <div class="site-footer__inner">
     <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
     <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a></div>
+    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="dissect.html">dissect</a></div>
   </div>
 </footer>
 

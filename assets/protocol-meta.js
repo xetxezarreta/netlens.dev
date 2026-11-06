@@ -225,19 +225,6 @@ window.PH_PROTOCOLS = {
       { label: "IPv4 address", note: "resolution" }
     ]
   },
-  tools: {
-    name: "Toolbox",
-    layer: "tools",
-    modelLayer: "tools",
-    modelNote: "checksums · varints · TLVs",
-    rail: false,
-    tone: "g",
-    layerCode: "ALL",
-    layerLabel: "Cross-layer",
-    layerNote: "byte-level utilities",
-    family: "tools",
-    path: []
-  },
   dissect: {
     name: "Dissector",
     layer: "tools",

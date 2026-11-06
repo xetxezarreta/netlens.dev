@@ -14,7 +14,6 @@ window.PH_SEARCH = [
   {kind:"protocol", p:"ethernet", name:"Ethernet II frames", meta:"link · IEEE 802.3 · FCS", href:"ethernet.html", text:"link layer l2 ethernet frame mac address ethertype 802.1q vlan pcp dei vid fcs crc32 payload preamble broadcast multicast"},
   {kind:"protocol", p:"arp", name:"ARP", meta:"link · RFC 826 · 28 B", href:"arp.html", text:"link layer address resolution protocol arp ipv4 mac broadcast request reply opcode gratuitous probe ethernet 0x0806"},
   {kind:"protocol", p:"dissect", name:"Packet dissector", meta:"cross-layer · one frame", href:"dissect.html", text:"packet dissector cross layer layer tree ethernet vlan arp ipv4 ipv6 tcp udp icmp dns tls http payload hex offsets warnings"},
-  {kind:"protocol", p:"tools", name:"Toolbox", meta:"cross-layer · checksums · TLVs", href:"tools.html", text:"toolbox cross layer checksum hex binary tlv varint converter bitmask"},
   {kind:"protocol", p:"about", name:"About & conventions", meta:"reference · conventions", href:"about.html", text:"tcp/ip stack model layer grouping bit numbering network order endianness rfc sources keyboard shortcuts"},
 
   /* IPv4 */
@@ -307,9 +306,4 @@ window.PH_SEARCH = [
   {kind:"tool", p:"http", name:"HPACK encoder / decoder", meta:"tool · HTTP/2", href:"http.html#hpack", text:"hpack encode decode huffman static dynamic table header block"},
   {kind:"tool", p:"tls", name:"TLS record decoder", meta:"tool · TLS", href:"tls.html#decode", text:"tls decode records handshake clienthello serverhello extensions"},
   {kind:"tool", p:"tls", name:"TLS key schedule", meta:"tool · TLS", href:"tls.html#keyschedule", text:"tls key schedule hkdf traffic secret"},
-  /* tools */
-  {kind:"tool", p:"tools", name:"Internet checksum", meta:"RFC 1071 · tool", href:"tools.html#checksum", text:"ones complement checksum verify ipv4 tcp udp 0xffff rfc 1071", popular:true},
-  {kind:"tool", p:"tools", name:"QUIC varint", meta:"RFC 9000 §16 · tool", href:"tools.html#varint", text:"encode decode variable length integer"},
-  {kind:"tool", p:"tools", name:"Generic TLV", meta:"tool", href:"tools.html#tlv", text:"type length value parser options"},
-  {kind:"tool", p:"tools", name:"Hex / binary converter", meta:"tool", href:"tools.html#bits", text:"bytes bits ascii hexadecimal"}
 ];
