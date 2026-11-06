@@ -675,9 +675,10 @@
     const layers = window.PH_STACK || [];
     const protocols = window.PH_PROTOCOLS || {};
     if (!layers.length || !Object.keys(protocols).length) { host.hidden = true; return; }
+    const layerKeys = new Set(layers.map((layer) => layer.key));
     const entries = Object.keys(protocols)
       .map((key) => Object.assign({ key }, protocols[key]))
-      .filter((p) => p.modelLayer && p.modelLayer !== "tools");
+      .filter((p) => p.modelLayer && layerKeys.has(p.modelLayer));
     const presentNames = new Set(entries.map((p) => p.name));
     const tones = ["a", "b", "c", "d", "e", "f", "g"];
     const byLayer = {};
@@ -997,6 +998,22 @@
     });
   }
 
+  function initRailProtocols() {
+    const host = $("[data-rail-protocols]");
+    if (!host) return;
+    const protocols = window.PH_PROTOCOLS || {};
+    const current = (location.pathname.split("/").pop() || "").replace(/\.html$/, "");
+    const items = Object.keys(protocols)
+      .filter((key) => protocols[key].rail !== false)
+      .map((key) => {
+        const p = protocols[key];
+        const active = key === current ? ' class="is-active"' : "";
+        const layer = p.railLayer || p.layerCode || "";
+        return `<li><a href="${esc(key)}.html"${active} data-layer="${esc(layer)}">${esc(key)}</a></li>`;
+      });
+    host.innerHTML = "<ul>" + items.join("") + "</ul>";
+  }
+
   function initRail() {
     const links = $$('.rail a[href^="#"]');
     if (!links.length || !("IntersectionObserver" in window)) return;
@@ -1214,6 +1231,7 @@
     initTheme();
     initCopy();
     bindSearch();
+    initRailProtocols();
     initRail();
     initTabs();
     initYear();

@@ -6,13 +6,13 @@ window.PH_PROTOCOLS = {
     modelLayer: "internet",
     modelNote: "header · options · fragmentation",
     tone: "a",
-    layerCode: "L3",
-    layerLabel: "Internet / IP",
+    layerCode: "2",
+    layerLabel: "Internet",
     layerNote: "network layer · RFC 791",
     family: "internet",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4", href: "ipv4.html", note: "L3", current: true },
+      { label: "IPv4", href: "ipv4.html", note: "internet", current: true },
       { label: "TCP · UDP · ICMP", note: "next header" }
     ]
   },
@@ -22,14 +22,14 @@ window.PH_PROTOCOLS = {
     modelLayer: "internet",
     modelNote: "errors · echo · PMTUD",
     tone: "i",
-    layerCode: "L3",
+    layerCode: "2",
     layerLabel: "Internet / control",
     layerNote: "errors & diagnostics · RFC 792",
     family: "internet",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4", href: "ipv4.html", note: "L3" },
-      { label: "ICMP", href: "icmp.html", note: "L3", current: true },
+      { label: "IPv4", href: "ipv4.html", note: "internet" },
+      { label: "ICMP", href: "icmp.html", note: "internet", current: true },
       { label: "Payload / quoted datagram", note: "type-specific" }
     ]
   },
@@ -39,13 +39,13 @@ window.PH_PROTOCOLS = {
     modelLayer: "internet",
     modelNote: "40 B · ext chain · 128-bit",
     tone: "j",
-    layerCode: "L3",
-    layerLabel: "Internet / IP",
+    layerCode: "2",
+    layerLabel: "Internet",
     layerNote: "fixed header · extension chain · RFC 8200",
     family: "internet",
     path: [
-      { label: "Ethernet", href: "ethernet.html", note: "L2" },
-      { label: "IPv6", href: "ipv6.html", note: "L3", current: true },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
+      { label: "IPv6", href: "ipv6.html", note: "internet", current: true },
       { label: "Extension headers", note: "next header chain" },
       { label: "TCP · UDP · ICMPv6", note: "upper layer" }
     ]
@@ -56,15 +56,15 @@ window.PH_PROTOCOLS = {
     modelLayer: "transport",
     modelNote: "flags · options · checksum",
     tone: "d",
-    layerCode: "L4",
+    layerCode: "3",
     layerLabel: "Transport",
     layerNote: "host-to-host · RFC 9293",
     family: "transport",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "TCP", href: "tcp.html", note: "L4", current: true },
-      { label: "Application", note: "L7" }
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "TCP", href: "tcp.html", note: "transport", current: true },
+      { label: "Application", note: "application" }
     ]
   },
   udp: {
@@ -73,15 +73,15 @@ window.PH_PROTOCOLS = {
     modelLayer: "transport",
     modelNote: "ports · length · checksum",
     tone: "a",
-    layerCode: "L4",
+    layerCode: "3",
     layerLabel: "Transport",
     layerNote: "datagram delivery · RFC 768",
     family: "transport",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "UDP", href: "udp.html", note: "L4", current: true },
-      { label: "Application", note: "L7" }
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "UDP", href: "udp.html", note: "transport", current: true },
+      { label: "Application", note: "application" }
     ]
   },
   dns: {
@@ -90,15 +90,15 @@ window.PH_PROTOCOLS = {
     modelLayer: "application",
     modelNote: "names · records · EDNS",
     tone: "g",
-    layerCode: "L7",
+    layerCode: "4",
     layerLabel: "Application",
     layerNote: "name resolution · RFC 1035",
     family: "application",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "UDP / TCP", href: "udp.html", note: "L4" },
-      { label: "DNS", href: "dns.html", note: "L7", current: true },
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "UDP / TCP", href: "udp.html", note: "transport" },
+      { label: "DNS", href: "dns.html", note: "application", current: true },
       { label: "Records · EDNS", note: "sections" }
     ]
   },
@@ -108,15 +108,15 @@ window.PH_PROTOCOLS = {
     modelLayer: "application",
     modelNote: "requests · HTTP/2 · HPACK",
     tone: "d",
-    layerCode: "L7",
+    layerCode: "4",
     layerLabel: "Application",
     layerNote: "semantics · framing · RFC 9110/9112/9113",
     family: "application",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "TCP/80 · TCP/443", href: "tcp.html", note: "L4" },
-      { label: "HTTP", href: "http.html", note: "L7", current: true },
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "TCP/80 · TCP/443", href: "tcp.html", note: "transport" },
+      { label: "HTTP", href: "http.html", note: "application", current: true },
       { label: "HTTP/2 frames · HPACK", note: "multiplexed" }
     ]
   },
@@ -126,15 +126,15 @@ window.PH_PROTOCOLS = {
     modelLayer: "application",
     modelNote: "records · handshakes · AEAD",
     tone: "h",
-    layerCode: "L7",
+    layerCode: "4",
     layerLabel: "Application / security",
     layerNote: "records & handshakes · RFC 8446",
     family: "application",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "TCP/443", href: "tcp.html", note: "L4" },
-      { label: "TLS", href: "tls.html", note: "L7", current: true },
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "TCP/443", href: "tcp.html", note: "transport" },
+      { label: "TLS", href: "tls.html", note: "application", current: true },
       { label: "Encrypted application data", note: "AEAD" }
     ]
   },
@@ -144,15 +144,15 @@ window.PH_PROTOCOLS = {
     modelLayer: "transport",
     modelNote: "encrypted transport · frames",
     tone: "c",
-    layerCode: "L4+",
+    layerCode: "3",
     layerLabel: "Transport / TLS",
     layerNote: "encrypted transport · RFC 9000",
     family: "transport",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "UDP", href: "udp.html", note: "L4" },
-      { label: "QUIC", href: "quic.html", note: "L4+", current: true },
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "UDP", href: "udp.html", note: "transport" },
+      { label: "QUIC", href: "quic.html", note: "transport", current: true },
       { label: "TLS 1.3 · Application", note: "encrypted" }
     ]
   },
@@ -162,33 +162,34 @@ window.PH_PROTOCOLS = {
     modelLayer: "application",
     modelNote: "routing · over TCP/179",
     tone: "b",
-    layerCode: "L7",
+    layerCode: "4",
     layerLabel: "Routing / control",
     layerNote: "over TCP/179 · RFC 4271",
     family: "application",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "TCP/179", href: "tcp.html", note: "L4" },
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "TCP/179", href: "tcp.html", note: "transport" },
       { label: "BGP", href: "bgp.html", note: "routing", current: true },
       { label: "UPDATE · NLRI", note: "routing data" }
     ]
   },
   wireguard: {
     name: "WireGuard",
-    layer: "tunnel",
-    modelLayer: "tunnel",
-    modelNote: "inner IP over UDP",
+    layer: "application",
+    modelLayer: null,
+    modelNote: "over UDP · protocol v1",
     tone: "e",
-    layerCode: "L3T",
-    layerLabel: "Tunnel / overlay",
-    layerNote: "inner IP over UDP · protocol v1",
-    family: "tunnel",
+    rail: false,
+    layerCode: "4",
+    layerLabel: "Application",
+    layerNote: "over UDP · protocol v1",
+    family: "application",
     path: [
       { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "L3" },
-      { label: "UDP/51820", href: "udp.html", note: "L4" },
-      { label: "WireGuard", href: "wireguard.html", note: "tunnel", current: true },
+      { label: "IPv4 / IPv6", note: "internet" },
+      { label: "UDP/51820", href: "udp.html", note: "transport" },
+      { label: "WireGuard", href: "wireguard.html", note: "over UDP", current: true },
       { label: "Inner IPv4 / IPv6", note: "payload" }
     ]
   },
@@ -198,13 +199,13 @@ window.PH_PROTOCOLS = {
     modelLayer: "link",
     modelNote: "frames · MAC · EtherType",
     tone: "h",
-    layerCode: "L2",
+    layerCode: "1",
     layerLabel: "Link",
     layerNote: "frames · FCS · IEEE 802.3",
     family: "link",
     path: [
       { label: "Physical", note: "preamble · SFD" },
-      { label: "Ethernet", href: "ethernet.html", note: "L2", current: true },
+      { label: "Ethernet", href: "ethernet.html", note: "link", current: true },
       { label: "ARP · IPv4 · IPv6", note: "payload" }
     ]
   },
@@ -214,13 +215,13 @@ window.PH_PROTOCOLS = {
     modelLayer: "link",
     modelNote: "IPv4 ↔ MAC · broadcast",
     tone: "f",
-    layerCode: "L2.5",
-    layerLabel: "Address resolution",
+    layerCode: "1",
+    layerLabel: "Link / resolution",
     layerNote: "IPv4 ↔ MAC · RFC 826",
     family: "link",
     path: [
-      { label: "Ethernet", href: "ethernet.html", note: "L2" },
-      { label: "ARP", href: "arp.html", note: "L2.5", current: true },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
+      { label: "ARP", href: "arp.html", note: "link", current: true },
       { label: "IPv4 address", note: "resolution" }
     ]
   },
@@ -229,6 +230,7 @@ window.PH_PROTOCOLS = {
     layer: "tools",
     modelLayer: "tools",
     modelNote: "checksums · varints · TLVs",
+    rail: false,
     tone: "g",
     layerCode: "ALL",
     layerLabel: "Cross-layer",
@@ -245,13 +247,14 @@ window.PH_PROTOCOLS = {
     layerCode: "ALL",
     layerLabel: "Cross-layer",
     layerNote: "link → network → transport → app",
+    railLayer: "tool",
     family: "tools",
     path: [
-      { label: "Ethernet", href: "ethernet.html", note: "L2" },
-      { label: "IPv4 / IPv6", href: "ipv4.html", note: "L3" },
-      { label: "TCP / UDP / ICMP", href: "udp.html", note: "L4" },
-      { label: "Application", href: "dns.html", note: "L7" },
-      { label: "HTTP / TLS", href: "http.html", note: "L7" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
+      { label: "IPv4 / IPv6", href: "ipv4.html", note: "internet" },
+      { label: "TCP / UDP / ICMP", href: "udp.html", note: "transport" },
+      { label: "Application", href: "dns.html", note: "application" },
+      { label: "HTTP / TLS", href: "http.html", note: "application" },
       { label: "Dissector", href: "dissect.html", note: "ALL", current: true }
     ]
   }
@@ -263,34 +266,26 @@ window.PH_PROTOCOLS = {
 window.PH_STACK = [
   {
     key: "application",
-    code: "L7",
-    name: "Application / control",
+    code: "4",
+    name: "Application",
     note: "routing, DNS, HTTP, TLS",
     planned: []
   },
   {
     key: "transport",
-    code: "L4",
+    code: "3",
     name: "Transport",
     note: "process-to-process delivery"
   },
   {
-    key: "tunnel",
-    code: "L3T",
-    name: "Tunnels / overlays",
-    note: "cross-layer · inner IP over UDP",
-    planned: ["GRE", "IPsec"],
-    overlay: true
-  },
-  {
     key: "internet",
-    code: "L3",
-    name: "Internet / IP",
+    code: "2",
+    name: "Internet",
     note: "addressing · forwarding · control"
   },
   {
     key: "link",
-    code: "L2",
+    code: "1",
     name: "Link",
     note: "frames · MAC · address resolution",
     planned: ["Ethernet", "ARP"]

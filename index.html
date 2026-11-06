@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>packet-headers.sh — wire formats, bit by bit</title>
-<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP, TLS, QUIC, BGP, WireGuard, Ethernet and ARP, plus a cross-layer packet dissector, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
+<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP, TLS, QUIC, BGP, Ethernet and ARP, plus a cross-layer packet dissector, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
 <meta name="theme-color" content="#0b0e14">
 <meta property="og:type" content="website">
 <meta property="og:title" content="packet-headers.sh — wire formats, bit by bit">
@@ -22,29 +22,12 @@
       <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
     </a>
     <span class="brand__rule" aria-hidden="true"></span>
-    <nav class="site-nav" aria-label="Protocols">
-      <a href="ipv4.html">ipv4</a>
-      <a href="icmp.html">icmp</a>
-      <a href="ipv6.html">ipv6</a>
-      <a href="tcp.html">tcp</a>
-      <a href="udp.html">udp</a>
-      <a href="dns.html">dns</a>
-      <a href="http.html">http</a>
-      <a href="tls.html">tls</a>
-      <a href="quic.html">quic</a>
-      <a href="bgp.html">bgp</a>
-      <a href="wireguard.html">wireguard</a>
-      <a href="ethernet.html">ethernet</a>
-      <a href="arp.html">arp</a>
-      <a href="dissect.html">dissect</a>
-      <a href="tools.html">tools</a>
-      <a href="about.html">about</a>
-    </nav>
     <div class="header-tools">
-      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+      <button class="icon-btn icon-btn--search" type="button" data-search-open aria-label="Search protocols and fields">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
         <span>search</span><span class="kbd-hint">/</span>
       </button>
+      <a class="icon-btn" href="about.html">about</a>
       <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
         <span data-theme-name>green</span>
@@ -71,7 +54,7 @@
           <a class="btn btn--ghost" href="tools.html">Toolbox</a>
         </div>
         <div class="hero__stats">
-          <span><b>13</b> protocols</span>
+          <span><b>12</b> protocols</span>
           <span><b>30+</b> diagrams</span>
           <span><b>30+</b> RFCs cited</span>
           <span><b>0</b> trackers</span>
@@ -140,21 +123,20 @@
           <p class="kicker">// protocol index</p>
           <h2>Pick a header. See every bit.</h2>
         </div>
-        <p>13 protocols · 17 pages<br>field sheets by layer</p>
+        <p>12 protocols · 17 pages<br>field sheets by layer</p>
       </div>
 
       <div class="protocol-filter" data-protocol-filter>
         <span class="protocol-filter__label">browse by layer</span>
         <div class="protocol-filter__chips" role="group" aria-label="Filter protocols by layer">
-          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>15</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="application" aria-pressed="false">L7 application <b>4</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="transport" aria-pressed="false">L4 transport <b>3</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="tunnel" aria-pressed="false">L3T tunnel <b>1</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="internet" aria-pressed="false">L3 internet <b>3</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="link" aria-pressed="false">L2 link <b>2</b></button>
+          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>14</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="application" aria-pressed="false">application <b>4</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="transport" aria-pressed="false">transport <b>3</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="internet" aria-pressed="false">internet <b>3</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="link" aria-pressed="false">link <b>2</b></button>
           <button type="button" class="layer-chip" data-layer-filter="tools" aria-pressed="false">tools <b>2</b></button>
         </div>
-        <span class="protocol-filter__status" role="status" aria-live="polite">15 entries</span>
+        <span class="protocol-filter__status" role="status" aria-live="polite">14 entries</span>
       </div>
 
       <div class="protocol-grid" id="protocol-grid">
@@ -167,7 +149,7 @@
             <i style="--span:16;--tone:var(--tone-d)"></i><i style="--span:3;--tone:var(--tone-e)"></i><i style="--span:13;--tone:var(--tone-f)"></i>
             <i style="--span:8;--tone:var(--tone-g)"></i><i style="--span:8;--tone:var(--tone-h)"></i><i style="--span:16;--tone:var(--tone-i)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L3 · internet</span><span>20–60 B</span><span>14 fields</span><span>checksum</span></div>
+          <div class="protocol-card__meta"><span class="layer">internet</span><span>20–60 B</span><span>14 fields</span><span>checksum</span></div>
         </a>
 
 
@@ -179,7 +161,7 @@
             <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:16;--tone:var(--tone-c)"></i>
             <i style="--span:32;--tone:var(--tone-d)"></i><i style="--span:32;--tone:var(--tone-e)"></i><i style="--span:32;--tone:var(--tone-f)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L3 · internet control</span><span>8 B header</span><span>types + codes</span><span>checksum</span></div>
+          <div class="protocol-card__meta"><span class="layer">internet control</span><span>8 B header</span><span>types + codes</span><span>checksum</span></div>
         </a>
 
 
@@ -192,7 +174,7 @@
             <i style="--span:16;--tone:var(--tone-d)"></i><i style="--span:8;--tone:var(--tone-e)"></i><i style="--span:8;--tone:var(--tone-f)"></i>
             <i style="--span:32;--tone:var(--tone-g)"></i><i style="--span:32;--tone:var(--tone-h)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L3 · internet</span><span>40 B header</span><span>128-bit</span><span>extensions</span></div>
+          <div class="protocol-card__meta"><span class="layer">internet</span><span>40 B header</span><span>128-bit</span><span>extensions</span></div>
         </a>
 
         <a class="protocol-card" href="tcp.html" data-layer="transport">
@@ -204,7 +186,7 @@
             <i style="--span:32;--tone:var(--tone-c)"></i><i style="--span:32;--tone:var(--tone-d)"></i>
             <i style="--span:4;--tone:var(--tone-e)"></i><i style="--span:4;--tone:var(--tone-f)"></i><i style="--span:8;--tone:var(--tone-g)"></i><i style="--span:16;--tone:var(--tone-h)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L4 · transport</span><span>20–60 B</span><span>11 fields</span><span>pseudo-header</span></div>
+          <div class="protocol-card__meta"><span class="layer">transport</span><span>20–60 B</span><span>11 fields</span><span>pseudo-header</span></div>
         </a>
 
 
@@ -217,7 +199,7 @@
             <i style="--span:16;--tone:var(--tone-c)"></i><i style="--span:16;--tone:var(--tone-d)"></i>
             <i style="--span:32;--tone:var(--tone-e)"></i><i style="--span:32;--tone:var(--tone-f)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L4 · transport</span><span>8 B header</span><span>checksum</span><span>ports</span></div>
+          <div class="protocol-card__meta"><span class="layer">transport</span><span>8 B header</span><span>checksum</span><span>ports</span></div>
         </a>
 
         <a class="protocol-card" href="quic.html" data-layer="transport">
@@ -228,7 +210,7 @@
             <i style="--span:1;--tone:var(--tone-a)"></i><i style="--span:1;--tone:var(--tone-b)"></i><i style="--span:2;--tone:var(--tone-c)"></i><i style="--span:4;--tone:var(--tone-d)"></i><i style="--span:24;--tone:var(--tone-e)"></i>
             <i style="--span:32;--tone:var(--tone-f)"></i><i style="--span:8;--tone:var(--tone-g)"></i><i style="--span:24;--tone:var(--tone-h)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L4+ · transport/TLS</span><span>varint</span><span>21 frame types</span><span>UDP</span></div>
+          <div class="protocol-card__meta"><span class="layer">transport · TLS</span><span>varint</span><span>21 frame types</span><span>UDP</span></div>
         </a>
 
         <a class="protocol-card" href="bgp.html" data-layer="application">
@@ -239,7 +221,7 @@
             <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:8;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i>
             <i style="--span:16;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i><i style="--span:32;--tone:var(--tone-g)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L7 · application/control</span><span>19 B header</span><span>16 attributes</span><span>TCP/179</span></div>
+          <div class="protocol-card__meta"><span class="layer">application / control</span><span>19 B header</span><span>16 attributes</span><span>TCP/179</span></div>
         </a>
 
         <a class="protocol-card" href="dns.html" data-layer="application">
@@ -250,7 +232,7 @@
             <i style="--span:16;--tone:var(--tone-a)"></i><i style="--span:1;--tone:var(--tone-b)"></i><i style="--span:4;--tone:var(--tone-c)"></i><i style="--span:11;--tone:var(--tone-d)"></i>
             <i style="--span:16;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i><i style="--span:16;--tone:var(--tone-g)"></i><i style="--span:16;--tone:var(--tone-h)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L7 · application</span><span>12 B header</span><span>compression</span><span>EDNS(0)</span></div>
+          <div class="protocol-card__meta"><span class="layer">application</span><span>12 B header</span><span>compression</span><span>EDNS(0)</span></div>
         </a>
 
         <a class="protocol-card" href="http.html" data-layer="application">
@@ -262,7 +244,7 @@
             <i style="--span:18;--tone:var(--tone-d)"></i><i style="--span:14;--tone:var(--tone-e)"></i>
             <i style="--span:16;--tone:var(--tone-f)"></i><i style="--span:16;--tone:var(--tone-g)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L7 · application</span><span>text + binary</span><span>chunked</span><span>HPACK</span></div>
+          <div class="protocol-card__meta"><span class="layer">application</span><span>text + binary</span><span>chunked</span><span>HPACK</span></div>
         </a>
 
         <a class="protocol-card" href="tls.html" data-layer="application">
@@ -274,22 +256,12 @@
             <i style="--span:8;--tone:var(--tone-d)"></i><i style="--span:24;--tone:var(--tone-e)"></i>
             <i style="--span:24;--tone:var(--tone-f)"></i><i style="--span:8;--tone:var(--tone-g)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L7 · security</span><span>5 B record</span><span>AEAD</span><span>key schedule</span></div>
-        </a>
-
-        <a class="protocol-card" href="wireguard.html" data-layer="tunnel">
-          <div class="protocol-card__top"><span class="protocol-card__num">11</span><span class="protocol-card__rfc">WG v1</span></div>
-          <h3>WireGuard messages</h3>
-          <p>Four message types, little-endian indices, MAC1/MAC2, counters and the encrypted transport layout.</p>
-          <div class="protocol-card__bits" aria-hidden="true">
-            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:24;--tone:var(--tone-b)"></i><i style="--span:32;--tone:var(--tone-c)"></i><i style="--span:32;--tone:var(--tone-d)"></i><i style="--span:32;--tone:var(--tone-e)"></i><i style="--span:32;--tone:var(--tone-f)"></i>
-          </div>
-          <div class="protocol-card__meta"><span class="layer">L3 tunnel · UDP</span><span>148 B init</span><span>92 B response</span></div>
+          <div class="protocol-card__meta"><span class="layer">application · security</span><span>5 B record</span><span>AEAD</span><span>key schedule</span></div>
         </a>
 
 
         <a class="protocol-card" href="ethernet.html" data-layer="link">
-          <div class="protocol-card__top"><span class="protocol-card__num">12</span><span class="protocol-card__rfc">IEEE 802.3</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">11</span><span class="protocol-card__rfc">IEEE 802.3</span></div>
           <h3>Ethernet II frames</h3>
           <p>Destination and source MACs, EtherType, 802.1Q VLAN tags, padding and the CRC-32 frame check sequence.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -298,11 +270,11 @@
             <i style="--span:8;--tone:var(--tone-e)"></i><i style="--span:24;--tone:var(--tone-f)"></i>
             <i style="--span:16;--tone:var(--tone-g)"></i><i style="--span:16;--tone:var(--tone-h)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L2 · link</span><span>64–1518 B</span><span>MAC · VLAN</span><span>FCS</span></div>
+          <div class="protocol-card__meta"><span class="layer">link</span><span>64–1518 B</span><span>MAC · VLAN</span><span>FCS</span></div>
         </a>
 
         <a class="protocol-card" href="arp.html" data-layer="link">
-          <div class="protocol-card__top"><span class="protocol-card__num">13</span><span class="protocol-card__rfc">RFC 826</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">12</span><span class="protocol-card__rfc">RFC 826</span></div>
           <h3>ARP</h3>
           <p>IPv4-to-MAC resolution, request/reply opcodes, ARP probes, gratuitous ARP and Ethernet padding.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -310,7 +282,7 @@
             <i style="--span:8;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i><i style="--span:16;--tone:var(--tone-e)"></i>
             <i style="--span:32;--tone:var(--tone-f)"></i><i style="--span:32;--tone:var(--tone-g)"></i><i style="--span:32;--tone:var(--tone-h)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">L2.5 · resolution</span><span>28 B message</span><span>opcodes</span><span>EtherType 0x0806</span></div>
+          <div class="protocol-card__meta"><span class="layer">link · resolution</span><span>28 B message</span><span>opcodes</span><span>EtherType 0x0806</span></div>
         </a>
 
         <a class="protocol-card" href="dissect.html" data-layer="tools">
@@ -352,7 +324,7 @@
           <input type="search" placeholder="Search 100+ fields, flags, option kinds and RFCs…" aria-label="Search the field index" autocomplete="off" spellcheck="false">
           <button class="btn" type="button" data-search-open>Open full search <span aria-hidden="true">/</span></button>
         </div>
-        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · http · tls · quic · bgp · wireguard · ethernet · arp · dissect · tools</span><span>fuzzy search across every page</span></div>
+        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · http · tls · quic · bgp · ethernet · arp · dissect · tools</span><span>fuzzy search across every page</span></div>
         <ul class="home-search__results"></ul>
       </form>
     </section>
@@ -412,7 +384,7 @@
         <p>Diagrams are drawn left-to-right, most-significant bit first, in network byte order.
         A field labelled <code>bits 0–3</code> occupies the top four bits of the first octet.
         Offsets count from the first byte of the structure being described, not from the start of the frame.
-        WireGuard is the one little-endian exception, and it is called out on every field that needs it.</p>
+        </p>
       </div>
       <div class="toc" aria-label="Quick links">
         <a href="#stack">TCP/IP model</a>
@@ -429,7 +401,6 @@
         <a href="dissect.html#walk">Packet dissector</a>
         <a href="quic.html#varint">QUIC varints</a>
         <a href="bgp.html#attribute">BGP attribute flags</a>
-        <a href="wireguard.html#transport">WireGuard transport</a>
         <a href="tools.html#checksum">checksum tool</a>
         <a href="about.html#sources">RFC sources</a>
       </div>
@@ -445,7 +416,7 @@
     </div>
     <div class="foot-note">RFCs are the source of truth. Diagrams are educational; check the current RFC, errata and your implementation before putting anything on the wire.</div>
     <div class="foot-links">
-      <a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="wireguard.html">wireguard</a><a href="ethernet.html">ethernet</a><a href="arp.html">arp</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a>
+      <a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="ethernet.html">ethernet</a><a href="arp.html">arp</a><a href="dissect.html">dissect</a><a href="tools.html">tools</a><a href="about.html">about</a>
     </div>
   </div>
 </footer>

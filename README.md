@@ -69,14 +69,14 @@ the URL.
 
 ## Organization
 
-Protocols are grouped with the TCP/IP model, with OSI numbers as orientation labels:
-Application/control (BGP, DNS, HTTP, TLS), Transport (TCP, UDP, QUIC), Tunnels/overlays
-(WireGuard), Internet/IP (IPv4, ICMP, IPv6), Link (Ethernet, ARP), and cross-layer tools plus
-a packet dissector. The homepage renders the stack
-map from `assets/protocol-meta.js`; adding a protocol with a `modelLayer` value places it in
-the map automatically. Protocol pages also carry an encapsulation stack strip. URLs stay
-flat so existing links keep working. The HTTP and TLS pages include their own field
-inventories, encoder/decoder panels and RFC references alongside the cross-layer walk.
+Protocols are grouped with the four-layer TCP/IP model: Application (BGP, DNS, HTTP, TLS),
+Transport (TCP, UDP, QUIC), Internet (IPv4, ICMP, IPv6) and Link (Ethernet, ARP), plus
+cross-layer tools and a packet dissector. The homepage renders the stack map from
+`assets/protocol-meta.js`; adding a protocol with a `modelLayer` value places it in the map
+automatically. WireGuard remains available as a standalone page but is not part of the
+four-layer map. Protocol pages also carry an encapsulation stack strip. URLs stay flat so
+existing links keep working. The HTTP and TLS pages include their own field inventories,
+encoder/decoder panels and RFC references alongside the cross-layer walk.
 
 ## Conventions
 

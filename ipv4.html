@@ -18,29 +18,12 @@
       <span class="brand__box"><span class="prompt">$</span> packet-headers.sh <span class="brand__cursor" aria-hidden="true"></span></span>
     </a>
     <span class="brand__rule" aria-hidden="true"></span>
-    <nav class="site-nav" aria-label="Protocols">
-      <a href="ipv4.html" aria-current="page">ipv4</a>
-      <a href="icmp.html">icmp</a>
-      <a href="ipv6.html">ipv6</a>
-      <a href="tcp.html">tcp</a>
-      <a href="udp.html">udp</a>
-      <a href="dns.html">dns</a>
-      <a href="http.html">http</a>
-      <a href="tls.html">tls</a>
-      <a href="quic.html">quic</a>
-      <a href="bgp.html">bgp</a>
-      <a href="wireguard.html">wireguard</a>
-      <a href="ethernet.html">ethernet</a>
-      <a href="arp.html">arp</a>
-      <a href="dissect.html">dissect</a>
-      <a href="tools.html">tools</a>
-      <a href="about.html">about</a>
-    </nav>
     <div class="header-tools">
-      <button class="icon-btn" type="button" data-search-open aria-label="Search protocols and fields">
+      <button class="icon-btn icon-btn--search" type="button" data-search-open aria-label="Search protocols and fields">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
         <span>search</span><span class="kbd-hint">/</span>
       </button>
+      <a class="icon-btn" href="about.html">about</a>
       <button class="icon-btn" type="button" data-theme-toggle aria-label="Change theme">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
         <span data-theme-name>green</span>
@@ -53,22 +36,9 @@
   <aside class="rail" aria-label="Page navigation">
     <div class="rail__group">
       <p class="rail__label">protocols</p>
-      <ul>
-        <li><a href="ipv4.html" class="is-active" data-layer="L3">ipv4</a></li>
-        <li><a href="icmp.html" data-layer="L3">icmp</a></li>
-        <li><a href="ipv6.html" data-layer="L3">ipv6</a></li>
-        <li><a href="tcp.html" data-layer="L4">tcp</a></li>
-        <li><a href="udp.html" data-layer="L4">udp</a></li>
-        <li><a href="dns.html" data-layer="L7">dns</a></li>
-        <li><a href="http.html" data-layer="L7">http</a></li>
-        <li><a href="tls.html" data-layer="L7">tls</a></li>
-        <li><a href="quic.html" data-layer="L4+">quic</a></li>
-        <li><a href="bgp.html" data-layer="L7">bgp</a></li>
-        <li><a href="wireguard.html" data-layer="L3T">wireguard</a></li>
-        <li><a href="ethernet.html" data-layer="L2">ethernet</a></li>
-        <li><a href="arp.html" data-layer="L2.5">arp</a></li>
-        <li><a href="dissect.html" data-layer="tool">dissect</a></li>
-      </ul>
+      <div data-rail-protocols>
+        <noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript>
+      </div>
     </div>
     <div class="rail__group">
       <p class="rail__label">on this page</p>
@@ -105,7 +75,7 @@
         <span class="badge">checksum</span>
       </div>
       <div class="page-meta">
-        <span><b>layer</b> L3 · internet</span>
+        <span><b>layer</b> internet</span>
         <span><b>header</b> 20 B + 0–40 B options</span>
         <span><b>checksum</b> header only</span>
         <span><b>byte order</b> big-endian</span>
