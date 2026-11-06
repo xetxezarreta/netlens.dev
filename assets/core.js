@@ -1295,6 +1295,38 @@
     restorePageState();
   }
 
+  function initHeroGrid() {
+    const hero = $(".hero");
+    if (!hero || !window.matchMedia || !window.requestAnimationFrame) return;
+    const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!finePointer.matches || reducedMotion.matches) return;
+
+    let frame = null;
+    let x = 0;
+    let y = 0;
+
+    function apply() {
+      frame = null;
+      hero.style.setProperty("--grid-shift-x", (x * 10).toFixed(2) + "px");
+      hero.style.setProperty("--grid-shift-y", (y * 8).toFixed(2) + "px");
+    }
+
+    hero.addEventListener("pointermove", (event) => {
+      const rect = hero.getBoundingClientRect();
+      x = (event.clientX - rect.left) / rect.width - 0.5;
+      y = (event.clientY - rect.top) / rect.height - 0.5;
+      if (!frame) frame = requestAnimationFrame(apply);
+    });
+
+    hero.addEventListener("pointerleave", () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = null;
+      hero.style.setProperty("--grid-shift-x", "0px");
+      hero.style.setProperty("--grid-shift-y", "0px");
+    });
+  }
+
   function initScrollRegions() {
     const selector = ".table-wrap, .diagram__scroll, .byte-lane__scroll, .hexdump, pre";
     let raf = null;
@@ -1338,6 +1370,7 @@
     initStackModel();
     initProtocolFilter();
     initPermalink();
+    initHeroGrid();
     initScrollRegions();
   }
 

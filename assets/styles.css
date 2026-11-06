@@ -522,6 +522,8 @@ input[type="checkbox"]:checked { border-color: var(--accent); }
     linear-gradient(90deg, rgba(126, 231, 135, 0.075) 1px, transparent 1px);
   background-size: 34px 34px;
   mask-image: radial-gradient(ellipse 70% 60% at 45% 35%, black, transparent);
+  transform: translate3d(var(--grid-shift-x, 0px), var(--grid-shift-y, 0px), 0);
+  transition: transform 220ms ease-out;
   pointer-events: none;
 }
 .hero__inner {
