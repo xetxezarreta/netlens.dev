@@ -64,7 +64,7 @@
       <p class="lead">
         The minimal transport protocol: two ports, a length and a checksum. UDP adds
         multiplexing and error detection, then gets out of the way. It is the substrate for
-        DNS, DHCP, NTP, QUIC, WireGuard and most of the traffic that would rather have
+        DNS, DHCP, NTP, QUIC and most of the traffic that would rather have
         low latency than a handshake.
       </p>
       <div class="badges">
@@ -172,7 +172,6 @@
             <tr><td><code>546/547</code></td><td><b>DHCPv6</b></td><td>Client / server</td><td>IPv6 configuration; link-local multicast is common.</td></tr>
             <tr><td><code>1900</code></td><td><b>SSDP</b></td><td>UPnP discovery</td><td>Multicast discovery on the local network.</td></tr>
             <tr><td><code>4789</code></td><td><b>VXLAN</b></td><td>Overlay encapsulation</td><td>Carries Ethernet frames over UDP.</td></tr>
-            <tr><td><code>51820</code></td><td><a href="wireguard.html"><b>WireGuard</b></a></td><td>VPN transport</td><td>Default UDP port; the protocol is stateless on the wire.</td></tr>
             <tr><td><code>5353</code></td><td><b>mDNS</b></td><td>Local name resolution</td><td>Multicast DNS, often paired with DNS-SD.</td></tr>
             <tr><td><code>6081</code></td><td><b>Geneve</b></td><td>Overlay encapsulation</td><td>Extensible tunnel metadata over UDP.</td></tr>
             <tr><td><code>33434+</code></td><td><b>traceroute</b></td><td>Path discovery</td><td>Classic Unix traceroute increments destination UDP ports.</td></tr>
@@ -257,7 +256,6 @@
                   <button type="button" data-udp-preset="dns">DNS query</button>
                   <button type="button" data-udp-preset="ntp">NTP</button>
                   <button type="button" data-udp-preset="syslog">syslog</button>
-                  <button type="button" data-udp-preset="wireguard">WireGuard</button>
                   <button type="button" data-udp-preset="empty">empty</button>
                 </div>
               </div>
@@ -447,12 +445,8 @@
   </main>
 </div>
 
-<footer class="site-footer">
-  <div class="site-footer__inner">
-    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
-    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="about.html">about</a></div>
-  </div>
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
 </footer>
 
 <script src="assets/search-index.js"></script>

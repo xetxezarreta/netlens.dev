@@ -221,6 +221,42 @@ hr { border: 0; border-top: 1px dashed var(--line-strong); margin: 32px 0; }
   justify-content: flex-start;
 }
 .icon-btn--search .kbd-hint { margin-left: auto; }
+.mobile-nav-btn { display: none; }
+.mobile-nav {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--header-h);
+  max-height: calc(100vh - var(--header-h));
+  overflow-y: auto;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line-strong);
+  box-shadow: var(--shadow);
+  padding: 12px 28px 18px;
+  z-index: 59;
+}
+.mobile-nav:not([hidden]) { display: block; }
+.mobile-nav__group { margin-bottom: 14px; }
+.mobile-nav__group:last-child { margin-bottom: 0; }
+.mobile-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 16px;
+}
+.mobile-nav a {
+  display: block;
+  padding: 6px 0;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+.mobile-nav a:hover,
+.mobile-nav a.is-active { color: var(--accent); }
+.mobile-nav a.is-active::before { content: "> "; white-space: pre; }
 .icon-btn .kbd-hint {
   border: 1px solid var(--line-strong);
   color: var(--dim);
@@ -244,6 +280,8 @@ hr { border: 0; border-top: 1px dashed var(--line-strong); margin: 32px 0; }
   padding-bottom: 80px;
 }
 main { min-width: 0; }
+.not-found { max-width: 760px; padding-top: 80px; padding-bottom: 120px; }
+.not-found .lead { color: var(--muted); font-size: 0.92rem; max-width: 58ch; }
 main:focus { outline: none; }
 main:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .rail {
@@ -1817,6 +1855,7 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
 @media (max-width: 980px) {
   .page-shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 26px; }
   .rail { display: none; }
+  .mobile-nav-btn { display: inline-flex; }
   .hero__inner { grid-template-columns: minmax(0, 1fr); }
   .hero-art { max-width: 560px; transform: none; }
   .hero-art::before { display: none; }
@@ -1886,6 +1925,8 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
 @media (max-width: 430px) {
   .header-tools .icon-btn > span { display: none; }
   .header-tools .icon-btn { padding: 0 8px; }
+  .header-tools > a[href="about.html"] { display: none; }
+  .mobile-nav ul { grid-template-columns: 1fr; }
   .flag-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .badges .badge:nth-child(n+5) { display: none; }
   .hero__actions .btn { flex: 1 1 100%; }
@@ -1920,6 +1961,10 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   .brand__rule { display: none; }
   .icon-btn--search { min-width: 0; }
   .site-header { box-shadow: 0 1px 0 var(--line); }
+  .mobile-nav { padding-left: 16px; padding-right: 16px; }
+}
+@media (min-width: 981px) {
+  .mobile-nav { display: none !important; }
 }
 
 /* ---------- packet dissector ---------- */

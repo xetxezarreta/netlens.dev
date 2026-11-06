@@ -10,7 +10,7 @@
     138: "NetBIOS datagram", 161: "SNMP", 162: "SNMP trap", 500: "IKE / ISAKMP",
     514: "syslog", 520: "RIP", 546: "DHCPv6 client", 547: "DHCPv6 server", 631: "IPP",
     1900: "SSDP", 2049: "NFS", 2152: "GTP", 33434: "traceroute", 3784: "BFD control",
-    3785: "BFD echo", 4500: "IPsec NAT-T", 4789: "VXLAN", 51820: "WireGuard",
+    3785: "BFD echo", 4500: "IPsec NAT-T", 4789: "VXLAN",
     5353: "mDNS", 5355: "LLMNR", 6081: "Geneve"
   };
 

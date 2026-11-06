@@ -3,7 +3,7 @@
 A static, interactive field guide to network wire formats: IPv4 options, ICMP types, IPv6
 extension chains, TCP flags and TLVs, UDP ports and checksums, DNS records and name
 compression, HTTP/1.1 framing and HTTP/2 frames, TLS 1.3 records and handshakes, QUIC
-headers and frames, BGP path attributes, and WireGuard messages.
+headers and frames, and BGP path attributes.
 
 Everything is plain HTML, CSS and JavaScript. There is no build step, no package manager,
 and no network request after the page loads (external RFC links open only when clicked).
@@ -35,7 +35,7 @@ http.html           HTTP/1.1 framing, HTTP/2 frames, HPACK, encoder/decoder
 tls.html            TLS 1.3 records, handshakes, extensions, key schedule
 quic.html           QUIC long/short headers, varints, frames, frame codec
 bgp.html            BGP message/UPDATE layout, path attributes, encoder/decoder
-wireguard.html      WireGuard message layouts, endianness, transport builder/decoder
+404.html            not-found page
 about.html          conventions, shortcuts, sources
 assets/styles.css   design system and layout
 assets/core.js      shared utilities, bit/byte diagram engines, search, theme
@@ -72,8 +72,7 @@ Protocols are grouped with the four-layer TCP/IP model: Application (BGP, DNS, H
 Transport (TCP, UDP, QUIC), Internet (IPv4, ICMP, IPv6) and Link (Ethernet, ARP), plus
 a cross-layer packet dissector. The homepage renders the stack map from
 `assets/protocol-meta.js`; adding a protocol with a `modelLayer` value places it in the map
-automatically. WireGuard remains available as a standalone page but is not part of the
-four-layer map. Protocol pages also carry an encapsulation stack strip. URLs stay flat so
+automatically. Protocol pages also carry an encapsulation stack strip. URLs stay flat so
 existing links keep working. The HTTP and TLS pages include their own field inventories,
 encoder/decoder panels and RFC references alongside the cross-layer walk.
 
@@ -81,8 +80,8 @@ encoder/decoder panels and RFC references alongside the cross-layer walk.
 
 - Bit 0 is the MSB of the first octet.
 - Offsets count from the first byte of the described structure.
-- Network byte order is big-endian except WireGuard, which is little-endian. HTTP/1.1 is
-text; HTTP/2 and TLS use big-endian integers.
+- Network byte order is big-endian. HTTP/1.1 is text; HTTP/2 and TLS use big-endian
+integers.
 - Encoders build structural bytes and Internet checksums where documented; they do not
   encrypt, authenticate, route, fragment, or negotiate capabilities.
 

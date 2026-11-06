@@ -123,10 +123,9 @@
 
         <h3>Byte order</h3>
         <p>
-          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP/2, TLS, QUIC and BGP. HTTP/1.1 is text. WireGuard is the
-          exception: its integer fields are little-endian. The WireGuard page calls this out on
-          every field and provides a converter. Bytes inside a field are always written in
-          transmission order; only the interpretation of multi-byte integers changes.
+          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP/2, TLS, QUIC and BGP. HTTP/1.1 is text.
+          Bytes inside a field are always written in transmission order; only the interpretation
+          of multi-byte integers changes.
         </p>
 
         <h3>Layer grouping</h3>
@@ -167,7 +166,7 @@
           The encoders build structurally valid bytes and compute Internet checksums where the
           page says so. They do not encrypt, authenticate, sign, compress, fragment, route, or
           negotiate capabilities. A valid checksum is not a valid connection; a well-formed
-          WireGuard message with a zero tag will be dropped by a real peer.
+          message with a bad authentication tag will be dropped by a real peer.
         </p>
       </section>
 
@@ -200,14 +199,14 @@
         <p>
           Decoders are intentionally strict in some places and permissive in others. They report
           what they can prove from the bytes — lengths, reserved bits, checksums, flag patterns —
-          and mark what they cannot verify, such as a TCP checksum without a pseudo-header or a
-          WireGuard MAC without keys. A clean parse means “structurally plausible”, not
+          and mark what they cannot verify, such as a TCP checksum without a pseudo-header or an
+          authentication tag without keys. A clean parse means “structurally plausible”, not
           “authentic”.
         </p>
         <p>
           If a diagram and a real implementation disagree, the implementation may be buggy, the
           RFC may have an erratum, or the deployment may be using an extension. Check all three.
-          This site is independent and not affiliated with the IETF or the WireGuard project.
+          This site is independent and not affiliated with the IETF.
         </p>
       </section>
 
@@ -323,14 +322,6 @@
           <li><a href="https://www.rfc-editor.org/rfc/rfc894" target="_blank" rel="noopener">RFC 894</a><span>IPv4 over Ethernet</span></li>
         </ul>
 
-        <h3>WireGuard</h3>
-        <ul class="rfc-list">
-          <li><a href="https://www.wireguard.com/protocol/" target="_blank" rel="noopener">WireGuard protocol</a><span>specification</span></li>
-          <li><a href="https://www.wireguard.com/papers/wireguard.pdf" target="_blank" rel="noopener">WireGuard paper</a><span>design rationale</span></li>
-          <li><a href="https://www.rfc-editor.org/rfc/rfc7693" target="_blank" rel="noopener">RFC 7693</a><span>BLAKE2</span></li>
-          <li><a href="https://www.rfc-editor.org/rfc/rfc8439" target="_blank" rel="noopener">RFC 8439</a><span>ChaCha20-Poly1305</span></li>
-        </ul>
-
         <h3>Privacy &amp; tech</h3>
         <p>
           No cookies, analytics, fonts from third parties or background requests. The only
@@ -348,12 +339,8 @@
   </main>
 </div>
 
-<footer class="site-footer">
-  <div class="site-footer__inner">
-    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
-    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="ipv4.html">ipv4</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="bgp.html">bgp</a><a href="dissect.html">dissect</a></div>
-  </div>
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
 </footer>
 
 <script src="assets/search-index.js"></script>

@@ -22,7 +22,7 @@
     {
       id: "dst", name: "Destination Port", bits: 16, range: "0–65535",
       rfc: "RFC 768 · IANA", rfcUrl: RFC.ports,
-      desc: "The receiving service's port: <code>53</code> DNS, <code>123</code> NTP, <code>161</code> SNMP, <code>51820</code> WireGuard. The four-tuple of source/destination addresses and ports identifies a UDP flow."
+      desc: "The receiving service's port: <code>53</code> DNS, <code>123</code> NTP, <code>161</code> SNMP. The four-tuple of source/destination addresses and ports identifies a UDP flow."
     },
     {
       id: "len", name: "Length", bits: 16, range: "8–65535 B",
@@ -37,7 +37,7 @@
     {
       id: "data", name: "Data", bits: "var", varWidth: 32, range: "0–65527 B",
       rfc: "RFC 768", rfcUrl: RFC.base,
-      desc: "Application payload. It can be empty, a DNS query, a QUIC packet, a WireGuard message or anything else. UDP itself assigns no structure to these bytes."
+      desc: "Application payload. It can be empty, a DNS query, a QUIC packet or anything else. UDP itself assigns no structure to these bytes."
     }
   ];
 
@@ -137,7 +137,6 @@
   }
 
   const DNS_QUERY = "12 34 01 00 00 01 00 00 00 00 00 00 07 65 78 61 6d 70 6c 65 03 63 6f 6d 00 00 01 00 01";
-  const WIREGUARD_SAMPLE = "01 00 00 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d";
 
   function presetPayload(kind) {
     if (kind === "dns") return { srcPort: 53000, dstPort: 53, mode: "hex", data: DNS_QUERY };
@@ -147,7 +146,6 @@
       return { srcPort: 123, dstPort: 123, mode: "hex", data: PH.bytesToHex(ntp) };
     }
     if (kind === "syslog") return { srcPort: 53000, dstPort: 514, mode: "ascii", data: "<134>Oct 11 22:14:15 host app: udp test" };
-    if (kind === "wireguard") return { srcPort: 51820, dstPort: 51820, mode: "hex", data: WIREGUARD_SAMPLE };
     return { srcPort: 53000, dstPort: 53, mode: "ascii", data: "" };
   }
 

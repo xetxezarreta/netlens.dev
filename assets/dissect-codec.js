@@ -273,20 +273,6 @@
     });
   }
 
-  function wireguardLayer(bytes, offset, depth) {
-    if (bytes.length < 4) return null;
-    const type = bytes[0];
-    const names = { 1: "Handshake Initiation", 2: "Handshake Response", 3: "Cookie Reply", 4: "Transport Data" };
-    if (!names[type]) return null;
-    return layer({
-      proto: "wireguard", name: "WireGuard", offset, length: bytes.length,
-      summary: "WireGuard " + names[type] + " · " + bytes.length + " B",
-      fields: [field("Message type", type + " · " + names[type]), field("Reserved", "0x" + PH.hex(bytes[1]) + " " + PH.hex(bytes[2]) + " " + PH.hex(bytes[3]))],
-      warnings: bytes[1] || bytes[2] || bytes[3] ? ["WireGuard reserved bytes should be zero"] : [],
-      depth, href: "wireguard.html"
-    });
-  }
-
   function applicationLayer(bytes, offset, state, depth, hint) {
     if (!bytes || bytes.length === 0) return null;
     const app = hint || {};
@@ -321,10 +307,6 @@
     if (app.quic) {
       const quic = quicLayer(bytes, offset, depth);
       if (quic) return quic;
-    }
-    if (app.wireguard) {
-      const wg = wireguardLayer(bytes, offset, depth);
-      if (wg) return wg;
     }
     return null;
   }
@@ -407,8 +389,7 @@
     })];
     const app = applicationLayer(parsed.payload, offset + 8, state, depth + 1, {
       dns: parsed.srcPort === 53 || parsed.dstPort === 53 || parsed.srcPort === 5353 || parsed.dstPort === 5353,
-      quic: parsed.srcPort === 443 || parsed.dstPort === 443,
-      wireguard: parsed.srcPort === 51820 || parsed.dstPort === 51820
+      quic: parsed.srcPort === 443 || parsed.dstPort === 443
     });
     if (app) result.push(app);
     else {

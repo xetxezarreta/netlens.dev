@@ -176,7 +176,7 @@
             <tr><td><b>802.1Q / 802.1ad</b></td><td>TPID <code>0x8100</code> / <code>0x88A8</code></td><td>One or more 4-byte tags</td><td>Inner EtherType</td></tr>
             <tr><td><b>IPv4</b></td><td>Protocol byte at offset 9</td><td><code>1</code> ICMP · <code>6</code> TCP · <code>17</code> UDP</td><td>Transport header</td></tr>
             <tr><td><b>IPv6</b></td><td>Next Header byte at offset 6</td><td>Hop-by-Hop, Routing, Fragment, AH, Destination Options</td><td>Terminal transport header</td></tr>
-            <tr><td><b>TCP / UDP</b></td><td>Port numbers and payload shape</td><td>53 DNS · 80/8080 HTTP · 443 TLS/QUIC · 51820 WireGuard · 179 BGP</td><td>Application layer</td></tr>
+            <tr><td><b>TCP / UDP</b></td><td>Port numbers and payload shape</td><td>53 DNS · 80/8080 HTTP · 443 TLS/QUIC · 179 BGP</td><td>Application layer</td></tr>
           </tbody>
         </table>
       </div>
@@ -195,7 +195,7 @@
         <span class="section__hint">what this tool deliberately does not do</span>
       </div>
       <ul class="dashed">
-        <li><strong>No decryption.</strong> TLS application data (including HTTP inside HTTPS), QUIC protected packets, ESP, WireGuard transport data and encrypted BGP sessions remain opaque.</li>
+        <li><strong>No decryption.</strong> TLS application data (including HTTP inside HTTPS), QUIC protected packets, ESP and encrypted BGP sessions remain opaque.</li>
         <li><strong>No IP reassembly.</strong> A non-initial IPv4 fragment has no transport header. The dissector marks fragment data and stops instead of inventing a payload.</li>
         <li><strong>No TCP stream reassembly.</strong> One TCP segment is one input. A DNS message split across segments needs a stream reassembler, not a single-frame dissector.</li>
         <li><strong>No pcap import.</strong> The input is hex bytes. Extract one packet from your capture tool, or use the protocol pages for a specific header.</li>
@@ -225,12 +225,8 @@
   </main>
 </div>
 
-<footer class="site-footer">
-  <div class="site-footer__inner">
-    <div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>
-    <div class="foot-note">RFCs are the source of truth. Verify against the current RFC, errata and your implementation before putting anything on the wire.</div>
-    <div class="foot-links"><a href="index.html">home</a><a href="ipv4.html">ipv4</a><a href="icmp.html">icmp</a><a href="ipv6.html">ipv6</a><a href="tcp.html">tcp</a><a href="udp.html">udp</a><a href="dns.html">dns</a><a href="http.html">http</a><a href="tls.html">tls</a><a href="quic.html">quic</a><a href="dissect.html">dissect</a><a href="about.html">about</a></div>
-  </div>
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
 </footer>
 
 <script src="assets/search-index.js"></script>

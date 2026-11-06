@@ -174,25 +174,6 @@ window.PH_PROTOCOLS = {
       { label: "UPDATE · NLRI", note: "routing data" }
     ]
   },
-  wireguard: {
-    name: "WireGuard",
-    layer: "application",
-    modelLayer: null,
-    modelNote: "over UDP · protocol v1",
-    tone: "e",
-    rail: false,
-    layerCode: "4",
-    layerLabel: "Application",
-    layerNote: "over UDP · protocol v1",
-    family: "application",
-    path: [
-      { label: "Ethernet", note: "link" },
-      { label: "IPv4 / IPv6", note: "internet" },
-      { label: "UDP/51820", href: "udp.html", note: "transport" },
-      { label: "WireGuard", href: "wireguard.html", note: "over UDP", current: true },
-      { label: "Inner IPv4 / IPv6", note: "payload" }
-    ]
-  },
   ethernet: {
     name: "Ethernet",
     layer: "link",

@@ -996,6 +996,104 @@
     });
   }
 
+  function initSiteFooter() {
+    const hosts = $$("[data-site-footer]");
+    if (!hosts.length) return;
+    const protocols = window.PH_PROTOCOLS || {};
+    const links = ['<a href="index.html">home</a>'];
+    Object.keys(protocols).forEach((key) => {
+      if (protocols[key].footer === false) return;
+      links.push(`<a href="${esc(key)}.html">${esc(key)}</a>`);
+    });
+    links.push('<a href="about.html">about</a>');
+    const html =
+      '<div class="site-footer__inner">' +
+      '<div><span class="foot-brand">packet-headers.sh</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>' +
+      '<div class="foot-note">RFCs are the source of truth. Diagrams are educational; check the current RFC, errata and your implementation before putting anything on the wire.</div>' +
+      `<div class="foot-links">${links.join("")}</div>` +
+      '</div>';
+    hosts.forEach((host) => { host.innerHTML = html; });
+  }
+
+  function initMobileNav() {
+    const header = $(".site-header");
+    const tools = header ? $(".header-tools", header) : null;
+    if (!header || !tools || $("[data-mobile-nav]", tools)) return;
+    const protocols = window.PH_PROTOCOLS || {};
+    const layers = window.PH_STACK || [];
+    if (!Object.keys(protocols).length || !layers.length) return;
+
+    const current = (location.pathname.split("/").pop() || "").replace(/\.html$/, "");
+    const layerKeys = new Set(layers.map((layer) => layer.key));
+    const link = (key, label) => {
+      const active = key === current ? ' class="is-active" aria-current="page"' : "";
+      return `<li><a href="${esc(key)}.html"${active}>${esc(label)}</a></li>`;
+    };
+    let html = '<div class="mobile-nav__group"><p class="rail__label">site</p><ul>' +
+      `<li><a href="index.html"${current === "" || current === "index" ? ' class="is-active" aria-current="page"' : ""}>home</a></li>` +
+      "</ul></div>";
+
+    layers.forEach((layer) => {
+      const keys = Object.keys(protocols).filter((key) => protocols[key].modelLayer === layer.key);
+      if (!keys.length) return;
+      html += `<div class="mobile-nav__group"><p class="rail__label">${esc(layer.name)}</p><ul>` +
+        keys.map((key) => link(key, key)).join("") + "</ul></div>";
+    });
+
+    const cross = Object.keys(protocols).filter((key) => protocols[key].modelLayer && !layerKeys.has(protocols[key].modelLayer));
+    if (cross.length) {
+      html += '<div class="mobile-nav__group"><p class="rail__label">cross-layer</p><ul>' +
+        cross.map((key) => link(key, key)).join("") + "</ul></div>";
+    }
+
+    html += '<div class="mobile-nav__group"><p class="rail__label">about</p><ul>' +
+      `<li><a href="about.html"${current === "about" ? ' class="is-active" aria-current="page"' : ""}>about &amp; conventions</a></li>` +
+      "</ul></div>";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "icon-btn mobile-nav-btn";
+    btn.setAttribute("data-mobile-nav", "");
+    btn.setAttribute("aria-label", "Open navigation");
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-controls", "ph-mobile-nav");
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><span>menu</span>';
+    tools.insertBefore(btn, tools.firstChild);
+
+    const panel = document.createElement("div");
+    panel.className = "mobile-nav";
+    panel.id = "ph-mobile-nav";
+    panel.hidden = true;
+    panel.setAttribute("role", "navigation");
+    panel.setAttribute("aria-label", "Site navigation");
+    panel.innerHTML = html;
+    header.appendChild(panel);
+
+    function setOpen(open) {
+      panel.hidden = !open;
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      btn.classList.toggle("is-active", open);
+    }
+    btn.addEventListener("click", () => setOpen(panel.hidden));
+    panel.addEventListener("click", (event) => {
+      if (event.target.closest("a")) setOpen(false);
+    });
+    document.addEventListener("click", (event) => {
+      if (panel.hidden) return;
+      if (panel.contains(event.target) || btn.contains(event.target)) return;
+      setOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !panel.hidden) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 980) setOpen(false);
+    });
+  }
+
   function initRailProtocols() {
     const host = $("[data-rail-protocols]");
     if (!host) return;
@@ -1229,6 +1327,8 @@
     initTheme();
     initCopy();
     bindSearch();
+    initMobileNav();
+    initSiteFooter();
     initRailProtocols();
     initRail();
     initTabs();

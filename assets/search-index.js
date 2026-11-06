@@ -4,13 +4,12 @@ window.PH_SEARCH = [
   {kind:"protocol", p:"icmp", name:"ICMP", meta:"internet · RFC 792 · 8 B header", href:"icmp.html", text:"internet control message protocol icmpv4 l3 type code checksum echo request reply destination unreachable time exceeded parameter problem redirect timestamp traceroute pmtud fragmentation needed source quench extensions"},
   {kind:"protocol", p:"ipv6", name:"IPv6 header & extension chain", meta:"internet · RFC 8200 · 40 B", href:"ipv6.html", text:"internet layer network l3 ipv6 version traffic class dscp ecn flow label payload length next header hop limit source destination extension headers hop by hop routing fragment ah destination options jumbogram address"},
   {kind:"protocol", p:"tcp", name:"TCP header", meta:"transport · RFC 9293 · 20–60 B", href:"tcp.html", text:"transport layer l4 ports sequence acknowledgment data offset flags window checksum urgent pointer options mss sack timestamp"},
-  {kind:"protocol", p:"udp", name:"UDP datagrams", meta:"transport · RFC 768 · 8 B", href:"udp.html", text:"transport layer l4 udp source port destination port length checksum pseudo header ipv4 ipv6 dns dhcp ntp quic wireguard"},
+  {kind:"protocol", p:"udp", name:"UDP datagrams", meta:"transport · RFC 768 · 8 B", href:"udp.html", text:"transport layer l4 udp source port destination port length checksum pseudo header ipv4 ipv6 dns dhcp ntp quic"},
   {kind:"protocol", p:"dns", name:"DNS messages", meta:"application · RFC 1035 · 12 B header", href:"dns.html", text:"application layer l7 domain name system dns query response header flags question answer authority additional resource record name compression pointer edns opt ttl a aaaa cname mx txt soa srv dnssec doh dot doq"},
   {kind:"protocol", p:"http", name:"HTTP/1.1 & HTTP/2", meta:"application · RFC 9110/9112/9113", href:"http.html", text:"application layer l7 hypertext transfer protocol http1.1 http2 request response status line header field content length transfer encoding chunked trailer framing multiplexing stream frame hpack huffman header compression"},
   {kind:"protocol", p:"tls", name:"TLS 1.3 records & handshakes", meta:"application · RFC 8446", href:"tls.html", text:"application security l7 tls ssl record handshake clienthello serverhello extensions sni alpn supported versions key share cipher suite certificate certificate verify finished alert hkdf key schedule aead encrypted"},
   {kind:"protocol", p:"quic", name:"QUIC frames & headers", meta:"transport · RFC 9000 · varint", href:"quic.html", text:"transport encrypted tls l4 long header short header frame stream ack crypto connection close varint spin key phase"},
   {kind:"protocol", p:"bgp", name:"BGP path attributes", meta:"application · routing · RFC 4271 · UPDATE", href:"bgp.html", text:"routing control plane application layer l7 tcp 179 origin as_path next_hop med local_pref communities mp_reach nlri flags transitive optional"},
-  {kind:"protocol", p:"wireguard", name:"WireGuard messages", meta:"over UDP · protocol v1", href:"wireguard.html", text:"tunnel overlay l3 little endian handshake initiation response cookie transport data index counter mac1 mac2"},
   {kind:"protocol", p:"ethernet", name:"Ethernet II frames", meta:"link · IEEE 802.3 · FCS", href:"ethernet.html", text:"link layer l2 ethernet frame mac address ethertype 802.1q vlan pcp dei vid fcs crc32 payload preamble broadcast multicast"},
   {kind:"protocol", p:"arp", name:"ARP", meta:"link · RFC 826 · 28 B", href:"arp.html", text:"link layer address resolution protocol arp ipv4 mac broadcast request reply opcode gratuitous probe ethernet 0x0806"},
   {kind:"protocol", p:"dissect", name:"Packet dissector", meta:"cross-layer · one frame", href:"dissect.html", text:"packet dissector cross layer layer tree ethernet vlan arp ipv4 ipv6 tcp udp icmp dns tls http payload hex offsets warnings"},
@@ -141,7 +140,7 @@ window.PH_SEARCH = [
 
   /* UDP */
   {kind:"field", p:"udp", name:"UDP Source Port", meta:"bits 0–15 · UDP", href:"udp.html#layout", text:"source port src ephemeral dynamic 0 65535", popular:true},
-  {kind:"field", p:"udp", name:"UDP Destination Port", meta:"bits 16–31 · UDP", href:"udp.html#layout", text:"destination port dst service 53 dns 123 ntp 51820 wireguard", popular:true},
+  {kind:"field", p:"udp", name:"UDP Destination Port", meta:"bits 16–31 · UDP", href:"udp.html#layout", text:"destination port dst service 53 dns 123 ntp", popular:true},
   {kind:"field", p:"udp", name:"UDP Length", meta:"bits 32–47 · UDP", href:"udp.html#layout", text:"length 8 65535 header plus data payload", popular:true},
   {kind:"field", p:"udp", name:"UDP Checksum", meta:"bits 48–63 · UDP", href:"udp.html#checksum", text:"checksum pseudo header ipv4 ipv6 mandatory optional zero 0xffff", popular:true},
   {kind:"field", p:"udp", name:"UDP data", meta:"offset 8 · UDP", href:"udp.html#layout", text:"payload application data zero length"},
@@ -154,7 +153,6 @@ window.PH_SEARCH = [
   {kind:"field", p:"udp", name:"NTP", meta:"port 123 · UDP", href:"udp.html#ports", text:"network time protocol ntp 123"},
   {kind:"field", p:"udp", name:"SNMP", meta:"ports 161/162 · UDP", href:"udp.html#ports", text:"simple network management protocol snmp agent trap 161 162"},
   {kind:"field", p:"udp", name:"syslog", meta:"port 514 · UDP", href:"udp.html#ports", text:"syslog 514 logging"},
-  {kind:"field", p:"udp", name:"WireGuard port", meta:"51820 · UDP", href:"udp.html#ports", text:"wireguard udp 51820 vpn", popular:true},
   {kind:"field", p:"udp", name:"QUIC transport", meta:"UDP/443 · QUIC", href:"udp.html#ports", text:"quic http3 udp 443 transport", popular:true},
   {kind:"field", p:"udp", name:"VXLAN", meta:"port 4789 · UDP", href:"udp.html#ports", text:"vxlan overlay udp 4789 encapsulation"},
   {kind:"field", p:"udp", name:"mDNS", meta:"port 5353 · UDP", href:"udp.html#ports", text:"multicast dns mdns 5353 bonjour"},
@@ -280,16 +278,6 @@ window.PH_SEARCH = [
   {kind:"field", p:"bgp", name:"LARGE_COMMUNITIES", meta:"type 32 · RFC 8092", href:"bgp.html#types", text:"large community communities global administrator local data 12 bytes 65001", popular:true},
   {kind:"field", p:"bgp", name:"Extended length", meta:"flag 0x10 · BGP", href:"bgp.html#attribute", text:"2 byte attribute length"},
 
-  /* WireGuard */
-  {kind:"field", p:"wireguard", name:"Message type", meta:"byte 0 · WireGuard", href:"wireguard.html#messages", text:"handshake initiation response cookie reply transport data 0x01 0x02 0x03 0x04", popular:true},
-  {kind:"field", p:"wireguard", name:"Sender index", meta:"offset 4 · WireGuard", href:"wireguard.html#messages", text:"little endian index handshake"},
-  {kind:"field", p:"wireguard", name:"Receiver index", meta:"offset 8 · WireGuard", href:"wireguard.html#messages", text:"little endian index"},
-  {kind:"field", p:"wireguard", name:"Counter", meta:"offset 8 · WireGuard", href:"wireguard.html#transport", text:"64 bit little endian nonce anti replay", popular:true},
-  {kind:"field", p:"wireguard", name:"MAC1", meta:"offset 116 · WireGuard", href:"wireguard.html#messages", text:"blake2s keyed receiver public key"},
-  {kind:"field", p:"wireguard", name:"MAC2", meta:"offset 132 · WireGuard", href:"wireguard.html#messages", text:"cookie blake2s"},
-  {kind:"field", p:"wireguard", name:"Cookie reply", meta:"type 3 · WireGuard", href:"wireguard.html#messages", text:"nonce encrypted cookie 64 bytes under load"},
-  {kind:"field", p:"wireguard", name:"Transport data", meta:"type 4 · WireGuard", href:"wireguard.html#transport", text:"encrypted payload chacha20poly1305 padding"},
-  {kind:"field", p:"wireguard", name:"Reserved bytes", meta:"offset 1 · WireGuard", href:"wireguard.html#messages", text:"must be zero little endian"},
 
 
   /* dissector */
