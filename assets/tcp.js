@@ -257,7 +257,7 @@
     if (bytes.length >= 14 && (bytes[0] >> 4) !== 4) {
       const ethertype = PH.u16be(bytes, 12);
       if (ethertype === 0x0800) { base = 14; ethernet = true; }
-      else if (ethertype === 0x8100 && bytes.length >= 18 && PH.u16be(bytes, 16) === 0x0800) {
+      else if ((ethertype === 0x8100 || ethertype === 0x88a8) && bytes.length >= 18 && PH.u16be(bytes, 16) === 0x0800) {
         base = 18; ethernet = true; vlan = true;
       }
     }
@@ -267,6 +267,9 @@
       const ipHeaderLen = ihl * 4;
       const protocol = bytes[base + 9];
       if (ihl >= 5 && protocol === 6 && bytes.length >= base + ipHeaderLen) {
+        const flagsWord = PH.u16be(bytes, base + 6);
+        const fragmentOffset = flagsWord & 0x1fff;
+        if (fragmentOffset > 0) throw new Error("TCP is not present in a non-initial IPv4 fragment");
         const total = PH.u16be(bytes, base + 2);
         const src = PH.ipv4String(bytes, base + 12);
         const dst = PH.ipv4String(bytes, base + 16);
@@ -358,7 +361,7 @@
     { id: "reserved", name: "Reserved", bits: 4, range: "0", rfc: "RFC 9293 §3.1", rfcUrl: RFC.tcp + "#section-3.1", desc: "Four reserved bits. RFC 793 had six; CWR and ECE took two. RFC 3540 borrowed one as NS; RFC 8311 deprecated the nonce. Transmitters set zero." },
     { id: "flags", name: "Flags", bits: 8, range: "CWR ECE URG ACK PSH RST SYN FIN", rfc: "RFC 9293 · RFC 3168", rfcUrl: RFC.tcp + "#section-3.1", desc: "The control octet. High to low: CWR, ECE, URG, ACK, PSH, RST, SYN, FIN. Each bit is explained in the flag explorer below." },
     { id: "window", name: "Window", bits: 16, range: "0–65535", rfc: "RFC 9293 · RFC 7323", rfcUrl: RFC.ws + "#section-2", desc: "Receive window advertised by the sender, in bytes before window scaling. The scale shift is negotiated separately and applies to later segments." },
-    { id: "checksum", name: "Checksum", bits: 16, range: "0–65535", rfc: "RFC 9293 §3.1 · RFC 1071", rfcUrl: RFC.tcp + "#section-3.1", desc: "One's-complement checksum over the IPv4/IPv6 pseudo-header, TCP header and payload. It detects accidental corruption, not tampering." },
+    { id: "checksum", name: "Checksum", bits: 16, range: "0–65535", rfc: "RFC 9293 §3.1 · RFC 1071", rfcUrl: RFC.tcp + "#section-3.1", desc: "One's-complement checksum over an IP pseudo-header, TCP header and payload. This tool verifies it with an IPv4 pseudo-header; an IPv6 pseudo-header is 40 bytes and uses the next-header value instead of the protocol byte." },
     { id: "urgent", name: "Urgent Pointer", bits: 16, range: "0–65535", rfc: "RFC 9293 §3.1", rfcUrl: RFC.tcp + "#section-3.1", desc: "Offset from the sequence number to the last urgent byte. Only meaningful when URG is set; most stacks ignore it. Some middleboxes rewrite it badly." },
     { id: "options", name: "Options", bits: "var", varWidth: 32, range: "0–40 B", rfc: "RFC 9293 §3.1", rfcUrl: RFC.tcp + "#section-3.1", desc: "TLV options: MSS, Window Scale, SACK, timestamps, TFO, MD5 and more. Padded to a 4-byte boundary; Data Offset includes the padding. Drawn here at a nominal 32 bits.", tone: "j" }
   ];

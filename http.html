@@ -180,11 +180,13 @@
       <div class="field-detail" id="http-chunk-inspector"></div>
 
       <div class="callout callout--warn">
-        <div class="callout__title">Transfer-Encoding beats Content-Length</div>
-        <p>When both are present, a message with <code>Transfer-Encoding: chunked</code> uses
-        chunked framing. A front-end that honours <code>Content-Length</code> while a back-end
-        honours chunked can be made to see two different requests on one connection. Reject
-        messages that carry both, and reject duplicate or non-identical lengths.</p>
+        <div class="callout__title">both is a framing error, not a precedence rule</div>
+        <p>A message that carries both <code>Content-Length</code> and
+        <code>Transfer-Encoding: chunked</code> is ambiguous and should be rejected. RFC 9112's
+        parsing algorithm says Transfer-Encoding overrides Content-Length, but it also says such
+        a message ought to be handled as an error. A front-end that honours one header while a
+        back-end honours the other is the classic request-smuggling setup: do not forward the
+        message, and do not let two parsers choose different framings.</p>
       </div>
     </section>
 
@@ -195,9 +197,9 @@
       </div>
       <p>
         HTTP/2 keeps the request/response semantics and replaces the text framing with a binary
-        frame layer. Every frame starts with a 24-bit length, an 8-bit type, an 8-bit flags field
-        and a 31-bit stream identifier. A connection carries many streams at once, and header
-        blocks are compressed with HPACK.
+        frame layer. Every frame starts with a 24-bit length, an 8-bit type, an 8-bit flags field,
+        a reserved bit and a 31-bit stream identifier. A connection carries many streams at once,
+        and header blocks are compressed with HPACK.
       </p>
 
       <div id="http2-frame-diagram"></div>
@@ -475,7 +477,9 @@ Accept-Encoding: gzip, br</textarea>
         Paste an HTTP/1.1 message, an HTTP/2 frame stream, a bare HPACK block, a TCP payload or a
         complete packet. HTTP/1.1 framing is resolved from the method, status,
         <code>Content-Length</code> and <code>Transfer-Encoding</code>; HTTP/2 frames are walked
-        in order and header blocks are decoded with a connection-level HPACK context.
+        in order and header blocks are decoded with a connection-level HPACK context. A single
+        response does not identify the request method, so a HEAD response cannot be distinguished
+        from an ordinary 200 response with an empty body unless you supply the request context.
       </p>
 
       <div class="codec-panel codec-panel--wide">

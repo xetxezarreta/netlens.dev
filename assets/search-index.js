@@ -188,7 +188,7 @@ window.PH_SEARCH = [
   {kind:"field", p:"http", name:"HTTP status line", meta:"start line · HTTP/1.1", href:"http.html#startline", text:"status code reason phrase 200 204 301 304 400 404 500", popular:true},
   {kind:"field", p:"http", name:"HTTP header field", meta:"name: value · HTTP/1.1", href:"http.html#message", text:"header field name value crlf case insensitive obs fold", popular:true},
   {kind:"field", p:"http", name:"Content-Length", meta:"framing · HTTP/1.1", href:"http.html#framing", text:"content length body bytes framing duplicate conflicting request smuggling", popular:true},
-  {kind:"field", p:"http", name:"Transfer-Encoding", meta:"framing · HTTP/1.1", href:"http.html#framing", text:"transfer encoding chunked gzip request smuggling content length precedence"},
+  {kind:"field", p:"http", name:"Transfer-Encoding", meta:"framing · HTTP/1.1", href:"http.html#framing", text:"transfer encoding chunked gzip request smuggling content length ambiguity reject duplicate framing"},
   {kind:"field", p:"http", name:"Chunked transfer coding", meta:"framing · HTTP/1.1", href:"http.html#framing", text:"chunk size hex chunk data zero chunk trailer section", popular:true},
   {kind:"field", p:"http", name:"Chunk extensions", meta:"chunk-size line · HTTP/1.1", href:"http.html#framing", text:"chunk extension semicolon name value"},
   {kind:"field", p:"http", name:"HTTP trailers", meta:"after zero chunk · HTTP/1.1", href:"http.html#framing", text:"trailer fields after body chunked header"},

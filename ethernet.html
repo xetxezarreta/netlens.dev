@@ -152,20 +152,42 @@
       <div id="vlan-diagram"></div>
       <div class="field-detail" id="vlan-inspector"></div>
 
+      <h3>PCP traffic classes</h3>
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th>PCP</th><th>Traffic class</th><th>VID</th><th>Meaning</th></tr></thead>
+          <thead><tr><th>PCP</th><th>Traffic class</th><th>Typical use</th></tr></thead>
           <tbody>
-            <tr><td><code>0</code></td><td>Best effort</td><td><code>0</code></td><td>Priority tag: priority is meaningful, no VLAN membership.</td></tr>
-            <tr><td><code>1</code></td><td>Background</td><td><code>1</code></td><td>Default VLAN on many switches; deployment-specific.</td></tr>
-            <tr><td><code>2</code></td><td>Excellent effort</td><td><code>2–1005</code></td><td>Normal 802.1Q VLAN range.</td></tr>
-            <tr><td><code>3</code></td><td>Critical applications</td><td><code>1006–4094</code></td><td>Extended range; device support varies.</td></tr>
-            <tr><td><code>4</code></td><td>Video</td><td><code>4095</code></td><td>Reserved; must not be used as a VLAN ID.</td></tr>
-            <tr><td><code>5</code></td><td>Voice</td><td>—</td><td>Latency-sensitive traffic; maps to a queue by policy.</td></tr>
-            <tr><td><code>6</code></td><td>Internetwork control</td><td>—</td><td>Routing and control protocols.</td></tr>
-            <tr><td><code>7</code></td><td>Network control</td><td>—</td><td>Highest priority; reserve for critical control traffic.</td></tr>
+            <tr><td><code>0</code></td><td>Best effort</td><td>Default class; no priority guarantee.</td></tr>
+            <tr><td><code>1</code></td><td>Background</td><td>Bulk or non-latency-sensitive traffic.</td></tr>
+            <tr><td><code>2</code></td><td>Excellent effort</td><td>Best-effort traffic with a higher queue weight.</td></tr>
+            <tr><td><code>3</code></td><td>Critical applications</td><td>Traffic with a bounded latency requirement.</td></tr>
+            <tr><td><code>4</code></td><td>Video</td><td>Video with latency below 100 ms.</td></tr>
+            <tr><td><code>5</code></td><td>Voice</td><td>Latency below 10 ms; usually strict priority.</td></tr>
+            <tr><td><code>6</code></td><td>Internetwork control</td><td>Routing and other network-control protocols.</td></tr>
+            <tr><td><code>7</code></td><td>Network control</td><td>Highest priority; reserve for critical control traffic.</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <h3>VID ranges</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>VID</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>Priority tag: priority is meaningful, but there is no VLAN membership.</td></tr>
+            <tr><td><code>1</code></td><td>Usually the default or native VLAN; deployment-specific.</td></tr>
+            <tr><td><code>2–1005</code></td><td>Normal 802.1Q VLAN range.</td></tr>
+            <tr><td><code>1006–4094</code></td><td>Extended range; device support varies.</td></tr>
+            <tr><td><code>4095</code></td><td>Reserved; must not be used as a VLAN ID.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">PCP and VID are independent fields</div>
+        <p>The 3-bit PCP is a queuing hint and does not select a VLAN. The 12-bit VID selects
+        VLAN membership and does not change the queue by itself. A switch maps PCP to a traffic
+        class through local policy; two frames with the same VID can use different PCP values.</p>
       </div>
 
       <div class="callout callout--warn">

@@ -49,7 +49,8 @@ assets/styles.css       design system and layout
 assets/core.js          shared utilities, diagrams, search, theme and chrome
 assets/protocol-meta.js TCP/IP taxonomy and stack model
 assets/search-index.js  static search index
-assets/*-codec.js       protocol codecs and page wiring
+assets/*-codec.js       shared protocol codecs
+assets/*.js             page wiring and page-local codecs
 fonts/                  JetBrains Mono (SIL OFL) + license
 ```
 

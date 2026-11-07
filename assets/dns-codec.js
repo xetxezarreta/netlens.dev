@@ -181,6 +181,19 @@
     return out;
   }
 
+  /* Character-strings (TXT, CAA, NSID, EDE text) are opaque text, not DNS
+     labels. A dot is ordinary data here and must not be escaped. */
+  function displayString(bytes) {
+    let out = "";
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      if (b === 0x5c) out += "\\\\";
+      else if (b >= 32 && b < 127) out += String.fromCharCode(b);
+      else out += "\\" + (b < 16 ? "0" : "") + b.toString(16);
+    }
+    return out;
+  }
+
   function buildName(name, offset, dictionary, compress) {
     const text = String(name == null ? "" : name).trim();
     if (text === "" || text === ".") return new Uint8Array([0]);
@@ -227,7 +240,7 @@
         break;
       }
       const raw = bytes.subarray(pos + 1, pos + 1 + length);
-      strings.push({ text: asciiToString(raw), bytes: raw, length });
+      strings.push({ text: displayString(raw), bytes: raw, length });
       pos += 1 + length;
     }
     return strings;
@@ -327,8 +340,8 @@
           const flags = bytes[rdataStart];
           const tagLength = bytes[rdataStart + 1];
           if (rdataStart + 2 + tagLength > end) { warnings.push("CAA tag overruns RDLENGTH"); result.value = PH.bytesToHex(region); break; }
-          const tag = asciiToString(bytes.subarray(rdataStart + 2, rdataStart + 2 + tagLength));
-          const value = asciiToString(bytes.subarray(rdataStart + 2 + tagLength, end));
+          const tag = displayString(bytes.subarray(rdataStart + 2, rdataStart + 2 + tagLength));
+          const value = displayString(bytes.subarray(rdataStart + 2 + tagLength, end));
           result.caa = { flags, tag, value };
           result.value = flags + " " + tag + " \"" + value + "\"";
           result.fields = [{ name: "Flags", value: flags }, { name: "Tag", value: tag }, { name: "Value", value: value }];
@@ -377,9 +390,19 @@
               const family = readU16(data, 0);
               const sourcePrefix = data[2];
               const scopePrefix = data[3];
-              let address = PH.bytesToHex(data.subarray(4));
-              if (family === 1 && data.length >= 8) address = PH.ipv4String(data, 4);
-              else if (family === 2 && data.length >= 20) address = parseIPv6ForDisplay(data.subarray(4, 20));
+              const addressBytes = data.subarray(4);
+              let address = PH.bytesToHex(addressBytes);
+              if (family === 1) {
+                const v4 = new Uint8Array(4);
+                v4.set(addressBytes.subarray(0, 4));
+                address = PH.ipv4String(v4, 0);
+                if (addressBytes.length > 4) address += " (+" + (addressBytes.length - 4) + " B)";
+              } else if (family === 2) {
+                const v6 = new Uint8Array(16);
+                v6.set(addressBytes.subarray(0, 16));
+                address = parseIPv6ForDisplay(v6);
+                if (addressBytes.length > 16) address += " (+" + (addressBytes.length - 16) + " B)";
+              }
               option.value = (family === 1 ? "IPv4" : family === 2 ? "IPv6" : "family " + family) +
                 " " + address + "/" + sourcePrefix + " scope /" + scopePrefix;
             } else if (code === 10) {
@@ -388,11 +411,11 @@
             } else if (code === 15 && length >= 2) {
               const infoCode = readU16(data, 0);
               option.value = infoCode + " · " + (EDE_CODES[infoCode] || "unknown") +
-                (length > 2 ? " · " + asciiToString(data.subarray(2)) : "");
+                (length > 2 ? " · " + displayString(data.subarray(2)) : "");
             } else if (code === 12) {
               option.value = length + " padding byte(s)";
             } else if (code === 3) {
-              option.value = asciiToString(data);
+              option.value = displayString(data);
             }
             options.push(option);
             pos += 4 + length;
@@ -693,10 +716,16 @@
       case 48: {
         const key = typeof data === "object" ? data : {};
         const publicKey = toBytes(key.publicKey || "");
+        const flags = Number(key.flags == null ? 256 : key.flags);
+        const protocol = Number(key.protocol == null ? 3 : key.protocol);
+        const algorithm = Number(key.algorithm == null ? 8 : key.algorithm);
+        if (!Number.isInteger(flags) || flags < 0 || flags > 65535) throw new Error("DNSKEY flags must be 0–65535");
+        if (!Number.isInteger(protocol) || protocol < 0 || protocol > 255) throw new Error("DNSKEY protocol must be 0–255");
+        if (!Number.isInteger(algorithm) || algorithm < 0 || algorithm > 255) throw new Error("DNSKEY algorithm must be 0–255");
         const bytes = new Uint8Array(4 + publicKey.length);
-        PH.put16be(bytes, 0, Number(key.flags || 256));
-        bytes[2] = 3;
-        bytes[3] = Number(key.algorithm || 8);
+        PH.put16be(bytes, 0, flags);
+        bytes[2] = protocol;
+        bytes[3] = algorithm;
         bytes.set(publicKey, 4);
         return bytes;
       }
@@ -862,8 +891,8 @@
       }
       case 48: {
         const parts = rest.split(/\s+/);
-        if (parts.length < 4) throw new Error("DNSKEY needs: flags algorithm hexKey");
-        record.data = { flags: Number(parts[0]), algorithm: Number(parts[1]), publicKey: parts.slice(2).join(" ") };
+        if (parts.length < 4) throw new Error("DNSKEY needs: flags protocol algorithm hexKey");
+        record.data = { flags: Number(parts[0]), protocol: Number(parts[1]), algorithm: Number(parts[2]), publicKey: parts.slice(3).join(" ") };
         break;
       }
       default:

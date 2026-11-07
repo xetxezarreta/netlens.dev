@@ -415,6 +415,9 @@
       if ((tail[0] >> 4) === 2) extensions = parseExtensions(tail, warn);
       else if (!tail.every((b) => b === 0)) warn.push(tail.length + " trailing byte(s) after the original datagram are neither zero padding nor an RFC 4884 extension");
     }
+    if (extensions && originalLength < 128) {
+      warn.push("RFC 4884 extension is present but the quoted original datagram is only " + originalLength + " bytes; the RFC requires at least 128");
+    }
     return { inner, extensions, originalLength };
   }
 

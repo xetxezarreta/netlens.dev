@@ -111,8 +111,8 @@
         <span class="section__hint">16-bit endpoints · 0–65535</span>
       </div>
       <p>
-        A UDP connection is really a four-tuple: source address, source port, destination
-        address and destination port. The first 1023 ports are system or well-known ports;
+        A UDP flow is identified by a four-tuple: source address, source port, destination
+        address and destination port. Ports 0–1023 are the system or well-known range;
         1024–49151 are user/registered ports; 49152–65535 are dynamic or private ports. The
         source port is often ephemeral, while the destination port names the service.
       </p>

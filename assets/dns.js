@@ -65,7 +65,7 @@
     flagsDiagram = PH.diagram("#dns-flags-diagram", {
       title: "<b>DNS flags</b> · bit walkthrough", badge: "16 bits",
       fields: flagFields, inspector: "#dns-flags-inspector", table: "#dns-flags-fields",
-      note: "Read the flags word MSB-first. QR occupies bit 15; RCODE is the low nibble. AD and CD share what used to be reserved Z bits."
+      note: "Read the flags word MSB-first. QR is the most significant bit (bit 0 of this word as drawn); RCODE is the low nibble (bits 12–15). AD and CD share what used to be reserved Z bits."
     });
     PH.fieldTable("#dns-flags-fields", flagsDiagram, { columns: ["field", "bits", "offset", "range/values", "rfc"] });
 
@@ -302,7 +302,7 @@
         case 33: return head + " " + [data.priority, data.weight, data.port, data.target].join(" ");
         case 257: return head + " " + data.flags + " " + data.tag + " " + JSON.stringify(data.value);
         case 43: return head + " " + [data.keyTag, data.algorithm, data.digestType, data.digest].join(" ");
-        case 48: return head + " " + [data.flags, data.algorithm, data.publicKey].join(" ");
+        case 48: return head + " " + [data.flags, data.protocol == null ? 3 : data.protocol, data.algorithm, data.publicKey].join(" ");
         default: return head + " " + JSON.stringify(data);
       }
     }).join("\n");
@@ -514,8 +514,8 @@
     if (ip.fragmentOffset > 0) throw new Error("Non-initial IPv4 fragment does not contain a DNS message");
     const base = { src: ip.src, dst: ip.dst, ipVersion: 4, outer: ip };
     const envelope = ip.protocol === 17
-      ? decodeUdpEnvelope(bytes, ip.base + ip.headerLen, base)
-      : decodeTcpEnvelope(bytes, ip.base + ip.headerLen, base);
+      ? decodeUdpEnvelope(ip.payloadBytes, 0, base)
+      : decodeTcpEnvelope(ip.payloadBytes, 0, base);
     envelope.context.ip = ip;
     return envelope;
   }
@@ -526,10 +526,14 @@
     if (terminal.nextHeader !== 17 && terminal.nextHeader !== 6) {
       throw new Error("IPv6 terminal Next Header is " + terminal.nextHeader + " (" + terminal.name + "), not UDP (17) or TCP (6)");
     }
+    const fragment = packet.chain.headers.find((header) => header.type === 44);
+    if (fragment && fragment.fragmentOffset > 0) {
+      throw new Error("DNS is not present in a non-initial IPv6 fragment");
+    }
     const base = { src: packet.ip.src, dst: packet.ip.dst, ipVersion: 6, ipv6: packet };
     const envelope = terminal.nextHeader === 17
-      ? decodeUdpEnvelope(bytes, terminal.offset, base)
-      : decodeTcpEnvelope(bytes, terminal.offset, base);
+      ? decodeUdpEnvelope(terminal.bytes, 0, base)
+      : decodeTcpEnvelope(terminal.bytes, 0, base);
     envelope.context.ipv6 = packet;
     return envelope;
   }

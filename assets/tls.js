@@ -31,7 +31,7 @@
     lanes.handshake = PH.byteLane("#tls-handshake-lane", {
       title: "<b>Handshake</b> · type + 24-bit length", badge: "RFC 8446 §4",
       fields: [
-        { id: "hs-type", name: "msg_type", bytes: 1, range: "0–254", desc: "Handshake message type: ClientHello (1), ServerHello (2), EncryptedExtensions (8), Certificate (11), CertificateVerify (15), Finished (20), KeyUpdate (24).", rfc: "RFC 8446 §4", rfcUrl: RFC.tls13, tone: "a" },
+        { id: "hs-type", name: "msg_type", bytes: 1, range: "0–255", desc: "Handshake message type: ClientHello (1), ServerHello (2), EncryptedExtensions (8), Certificate (11), CertificateVerify (15), Finished (20), KeyUpdate (24).", rfc: "RFC 8446 §4", rfcUrl: RFC.tls13, tone: "a" },
         { id: "hs-length", name: "length", bytes: 3, range: "0–16777215", desc: "Length of the handshake body, excluding this four-byte header. It is a 24-bit value, so one handshake message can span multiple records.", rfc: "RFC 8446 §4", rfcUrl: RFC.tls13, tone: "b" },
         { id: "hs-body", name: "body", bytes: "var", variable: true, range: "length bytes", desc: "Message-specific body. TLS 1.3 encrypts the body for every handshake message after ServerHello.", rfc: "RFC 8446 §4", rfcUrl: RFC.tls13, tone: "c" }
       ],
@@ -43,7 +43,7 @@
       title: "<b>ClientHello</b> · what the client offers", badge: "RFC 8446 §4.1.2",
       fields: [
         { id: "ch-version", name: "legacy_version", bytes: 2, range: "0x0303", desc: "TLS 1.2 compatibility value. The real supported versions are listed in the supported_versions extension.", rfc: "RFC 8446 §4.1.2", rfcUrl: RFC.tls13, tone: "a" },
-        { id: "ch-random", name: "random", bytes: 32, range: "32 bytes", desc: "Client random. It is mixed into the key schedule and must not repeat across handshakes; TLS 1.3 does not use it as a downgrade marker the way TLS 1.2 did.", rfc: "RFC 8446 §4.1.2", rfcUrl: RFC.tls13, tone: "b" },
+        { id: "ch-random", name: "random", bytes: 32, range: "32 bytes", desc: "Client random. It is mixed into the key schedule and must not repeat across handshakes. Unlike the ServerHello random, it does not carry a downgrade sentinel.", rfc: "RFC 8446 §4.1.2", rfcUrl: RFC.tls13, tone: "b" },
         { id: "ch-session", name: "legacy_session_id", bytes: "var", variable: true, range: "0–32 B", desc: "Compatibility session ID. Middlebox compatibility mode uses a non-empty value; TLS 1.3 resumption uses the pre_shared_key extension instead.", rfc: "RFC 8446 §4.1.2", rfcUrl: RFC.tls13, tone: "c" },
         { id: "ch-suites", name: "cipher_suites", bytes: "var", variable: true, range: "2 + 2n B", desc: "Ordered list of cipher suites the client supports. TLS 1.3 suites are AEAD-only and named TLS_*; the first mutually acceptable suite is not automatically chosen by the server.", rfc: "RFC 8446 §4.1.2", rfcUrl: RFC.tls13, tone: "d" },
         { id: "ch-compression", name: "legacy_compression_methods", bytes: "var", variable: true, range: "1 + n B", desc: "Must contain the null compression method 0. TLS 1.3 removed compression because of CRIME-style attacks.", rfc: "RFC 8446 §4.1.2", rfcUrl: RFC.tls13, tone: "e" },
@@ -57,7 +57,7 @@
       title: "<b>ServerHello</b> · what the server selected", badge: "RFC 8446 §4.1.3",
       fields: [
         { id: "sh-version", name: "legacy_version", bytes: 2, range: "0x0303", desc: "TLS 1.2 compatibility value. The selected version is in the supported_versions extension.", rfc: "RFC 8446 §4.1.3", rfcUrl: RFC.tls13, tone: "a" },
-        { id: "sh-random", name: "random", bytes: 32, range: "32 bytes", desc: "Server random. Mixed into the key schedule together with the client random and the ECDHE shared secret.", rfc: "RFC 8446 §4.1.3", rfcUrl: RFC.tls13, tone: "b" },
+        { id: "sh-random", name: "random", bytes: 32, range: "32 bytes", desc: "Server random. Mixed into the key schedule; the last 8 bytes can carry the TLS 1.3 downgrade sentinel when a server negotiates an older version.", rfc: "RFC 8446 §4.1.3", rfcUrl: RFC.tls13, tone: "b" },
         { id: "sh-session", name: "legacy_session_id_echo", bytes: "var", variable: true, range: "0–32 B", desc: "Echo of the ClientHello session ID. It must match the client value byte for byte.", rfc: "RFC 8446 §4.1.3", rfcUrl: RFC.tls13, tone: "c" },
         { id: "sh-suite", name: "cipher_suite", bytes: 2, range: "0x1301–0x1305", desc: "The single cipher suite selected from the client's list. TLS 1.3 suites combine AEAD and hash; key exchange is separate.", rfc: "RFC 8446 §4.1.3", rfcUrl: RFC.tls13, tone: "d" },
         { id: "sh-compression", name: "legacy_compression_method", bytes: 1, range: "0", desc: "Must be 0 (null). TLS 1.3 has no compression methods.", rfc: "RFC 8446 §4.1.3", rfcUrl: RFC.tls13, tone: "e" },
@@ -175,7 +175,6 @@
       sigalgs: checkedValue("tls-enc-sigalgs", "").trim(),
       serverSuite: checkedValue("tls-enc-server-suite", "TLS_AES_128_GCM_SHA256"),
       serverVersion: checkedValue("tls-enc-server-version", "0x0304").trim(),
-      serverAlpn: checkedValue("tls-enc-server-alpn", "").trim(),
       alertLevel: Number(checkedValue("tls-enc-alert-level", "2")),
       alertDescription: Number(checkedValue("tls-enc-alert-desc", "40")),
       appDataMode: checkedValue("tls-enc-appdata-mode", "ascii"),
@@ -211,8 +210,7 @@
           cipherSuite: input.serverSuite,
           supportedVersion: input.serverVersion,
           keyShareGroup: input.keyShareGroup,
-          keyShare: input.keyShare || undefined,
-          alpn: input.serverAlpn ? [input.serverAlpn] : undefined
+          keyShare: input.keyShare || undefined
         });
       } else if (input.mode === "alert") {
         built = { bytes: T.buildAlert(input.alertLevel, input.alertDescription, input.recordVersion), length: 7 };
@@ -273,12 +271,16 @@
   function applyPreset(key) {
     const mode = document.getElementById("tls-enc-mode");
     if (key === "serverhello") {
-      const client = T.buildClientHello({
-        sni: checkedValue("tls-enc-sni", "example.com"),
-        alpn: parseList(checkedValue("tls-enc-alpn", "h2, http/1.1")),
-        cipherSuites: parseList(checkedValue("tls-enc-suites", "TLS_AES_128_GCM_SHA256"))
-      });
-      document.getElementById("tls-enc-session").value = PH.bytesToHex(client.sessionId);
+      try {
+        const client = T.buildClientHello({
+          sni: checkedValue("tls-enc-sni", "example.com"),
+          alpn: parseList(checkedValue("tls-enc-alpn", "h2, http/1.1")),
+          cipherSuites: parseList(checkedValue("tls-enc-suites", "TLS_AES_128_GCM_SHA256"))
+        });
+        document.getElementById("tls-enc-session").value = PH.bytesToHex(client.sessionId);
+      } catch (_) {
+        document.getElementById("tls-enc-session").value = "";
+      }
     }
     mode.value = key;
     syncMode();
@@ -307,7 +309,7 @@
     });
     ["tls-enc-record-version", "tls-enc-random", "tls-enc-session", "tls-enc-keyshare",
       "tls-enc-sni", "tls-enc-alpn", "tls-enc-versions", "tls-enc-suites", "tls-enc-groups",
-      "tls-enc-sigalgs", "tls-enc-server-alpn", "tls-enc-appdata"].forEach((id) => {
+      "tls-enc-sigalgs", "tls-enc-appdata"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", () => buildFromForm(false));
     });
@@ -364,8 +366,8 @@
     if (ip.protocol !== 6) {
       throw new Error("IPv4 Protocol is " + ip.protocol + " (" + ip.protocolLabel + "), not TCP (6)");
     }
-    const start = ip.base + ip.headerLen;
-    const tcp = window.TCPCodec.decodeSegment(bytes.subarray(start), { src: ip.src, dst: ip.dst });
+    if (ip.fragmentOffset > 0) throw new Error("TCP is not present in a non-initial IPv4 fragment");
+    const tcp = window.TCPCodec.decodeSegment(ip.payloadBytes, { src: ip.src, dst: ip.dst });
     return {
       tlsBytes: tcp.payload,
       context: {
@@ -382,7 +384,11 @@
     if (terminal.nextHeader !== 6) {
       throw new Error("IPv6 terminal Next Header is " + terminal.nextHeader + " (" + terminal.name + "), not TCP (6)");
     }
-    const tcp = window.TCPCodec.decodeSegment(bytes.subarray(terminal.offset), {});
+    const fragment = packet.chain.headers.find((header) => header.type === 44);
+    if (fragment && fragment.fragmentOffset > 0) {
+      throw new Error("TCP is not present in a non-initial IPv6 fragment");
+    }
+    const tcp = window.TCPCodec.decodeSegment(terminal.bytes, {});
     return {
       tlsBytes: tcp.payload,
       context: {

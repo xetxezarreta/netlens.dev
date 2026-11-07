@@ -233,7 +233,7 @@
   }
 
   function bgpLayer(bytes, offset, state, depth) {
-    const marker = "ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff";
+    const marker = "FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF";
     if (bytes.length < 19 || PH.bytesToHex(bytes.subarray(0, 16)) !== marker) return null;
     const length = PH.u16be(bytes, 16);
     const type = bytes[18];
@@ -403,15 +403,15 @@
     const parsed = global.ICMPCodec.decodeIcmp(bytes);
     parsed.warnings.forEach((warning) => pushWarning(state, "ICMP: " + warning));
     const fields = [
-      field("Type", parsed.type + (parsed.info && parsed.info.name ? " · " + parsed.info.name : "")),
-      field("Code", parsed.code + (parsed.info && parsed.info.codeName ? " · " + parsed.info.codeName : "")),
+      field("Type", parsed.type + (parsed.typeName ? " · " + parsed.typeName : "")),
+      field("Code", parsed.code + (parsed.codeName ? " · " + parsed.codeName : "")),
       field("Checksum", "0x" + PH.hex(parsed.checksum, 4) + (parsed.checksumOk ? " · valid" : " · invalid")),
       field("Payload", parsed.data.length + " B")
     ];
     return [layer({
       proto: "icmp", name: "ICMP", offset, length: bytes.length,
-      summary: "ICMP " + (parsed.info && parsed.info.name ? parsed.info.name : "type " + parsed.type) +
-        (parsed.info && parsed.info.codeName ? " · " + parsed.info.codeName : "") + " · " + bytes.length + " B",
+      summary: "ICMP " + (parsed.typeName || "type " + parsed.type) +
+        (parsed.codeName ? " · " + parsed.codeName : "") + " · " + bytes.length + " B",
       fields, warnings: parsed.warnings.slice(), depth, href: "icmp.html", meta: { parsed }
     })];
   }
@@ -559,6 +559,18 @@
       }));
     });
     const terminal = chain.terminal;
+    const fragment = chain.headers.find((header) => header.type === 44 && header.fragmentOffset > 0);
+    if (fragment) {
+      layers.push(layer({
+        proto: "payload", name: "Fragment data", offset: terminal.offset, length: terminal.bytes.length,
+        summary: "Non-initial IPv6 fragment · transport header is not present",
+        fields: [field("Fragment offset", (fragment.fragmentOffset * 8) + " B"),
+          field("More fragments", fragment.moreFragments ? "yes" : "no"),
+          field("Identification", "0x" + PH.hex(fragment.identification || 0, 8))],
+        warnings: [], depth: 4
+      }));
+      return layers;
+    }
     const transport = decodeTransport(terminal.nextHeader, terminal.bytes, terminal.offset, state, 4,
       { ipVersion: 6, srcIp: ip.src, dstIp: ip.dst, src: ip.src, dst: ip.dst }, 6);
     return layers.concat(transport);
@@ -568,6 +580,9 @@
 
   function looksLikeEthernet(bytes) {
     if (bytes.length < 14) return false;
+    /* A BGP marker is 16 bytes of 0xff and would otherwise look like a
+       destination/source MAC plus an EtherType far above 0x0600. */
+    if (bytes.length >= 16 && bytes.subarray(0, 16).every((b) => b === 0xff)) return false;
     const first = bytes[0] >> 4;
     if (first === 4 || first === 6) return false;
     let type = PH.u16be(bytes, 12);
@@ -585,8 +600,8 @@
     const eth = global.EthernetCodec.decodeFrame(bytes, { fcs: "auto" });
     eth.warnings.forEach((warning) => pushWarning(state, "Ethernet: " + warning));
     const fields = [
-      field("Destination", eth.dstMac + (eth.dstFlags && eth.dstFlags.length ? " · " + eth.dstFlags.join(", ") : "")),
-      field("Source", eth.srcMac + (eth.srcFlags && eth.srcFlags.length ? " · " + eth.srcFlags.join(", ") : "")),
+      field("Destination", eth.dstMac + (eth.dstFlags ? " · " + eth.dstFlags.label + " · " + eth.dstFlags.admin : "")),
+      field("Source", eth.srcMac + (eth.srcFlags ? " · " + eth.srcFlags.label + " · " + eth.srcFlags.admin : "")),
       field("EtherType", "0x" + PH.hex(eth.etherType, 4) + " · " + eth.etherTypeName),
       field("Header", eth.headerLen + " B"),
       field("FCS", eth.fcsPresent ? (eth.fcsOk ? "present · valid" : "present · invalid") : "not captured")

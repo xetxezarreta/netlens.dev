@@ -124,8 +124,9 @@
         <span class="section__hint">one 16-bit word · direction, policy and status</span>
       </div>
       <p>
-        The flags word is dense: one direction bit, a four-bit opcode, five single-bit flags,
-        three DNSSEC-related bits and a four-bit response code. Extended response codes live in
+        The flags word is dense: one direction bit, a four-bit opcode, five single-bit flags
+        (AA, TC, RD, RA and the reserved Z), the two DNSSEC bits AD and CD, and a four-bit
+        response code. Extended response codes live in
         the EDNS OPT record, so the effective RCODE can be larger than 15.
       </p>
 
@@ -135,18 +136,18 @@
 
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th>Bit</th><th>Name</th><th>Meaning</th><th>Set by</th></tr></thead>
+          <thead><tr><th>Flags-word bit</th><th>Name</th><th>Meaning</th><th>Set by</th></tr></thead>
           <tbody>
-            <tr><td><code>15</code></td><td><b>QR</b></td><td>0 = query, 1 = response</td><td>Responder</td></tr>
-            <tr><td><code>14–11</code></td><td><b>Opcode</b></td><td>QUERY (0), IQUERY (1), STATUS (2), NOTIFY (4), UPDATE (5), DSO (6)</td><td>Sender</td></tr>
-            <tr><td><code>10</code></td><td><b>AA</b></td><td>Authoritative Answer: this server owns the zone</td><td>Authoritative server</td></tr>
-            <tr><td><code>9</code></td><td><b>TC</b></td><td>TrunCation: the message did not fit and should be retried over TCP</td><td>Responder</td></tr>
-            <tr><td><code>8</code></td><td><b>RD</b></td><td>Recursion Desired: ask the resolver to chase the answer</td><td>Client</td></tr>
-            <tr><td><code>7</code></td><td><b>RA</b></td><td>Recursion Available: the server is willing to recurse</td><td>Responder</td></tr>
-            <tr><td><code>6</code></td><td><b>Z</b></td><td>Reserved; must be zero</td><td>—</td></tr>
-            <tr><td><code>5</code></td><td><b>AD</b></td><td>Authentic Data: the resolver validated DNSSEC for this answer</td><td>Validating resolver</td></tr>
-            <tr><td><code>4</code></td><td><b>CD</b></td><td>Checking Disabled: do not validate DNSSEC on this path</td><td>Client</td></tr>
-            <tr><td><code>3–0</code></td><td><b>RCODE</b></td><td>Response code: NOERROR (0), FORMERR (1), SERVFAIL (2), NXDOMAIN (3), NOTIMP (4), REFUSED (5)</td><td>Responder</td></tr>
+            <tr><td><code>0</code></td><td><b>QR</b></td><td>0 = query, 1 = response</td><td>Responder</td></tr>
+            <tr><td><code>1–4</code></td><td><b>Opcode</b></td><td>QUERY (0), IQUERY (1), STATUS (2), NOTIFY (4), UPDATE (5), DSO (6)</td><td>Sender</td></tr>
+            <tr><td><code>5</code></td><td><b>AA</b></td><td>Authoritative Answer: this server owns the zone</td><td>Authoritative server</td></tr>
+            <tr><td><code>6</code></td><td><b>TC</b></td><td>TrunCation: the message did not fit and should be retried over TCP</td><td>Responder</td></tr>
+            <tr><td><code>7</code></td><td><b>RD</b></td><td>Recursion Desired: ask the resolver to chase the answer</td><td>Client</td></tr>
+            <tr><td><code>8</code></td><td><b>RA</b></td><td>Recursion Available: the server is willing to recurse</td><td>Responder</td></tr>
+            <tr><td><code>9</code></td><td><b>Z</b></td><td>Reserved; must be zero</td><td>—</td></tr>
+            <tr><td><code>10</code></td><td><b>AD</b></td><td>Authentic Data: the resolver validated DNSSEC for this answer</td><td>Validating resolver</td></tr>
+            <tr><td><code>11</code></td><td><b>CD</b></td><td>Checking Disabled: do not validate DNSSEC on this path</td><td>Client</td></tr>
+            <tr><td><code>12–15</code></td><td><b>RCODE</b></td><td>Response code: NOERROR (0), FORMERR (1), SERVFAIL (2), NXDOMAIN (3), NOTIMP (4), REFUSED (5)</td><td>Responder</td></tr>
           </tbody>
         </table>
       </div>

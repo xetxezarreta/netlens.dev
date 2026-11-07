@@ -402,6 +402,10 @@
     if (packet.chain.terminal.nextHeader !== 17) {
       throw new Error("IPv6 terminal Next Header is " + packet.chain.terminal.nextHeader + " (" + packet.chain.terminal.name + "), not 17 (UDP)");
     }
+    const fragment = packet.chain.headers.find((header) => header.type === 44);
+    if (fragment && fragment.fragmentOffset > 0) {
+      throw new Error("UDP is not present in a non-initial IPv6 fragment");
+    }
     const udp = U.decodeUdp(packet.chain.terminal.bytes, {
       ipVersion: 6, srcIp: packet.ip.src, dstIp: packet.ip.dst
     });
@@ -409,7 +413,8 @@
       udp, ipVersion: 6, ip: packet.ip, ipv6: packet, ethernet: packet.ethernet,
       udpOffset: packet.chain.terminal.offset,
       detectedAs: packet.detectedAs,
-      contextWarnings: packet.ip.warnings.slice()
+      contextWarnings: packet.ip.warnings.slice().concat(fragment && fragment.moreFragments
+        ? ["IPv6 fragment header has M=1; this is the first fragment and the UDP payload may be incomplete"] : [])
     };
   }
 

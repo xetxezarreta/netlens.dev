@@ -52,7 +52,7 @@
         { name: "Ethernet source", bytes: 6, range: "6 B", desc: "Sender's MAC; should equal the ARP Sender Hardware Address.", tone: "b", rfc: "IEEE 802.3", rfcUrl: "https://standards.ieee.org/ieee/802.3/7071/" },
         { name: "EtherType", bytes: 2, value: "0x0806", range: "0x0806", desc: "ARP EtherType. A VLAN tag would add four bytes before this field.", tone: "c", rfc: "IANA", rfcUrl: "https://www.iana.org/assignments/ieee-802-numbers/ieee-802-numbers.xhtml" },
         { name: "ARP message", bytes: 28, range: "28 B", desc: "The fixed Ethernet/IPv4 ARP request or reply.", tone: "d", rfc: "RFC 826", rfcUrl: "https://www.rfc-editor.org/rfc/rfc826" },
-        { name: "Padding", bytes: "var", variable: true, range: "18 B typical", desc: "Zero bytes added to bring the Ethernet payload to the 46-byte minimum. Not part of the ARP message.", tone: "e", rfc: "IEEE 802.3", rfcUrl: "https://standards.ieee.org/ieee/802.3/7071/" },
+        { name: "Padding", bytes: "var", variable: true, varBytes: 18, range: "18 B typical", desc: "Zero bytes added to bring the Ethernet payload to the 46-byte minimum. Not part of the ARP message.", tone: "e", rfc: "IEEE 802.3", rfcUrl: "https://standards.ieee.org/ieee/802.3/7071/" },
         { name: "FCS", bytes: 4, range: "4 B", desc: "Ethernet CRC-32. The ARP message itself has no checksum.", tone: "f", rfc: "IEEE 802.3", rfcUrl: "https://standards.ieee.org/ieee/802.3/7071/" }
       ],
       inspector: "#arp-frame-inspector",

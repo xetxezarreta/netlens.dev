@@ -492,7 +492,9 @@
             ? "No length was advertised. The body ends when the connection closes, so truncation and completion look the same without connection state."
             : result.framing === "body forbidden"
               ? "The method or status code forbids a body. Any bytes after the header block belong to the next message or are a protocol error."
-              : "No body is present. The message ends at the blank line.") + "</p></div>";
+              : result.framing === "invalid"
+                ? "Transfer-Encoding is present but does not end in chunked. A request in this form has no determinable body length and should be rejected."
+                : "No body is present. The message ends at the blank line.") + "</p></div>";
     return startTable +
       '<div class="decoded-head"><h3>Header fields</h3><span class="dim">' + result.headers.length + " field(s)</span></div>" +
       headersTable(result.headers, false) +

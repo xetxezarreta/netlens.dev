@@ -167,7 +167,7 @@
         for (let j = 1; j + 4 <= data.length; j += 4) addresses.push(Array.from(data.slice(j, j + 4)).join("."));
         option.detail = `pointer ${pointer} (1-based) · ${addresses.length} address(es)`;
         option.parsed = { pointer, addresses };
-      } else if (num === 68 && type === 0x44) {
+      } else if (type === 0x44) {
         const pointer = data[0] || 0;
         const overflow = (data[1] >> 4) & 15;
         const flag = data[1] & 15;
@@ -196,7 +196,7 @@
     if (bytes.length >= 14 && (bytes[0] >> 4) !== 4) {
       const ethertype = PH.u16be(bytes, 12);
       if (ethertype === 0x0800) { base = 14; ethernet = true; }
-      else if (ethertype === 0x8100 && bytes.length >= 18 && PH.u16be(bytes, 16) === 0x0800) {
+      else if ((ethertype === 0x8100 || ethertype === 0x88a8) && bytes.length >= 18 && PH.u16be(bytes, 16) === 0x0800) {
         base = 18; ethernet = true; vlan = true;
       }
     }
@@ -236,7 +236,6 @@
     else if (totalLength < headerLen) warnings.push(`Total Length ${totalLength} is smaller than the ${headerLen}-byte header`);
     else if (totalLength > h.length) warnings.push(`Total Length ${totalLength} exceeds the ${h.length} captured bytes; payload is truncated`);
     if (totalLength && totalLength < h.length) warnings.push(`${h.length - totalLength} trailing byte(s) beyond Total Length (Ethernet padding?)`);
-    if (fragmentOffset > 0 && mf === 1 && fragmentOffset * 8 === 0) warnings.push("MF is set with offset 0; check fragment reassembly");
     if (reserved) warnings.push("Reserved flag bit is set; compliant receivers should ignore it");
     if (df && mf) warnings.push("DF and MF are both set — contradictory fragmentation flags");
     if (!checksumOk) warnings.push("Header checksum is invalid (or checksum offload is in play)");

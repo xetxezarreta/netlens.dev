@@ -64,9 +64,10 @@
         <p>
           Every protocol page has a <strong>copy page link</strong> button that serializes the visible
           codec fields into the URL hash. A permalink restores the inputs; encoder panels rebuild
-          their output, and the DNS, UDP and dissector links also re-run their decoders. Every page can
-          download a JSON snapshot of its fields and outputs; the packet dissector can also copy
-          a BPF filter or a Scapy snippet for the frame on screen. Nothing is uploaded: the URL is the entire state.
+          their output, and the DNS, UDP and dissector links also re-run their decoders. Every
+          protocol and tool page can download a JSON snapshot of its fields and outputs; the
+          packet dissector can also copy a BPF filter or a Scapy snippet for the frame on screen.
+          Nothing is uploaded: the URL is the entire state.
         </p>
         <p>
           The design borrows the density and keyboard-friendly feel of a systems reference:
@@ -150,9 +151,11 @@
         <h3>What the encoders do not do</h3>
         <p>
           The encoders build structurally valid bytes and compute Internet checksums where the
-          page says so. They do not encrypt, authenticate, sign, compress, fragment, route, or
-          negotiate capabilities. A valid checksum is not a valid connection; a well-formed
-          message with a bad authentication tag will be dropped by a real peer.
+          page says so. They do not encrypt, authenticate, sign, compress payloads, fragment,
+          route, or negotiate capabilities. DNS name compression and HPACK header compression
+          are structural encodings, not content compression. A valid checksum is not a valid
+          connection; a well-formed message with a bad authentication tag will be dropped by a
+          real peer.
         </p>
       </section>
 

@@ -774,6 +774,7 @@ const HUFFMAN = [
       }
       if (colon < 1) throw new Error("Header line " + (index + 1) + " has no colon: " + line);
       const name = line.slice(0, colon).trim();
+      if (line.slice(0, colon) !== name) throw new Error("Header line " + (index + 1) + " has whitespace before ':': " + line);
       const pseudo = allowPseudo && /^:[a-z0-9!#$%&'*+\-.^_`|~]+$/i.test(name);
       if (!pseudo && !validToken(name)) throw new Error("Header line " + (index + 1) + " has an invalid field name: " + name);
       headers.push({ name, lower: name.toLowerCase(), value: line.slice(colon + 1).trim() });
@@ -869,13 +870,16 @@ const HUFFMAN = [
         continue;
       }
       const name = line.slice(0, colon).trim();
+      if (line.slice(0, colon) !== name) warnings.push("Whitespace before ':' in header field name: " + name);
       if (!validToken(name)) warnings.push("Invalid header field name: " + name);
       headers.push({ name, lower: name.toLowerCase(), value: line.slice(colon + 1).trim() });
     }
     const bodyStart = end.index >= 0 ? end.index + end.length : bytes.length;
     const remaining = bytes.length - bodyStart;
     const transfer = headerValues(headers, "transfer-encoding").join(",").toLowerCase();
-    const chunked = transfer.split(",").map((value) => value.trim()).includes("chunked");
+    const transferCodings = transfer.split(",").map((value) => value.trim()).filter(Boolean);
+    const hasTransfer = transferCodings.length > 0;
+    const chunked = hasTransfer && transferCodings[transferCodings.length - 1] === "chunked";
     const lengths = headerValues(headers, "content-length");
     let contentLength = null;
     if (lengths.length) {
@@ -886,7 +890,10 @@ const HUFFMAN = [
       else contentLength = value;
     }
     if (chunked && contentLength != null) {
-      warnings.push("Message has both Transfer-Encoding: chunked and Content-Length; chunked framing takes precedence");
+      warnings.push("Message has both Transfer-Encoding: chunked and Content-Length; RFC 9112 treats this as a framing error. Chunked framing is shown for inspection only; reject the message.");
+    }
+    if (hasTransfer && !chunked) {
+      warnings.push("Transfer-Encoding does not end in chunked; Content-Length must not be used for framing");
     }
     let body = new Uint8Array(0);
     let bodyOffset = bodyStart;
@@ -906,6 +913,21 @@ const HUFFMAN = [
       bodyOffset = bodyStart;
       bodyEnd = parsedChunks.end;
       framing = "chunked";
+      if (parsedChunks.complete && parsedChunks.end < bytes.length) {
+        warnings.push((bytes.length - parsedChunks.end) + " byte(s) after the final chunk (pipelined message or capture padding)");
+      }
+    } else if (hasTransfer) {
+      if (parsed.kind === "request") {
+        framing = "invalid";
+        bodyOffset = bodyEnd = bodyStart;
+        warnings.push("Request has Transfer-Encoding without final chunked framing; the request body length cannot be determined");
+      } else {
+        body = bytes.subarray(bodyStart);
+        bodyOffset = bodyStart;
+        bodyEnd = bytes.length;
+        framing = "close-delimited";
+        warnings.push("Response has Transfer-Encoding without final chunked framing; the body is close-delimited");
+      }
     } else if (contentLength != null) {
       if (remaining < contentLength) {
         warnings.push("Content-Length is " + contentLength + " but only " + remaining + " byte(s) are captured");
@@ -977,6 +999,7 @@ const HUFFMAN = [
     else if ((input.bodyEncoding || "ascii") === "hex") body = PH.parseHex(String(input.body));
     else body = asciiBytes(String(input.body));
     const chunked = !!input.chunked;
+    if (chunked && version === "HTTP/1.0") throw new Error("HTTP/1.0 does not support chunked transfer coding");
     if (!response && !headerValues(headers, "host").length && version !== "HTTP/1.0") {
       if (input.host) headers.unshift({ name: "Host", lower: "host", value: String(input.host) });
       else warnings.push("HTTP/1.1 requests should carry a Host header");
@@ -991,6 +1014,9 @@ const HUFFMAN = [
     if (response) {
       const status = Number(input.status == null ? 200 : input.status);
       if (!Number.isInteger(status) || status < 100 || status > 599) throw new Error("Status must be 100–599");
+      if ((status < 200 || status === 204 || status === 304) && (body.length || chunked)) {
+        throw new Error("Status " + status + " must not carry a message body");
+      }
       const reason = input.reason == null ? (STATUS_TEXT[status] || "Unknown") : String(input.reason);
       startLine = (version + " " + status + " " + reason).trimEnd();
     } else {
@@ -1095,6 +1121,12 @@ const HUFFMAN = [
       frame.fields.push(field("Length", length + " B"));
       frame.fields.push(field("Flags", "0x" + PH.hex(flags, 2) + (frame.flagNames.length ? " · " + frame.flagNames.join(" ") : "")));
       parseHttp2Frame(frame, context, warnings, frames);
+      if ([0, 1, 2, 3, 5, 9].includes(frame.type) && frame.streamId === 0) {
+        warnings.push(frame.typeName + " must not appear on stream 0");
+      }
+      if ([4, 6, 7].includes(frame.type) && frame.streamId !== 0) {
+        warnings.push(frame.typeName + " must use stream 0");
+      }
       frames.push(frame);
       pos = payloadStart + length;
       if (pos > bytes.length) break;
@@ -1215,6 +1247,8 @@ const HUFFMAN = [
           frame.fields.push(field("Setting", name + " = " + value, "id " + id));
         }
         frame.settings = values;
+        const headerTableSetting = values.find((setting) => setting.id === 1);
+        if (headerTableSetting) context.hpack.maxAllowed = headerTableSetting.value;
         frame.summary += " · " + values.length + " setting(s)";
         break;
       }
@@ -1285,7 +1319,7 @@ const HUFFMAN = [
         frame.fields.push(field("Promised stream", promised));
         if (frame.flags & 0x4) decodeHeaderBlock(frame, fragment, context, warnings, "PUSH_PROMISE");
         else {
-          context.pending["push stream " + promised] = { parts: [fragment], frames: [frame.index] };
+          context.pending["stream " + frame.streamId] = { parts: [fragment], frames: [frame.index], push: promised };
           frame.fields.push(field("Header block", fragment.length + " B · END_HEADERS not set"));
         }
         frame.summary += " · promised stream " + promised;

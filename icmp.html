@@ -223,7 +223,8 @@
         <span class="section__hint">the same 32 bits, different meanings</span>
       </div>
       <p>
-        The fourth 32-bit word is where most ICMP parsers go wrong. Echo uses an identifier and
+        The second 32-bit word — the four bytes after the checksum — is where most ICMP
+        parsers go wrong. Echo uses an identifier and
         sequence; redirect carries a gateway address; Parameter Problem carries a pointer. The
         error types that quote an original datagram also use the sixth octet for an RFC 4884
         <strong>Length</strong> field when an extension structure is present.

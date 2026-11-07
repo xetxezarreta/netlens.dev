@@ -180,7 +180,7 @@
       </div>
       <ul class="dashed">
         <li><strong>No decryption.</strong> TLS application data (including HTTP inside HTTPS), QUIC protected packets, ESP and encrypted BGP sessions remain opaque.</li>
-        <li><strong>No IP reassembly.</strong> A non-initial IPv4 fragment has no transport header. The dissector marks fragment data and stops instead of inventing a payload.</li>
+        <li><strong>No IP reassembly.</strong> A non-initial IPv4 or IPv6 fragment has no transport header. The dissector marks fragment data and stops instead of inventing a payload.</li>
         <li><strong>No TCP stream reassembly.</strong> One TCP segment is one input. A DNS message split across segments needs a stream reassembler, not a single-frame dissector.</li>
         <li><strong>No pcap import.</strong> The input is hex bytes. Extract one packet from your capture tool, or use the protocol pages for a specific header.</li>
         <li><strong>No checksum enforcement.</strong> Invalid checksums are reported as warnings. Offloaded NICs often emit frames before the checksum is filled in, so a capture can legitimately show a bad value.</li>

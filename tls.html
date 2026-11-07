@@ -214,7 +214,7 @@
         <table class="data-table">
           <thead><tr><th>Code</th><th>Extension</th><th>Carries</th><th>Seen in</th></tr></thead>
           <tbody>
-            <tr><td><code>0</code></td><td><b>server_name</b></td><td>Host name (SNI)</td><td>ClientHello, EncryptedExtensions</td></tr>
+            <tr><td><code>0</code></td><td><b>server_name</b></td><td>Host name (SNI); empty acknowledgement in EncryptedExtensions</td><td>ClientHello, EncryptedExtensions</td></tr>
             <tr><td><code>10</code></td><td><b>supported_groups</b></td><td>Named groups: x25519, secp256r1, FFDHE</td><td>ClientHello, EncryptedExtensions</td></tr>
             <tr><td><code>13</code></td><td><b>signature_algorithms</b></td><td>Signature schemes the peer accepts</td><td>ClientHello, CertificateRequest</td></tr>
             <tr><td><code>16</code></td><td><b>ALPN</b></td><td>Protocol names such as <code>h2</code>, <code>http/1.1</code></td><td>ClientHello, EncryptedExtensions</td></tr>
@@ -245,17 +245,22 @@
 
       <div class="tls-flow" aria-label="TLS 1.3 key schedule">
         <div class="tls-flow__row">
-          <div class="tls-flow__step"><span>early secret</span><code>HKDF-Extract(0, PSK)</code><small>zero PSK when resumption is not used</small></div>
+          <div class="tls-flow__step"><span>early secret</span><code>HKDF-Extract(0, PSK)</code><small>salt is zero; zero PSK when resumption is not used</small></div>
           <div class="tls-flow__arrow" aria-hidden="true">→</div>
           <div class="tls-flow__step"><span>client_early_traffic_secret</span><code>Derive-Secret(early, "c e traffic", ClientHello)</code><small>protects 0-RTT data</small></div>
         </div>
         <div class="tls-flow__row">
-          <div class="tls-flow__step"><span>handshake secret</span><code>HKDF-Extract(early, ECDHE)</code><small>the ECDHE shared secret is the salt input</small></div>
+          <div class="tls-flow__step"><span>derived early secret</span><code>Derive-Secret(early, "derived", "")</code><small>feeds the next HKDF-Extract as its salt</small></div>
+          <div class="tls-flow__arrow" aria-hidden="true">→</div>
+          <div class="tls-flow__step"><span>handshake secret</span><code>HKDF-Extract(derived early, ECDHE)</code><small>ECDHE is the input keying material (IKM), not the salt</small></div>
+        </div>
+        <div class="tls-flow__row">
+          <div class="tls-flow__step"><span>derived handshake secret</span><code>Derive-Secret(handshake, "derived", "")</code><small>feeds the final HKDF-Extract as its salt</small></div>
           <div class="tls-flow__arrow" aria-hidden="true">→</div>
           <div class="tls-flow__step"><span>client/server handshake traffic</span><code>Derive-Secret(handshake, "c hs traffic" / "s hs traffic", transcript)</code><small>protects EncryptedExtensions through Finished</small></div>
         </div>
         <div class="tls-flow__row">
-          <div class="tls-flow__step"><span>master secret</span><code>HKDF-Extract(handshake, 0)</code><small>all zeros as the input keying material</small></div>
+          <div class="tls-flow__step"><span>master secret</span><code>HKDF-Extract(derived handshake, 0)</code><small>IKM is a string of Hash.length zero bytes</small></div>
           <div class="tls-flow__arrow" aria-hidden="true">→</div>
           <div class="tls-flow__step"><span>client/server application traffic</span><code>Derive-Secret(master, "c ap traffic" / "s ap traffic", transcript)</code><small>protects application data and KeyUpdate</small></div>
         </div>
@@ -267,9 +272,9 @@
           <tbody>
             <tr><td><b>early secret</b></td><td>PSK or zeros</td><td>—</td><td>Only meaningful with PSK resumption.</td></tr>
             <tr><td><b>client_early_traffic_secret</b></td><td>early secret + ClientHello transcript</td><td>0-RTT application data</td><td>Replayable; servers should limit what 0-RTT can do.</td></tr>
-            <tr><td><b>handshake secret</b></td><td>early secret + ECDHE</td><td>—</td><td>Requires a key share; PSK-only handshakes still use (EC)DHE in TLS 1.3.</td></tr>
+            <tr><td><b>handshake secret</b></td><td>derived early secret (salt) + ECDHE (IKM)</td><td>—</td><td>PSK resumption normally uses psk_dhe_ke for forward secrecy; psk_ke is allowed but weaker.</td></tr>
             <tr><td><b>client/server handshake traffic</b></td><td>handshake secret + transcript</td><td>EncryptedExtensions, Certificate, CertificateVerify, Finished</td><td>This is why the certificate is invisible without keys.</td></tr>
-            <tr><td><b>master secret</b></td><td>handshake secret + zeros</td><td>—</td><td>Exists so application keys are separated from handshake keys.</td></tr>
+            <tr><td><b>master secret</b></td><td>derived handshake secret (salt) + zeros (IKM)</td><td>—</td><td>Exists so application keys are separated from handshake keys.</td></tr>
             <tr><td><b>client/server application traffic</b></td><td>master secret + transcript</td><td>Application Data records</td><td>KeyUpdate derives the next generation from the current secret.</td></tr>
             <tr><td><b>exporter / resumption secrets</b></td><td>master secret + transcript</td><td>Outside TLS records</td><td>Used for channel bindings, EAP, and session tickets.</td></tr>
           </tbody>
@@ -329,7 +334,8 @@
         Build a syntactically valid TLS record. The key share is illustrative unless you paste a
         real public key; the point is the encoding, not a usable handshake. Every length is
         derived from the fields you enter, and the output can be fed straight back into the
-        decoder.
+        decoder. ALPN selection for TLS 1.3 belongs in EncryptedExtensions, not ServerHello, so
+        it is not offered here; the ClientHello form still shows the offered protocol list.
       </p>
 
       <div class="codec">
@@ -358,7 +364,7 @@
 
             <div class="field-grid" data-tls-group="clienthello serverhello">
               <div class="form-field">
-                <label for="tls-enc-session">session ID <span class="units">0–32 B hex</span></label>
+                <label for="tls-enc-session">session ID <span class="units">0–32 B hex · empty = ClientHello example / ServerHello empty</span></label>
                 <input type="text" id="tls-enc-session" value="" placeholder="empty = example" spellcheck="false">
               </div>
               <div class="form-field">
@@ -426,10 +432,6 @@
                 <label for="tls-enc-server-version">selected version</label>
                 <input type="text" id="tls-enc-server-version" value="0x0304" spellcheck="false">
               </div>
-              <div class="form-field">
-                <label for="tls-enc-server-alpn">ALPN selected <span class="units">optional</span></label>
-                <input type="text" id="tls-enc-server-alpn" value="" placeholder="usually in EncryptedExtensions" spellcheck="false">
-              </div>
             </div>
 
             <div class="field-grid" data-tls-group="alert">
@@ -482,7 +484,7 @@
               <button type="button" data-tls-preset="alert">Alert</button>
               <button type="button" data-tls-preset="appdata">Application Data</button>
             </div>
-            <p class="form-note">The example key share is deterministic filler, not a valid X25519 point. Replace it with a real 32-byte public key if you need a handshake that a peer would accept. Lengths, extension framing and the record header are exact.</p>
+            <p class="form-note">The example key share is deterministic filler, not a valid point or key for the selected group. Replace it with a real public key of the group's size if you need a handshake that a peer would accept. Lengths, extension framing and the record header are exact.</p>
           </div>
         </div>
 

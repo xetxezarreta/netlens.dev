@@ -212,7 +212,7 @@
     } else if (r.etherType === 0x0800) {
       linkHtml = '<div class="callout"><div class="callout__title">IPv4 payload detected</div><p>The payload starts with IPv4. Open the <a href="ipv4.html">IPv4 explorer</a> for header fields, options and checksum validation.</p></div>';
     } else if (r.etherType === 0x86dd) {
-      linkHtml = '<div class="callout"><div class="callout__title">IPv6 payload</div><p>This is an IPv6 datagram. IPv6 is a planned protocol page; the frame itself ends at the payload boundary.</p></div>';
+      linkHtml = '<div class="callout"><div class="callout__title">IPv6 payload</div><p>This is an IPv6 datagram. Open the <a href="ipv6.html">IPv6 explorer</a> for the base header, extension chain and address tools.</p></div>';
     }
 
     const warningHtml = r.warnings.length

@@ -300,14 +300,14 @@
     if (tcp) parts.push("tcp");
     else if (udp) parts.push("udp");
     else if (icmp) parts.push("icmp");
-    const network = ipv4 ? ipv4.meta.ip : ipv6 ? ipv6.meta.ip : null;
+    const network = ipv4 && ipv4.meta ? ipv4.meta.ip : ipv6 && ipv6.meta ? ipv6.meta.ip : null;
     if (network) {
       parts.push("host " + network.src);
       parts.push("host " + network.dst);
     }
-    if (tcp) {
+    if (tcp && tcp.meta && tcp.meta.parsed) {
       parts.push("port " + tcp.meta.parsed.dport);
-    } else if (udp) {
+    } else if (udp && udp.meta && udp.meta.parsed) {
       parts.push("port " + udp.meta.parsed.dstPort);
     }
     if (layers.some((item) => item.proto === "vlan")) parts.push("vlan");

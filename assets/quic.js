@@ -504,9 +504,10 @@
               fields.push(f("Length", length.value.toString(), length.offset, length.size));
               data = readBytes(Number(length.value), "stream data");
             } else {
+              const dataAt = off;
               data = bytes.slice(off);
               off = bytes.length;
-              fields.push(f("Length", "absent · rest of packet", off, 0));
+              fields.push(f("Length", "absent · rest of packet", dataAt, 0));
             }
             fields.push(f("Stream Data", shortHex(data), off - data.length, data.length));
             note = [offBit ? "OFF" : "no OFF", lenBit ? "LEN" : "no LEN", finBit ? "FIN" : "no FIN"].join(" · ");
@@ -613,7 +614,7 @@
   const LONG_FIRST = [
     { id: "lform", name: "Header Form", bits: 1, value: "1", range: "1", rfc: "RFC 9000 §17.2", rfcUrl: QUIC_RFC + "#section-17.2", desc: "Set to 1 for a long header. The bit is not protected, so it is visible on the wire." },
     { id: "lfixed", name: "Fixed Bit", bits: 1, value: "1", range: "1", rfc: "RFC 9000 §17.2", rfcUrl: QUIC_RFC + "#section-17.2", desc: "Must be 1 in QUIC v1. It exists to distinguish QUIC from other UDP traffic. A zero here is a protocol violation (except in negotiated extensions)." },
-    { id: "ltype", name: "Long Packet Type", bits: 2, value: "00", range: "00/01/10/11", rfc: "RFC 9000 §17.2", rfcUrl: QUIC_RFC + "#section-17.2", desc: "00 Initial, 01 0-RTT, 10 Handshake, 11 Retry. The field is protected by header protection in Initial, 0-RTT and Handshake packets." },
+    { id: "ltype", name: "Long Packet Type", bits: 2, value: "00", range: "00/01/10/11", rfc: "RFC 9000 §17.2", rfcUrl: QUIC_RFC + "#section-17.2", desc: "00 Initial, 01 0-RTT, 10 Handshake, 11 Retry. Unlike the low type-specific bits, the packet type bits are visible on the wire; header protection masks only the low four bits of a long-header first byte." },
     { id: "lts", name: "Type-Specific", bits: 4, value: "protected", range: "protected", rfc: "RFC 9000 §17.2", rfcUrl: QUIC_RFC + "#section-17.2", desc: "Four bits whose meaning depends on the packet type. They are protected by header protection. Do not trust them until protection is removed." }
   ];
   const SHORT_FIRST = [
@@ -655,7 +656,7 @@
     PH.diagram("#quic-long-first", {
       title: "<b>Long header</b> · first byte", badge: "RFC 9000 §17.2", bitsPerRow: 8,
       fields: LONG_FIRST, inspector: "#quic-header-inspector",
-      note: "The lower four bits and the packet type are protected by header protection. This diagram shows the unprotected values."
+      note: "Only the low four type-specific bits are protected by header protection; the packet type bits are visible on the wire. This diagram shows the unprotected values."
     });
     PH.diagram("#quic-short-first", {
       title: "<b>Short header</b> · first byte", badge: "RFC 9000 §17.3", bitsPerRow: 8,

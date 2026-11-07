@@ -126,7 +126,7 @@
       <div class="callout callout--warn">
         <div class="callout__title">header protection is not optional</div>
         <p>Header protection masks the low bits of the first byte and the packet number field with
-        a key derived from the packet's AEAD. The first byte shown here is the logical,
+        a header-protection key derived from the same traffic secret. The first byte shown here is the logical,
         unprotected value. On the wire, the reserved bits, key phase and packet-number length
         may appear different until you remove protection (RFC 9001 §5.4).</p>
       </div>
@@ -187,8 +187,9 @@
             </ul>
             <div class="callout" style="margin:0">
               <div class="callout__title">offsets are not varints</div>
-              <p>Packet number length is 1–4 bytes and is encoded in the short-header first byte,
-              not as a varint. The length field of a long header <em>is</em> a varint.</p>
+              <p>Packet number length is 1–4 bytes and is encoded in the first byte
+              (type-specific bits in a long header, low bits in a short header), not as a varint.
+              The length field of a long header <em>is</em> a varint.</p>
             </div>
           </div>
         </div>

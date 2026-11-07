@@ -35,7 +35,7 @@
         <li><a href="#notes">wire notes</a></li>
       </ul>
     </div>
-    <p class="rail__note"><b>Data Offset</b> is in 32-bit words. <b>Flags</b> live in the low byte of the twelfth header byte. The checksum needs an IP pseudo-header.</p>
+    <p class="rail__note"><b>Data Offset</b> is in 32-bit words. The <b>flags</b> octet is byte 13 (offset 12 holds Data Offset and Reserved). The checksum needs an IP pseudo-header.</p>
   </aside>
 
   <main id="main" tabindex="-1">
@@ -61,7 +61,7 @@
       <div class="page-meta">
         <span><b>layer</b> transport</span>
         <span><b>header</b> 20 B + 0–40 B options</span>
-        <span><b>checksum</b> IPv4/IPv6 pseudo-header</span>
+        <span><b>checksum</b> IPv4 pseudo-header</span>
         <span><b>byte order</b> big-endian</span>
       </div>
       <div class="stackbar" data-stack="tcp"></div>
@@ -92,7 +92,7 @@
       <div id="tcp-fields"></div>
 
       <div class="callout">
-        <div class="callout__title">the twelfth byte is where diagrams disagree</div>
+        <div class="callout__title">byte 12 (the 13th byte) is where diagrams disagree</div>
         <p>Data Offset (4 bits), Reserved (4 bits), then the flag octet: CWR, ECE, URG, ACK, PSH,
         RST, SYN, FIN. Some older diagrams split the reserved nibble into a 3-bit reserved field
         plus the experimental NS bit (RFC 3540). RFC 8311 deprecated NS; treat it as reserved.</p>
@@ -102,7 +102,7 @@
     <section class="section" id="flags">
       <div class="section__head">
         <h2><span class="num">02</span>Flag explorer</h2>
-        <span class="section__hint">bits 104–111 · octet 12</span>
+        <span class="section__hint">bits 104–111 · byte 13</span>
       </div>
       <p>
         Flip the bits to see the raw octet, the tcpdump-style notation and the names.

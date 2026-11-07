@@ -78,6 +78,8 @@
     0x1303: "TLS_CHACHA20_POLY1305_SHA256",
     0x1304: "TLS_AES_128_CCM_SHA256",
     0x1305: "TLS_AES_128_CCM_8_SHA256",
+    0x1306: "TLS_AEGIS_256_SHA512",
+    0x1307: "TLS_AEGIS_128L_SHA256",
     0x009c: "TLS_RSA_WITH_AES_128_GCM_SHA256",
     0x009d: "TLS_RSA_WITH_AES_256_GCM_SHA384",
     0xc02b: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
@@ -87,7 +89,6 @@
     0xcca8: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
     0xcca9: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
     0xccaa: "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
-    0x1306: "TLS_AES_128_CCM_8_SHA256",
     0x5600: "TLS_FALLBACK_SCSV"
   };
 
@@ -305,6 +306,11 @@
     const push = (message) => { local.push(message); };
     switch (ext.type) {
       case 0: {
+        if (d.length === 0 && (context === "encrypted" || context === "server")) {
+          ext.summary = "empty acknowledgement";
+          ext.fields = [field("Response", "empty")];
+          break;
+        }
         if (d.length < 2) { push("server_name extension is too short"); break; }
         const listLength = PH.u16be(d, 0);
         let p = 2;
@@ -603,6 +609,7 @@
     if (pos < body.length) {
       let sidLength = body[pos];
       pos += 1;
+      if (sidLength > 32) warnings.push("ClientHello session_id is " + sidLength + " bytes; maximum is 32");
       if (pos + sidLength > body.length) {
         warnings.push("ClientHello session_id overruns the message");
         sidLength = Math.max(0, body.length - pos);
@@ -617,6 +624,7 @@
     if (pos + 2 <= body.length) {
       const suitesLength = PH.u16be(body, pos);
       pos += 2;
+      if (suitesLength % 2) warnings.push("ClientHello cipher_suites length is not a multiple of 2");
       if (pos + suitesLength > body.length) warnings.push("ClientHello cipher_suites overrun the message");
       suites = pairList(body.subarray(pos, Math.min(body.length, pos + suitesLength)), cipherName);
       pos += suitesLength;
@@ -625,8 +633,10 @@
     if (pos < body.length) {
       const count = body[pos];
       pos += 1;
+      if (pos + count > body.length) warnings.push("ClientHello compression methods overrun the message");
       compression = Array.from(body.subarray(pos, Math.min(body.length, pos + count)));
       pos += count;
+      if (!compression.includes(0)) warnings.push("ClientHello compression methods do not include null (0)");
     }
     let extensions = [];
     if (pos + 2 <= body.length) {
@@ -687,6 +697,7 @@
     ];
     const sidLength = body[pos];
     pos += 1;
+    if (sidLength > 32) warnings.push("ServerHello session_id is " + sidLength + " bytes; maximum is 32");
     if (pos + sidLength > body.length) warnings.push("ServerHello session_id overruns the message");
     const sessionId = body.subarray(pos, Math.min(body.length, pos + sidLength));
     pos += sidLength;
@@ -704,6 +715,7 @@
       compression = body[pos];
       pos += 1;
       fields.push(field("Compression", compression === 0 ? "0 · null" : String(compression)));
+      if (compression !== 0) warnings.push("ServerHello legacy_compression_method is " + compression + "; TLS 1.3 requires 0");
     }
     let extensions = [];
     if (pos + 2 <= body.length) {
@@ -876,8 +888,9 @@
     if (p < body.length) {
       const count = body[p];
       p += 1;
-      for (let i = 0; i < count && p < body.length; i++) certTypes.push(CLIENT_CERT_TYPES[body[p]] || "type " + body[p]);
-      p += count;
+      for (let i = 0; i < count && p < body.length; i++, p++) {
+        certTypes.push(CLIENT_CERT_TYPES[body[p]] || "type " + body[p]);
+      }
       fields.push(field("Certificate types", certTypes.join(", ") || "none"));
     }
     const schemes = [];
@@ -1154,15 +1167,18 @@
 
   function buildExtension(type, data) {
     const payload = toBytes(data);
+    if (payload.length > 0xffff) throw new Error("TLS extension exceeds 65535 bytes");
     return PH.concatBytes(be16(type), be16(payload.length), payload);
   }
 
   function buildHandshake(type, body) {
+    if (body.length > 0xffffff) throw new Error("TLS handshake message exceeds 24-bit length");
     return PH.concatBytes(Uint8Array.from([type]), be24(body.length), body);
   }
 
   function buildRecord(type, fragment, version) {
     const payload = toBytes(fragment);
+    if (payload.length > 0xffff) throw new Error("TLS record fragment exceeds 65535 bytes");
     return PH.concatBytes(Uint8Array.from([type]), be16(version == null ? 0x0303 : version), be16(payload.length), payload);
   }
 
@@ -1217,7 +1233,16 @@
   }
 
   function defaultKeyShare(group) {
-    const length = group === 0x0018 ? 48 : group === 0x0019 ? 66 : group === 0x001e ? 56 : 32;
+    const lengths = {
+      0x0017: 65,   /* P-256 uncompressed point */
+      0x0018: 97,   /* P-384 uncompressed point */
+      0x0019: 133,  /* P-521 uncompressed point */
+      0x001d: 32,   /* X25519 */
+      0x001e: 56,   /* X448 */
+      0x11ec: 1216, /* X25519MLKEM768: 32-byte X25519 + 1184-byte ML-KEM-768 */
+      0x6399: 1216  /* X25519Kyber768Draft00 */
+    };
+    const length = lengths[group] || 32;
     const out = new Uint8Array(length);
     for (let i = 0; i < length; i++) out[i] = (i * 7 + 3) & 255;
     return out;
@@ -1318,15 +1343,6 @@
       buildExtension(43, be16(version)),
       buildExtension(51, PH.concatBytes(be16(group), be16(keyShare.length), keyShare))
     ];
-    if (input.alpn) {
-      const protocols = Array.isArray(input.alpn) ? input.alpn : [input.alpn];
-      const entries = protocols.map((protocol) => {
-        const bytes = asciiBytes(protocol);
-        return PH.concatBytes(Uint8Array.from([bytes.length]), bytes);
-      });
-      const list = PH.concatBytes(...entries);
-      extensions.push(buildExtension(16, PH.concatBytes(be16(list.length), list)));
-    }
     (input.extraExtensions || []).forEach((extra) => {
       extensions.push(buildExtension(codeValue(extra.type, {}, "extension type"), extra.data));
     });
@@ -1374,7 +1390,7 @@
       clientHello: { label: "TLS 1.3 ClientHello", bytes: clientHello.bytes, description: "SNI, ALPN, supported_versions, groups and an X25519 key share." },
       serverHello: { label: "TLS 1.3 ServerHello", bytes: serverHello.bytes, description: "Selected version and cipher suite, plus the server key share." },
       alert: { label: "handshake_failure alert", bytes: alert, description: "Fatal alert (level 2, description 40)." },
-      appData: { label: "Application Data record", bytes: appData, description: "The record layer after keys are installed; payload is opaque here." }
+      appData: { label: "Application Data record", bytes: appData, description: "Plaintext bytes in an Application Data record; on a real connection this record is AEAD-protected and opaque." }
     };
   }
 

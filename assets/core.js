@@ -1068,13 +1068,13 @@
       const keys = Object.keys(protocols).filter((key) => protocols[key].modelLayer === layer.key);
       if (!keys.length) return;
       html += `<div class="mobile-nav__group"><p class="rail__label">${esc(layer.name)}</p><ul>` +
-        keys.map((key) => link(key, key)).join("") + "</ul></div>";
+        keys.map((key) => link(key, protocols[key].name || key)).join("") + "</ul></div>";
     });
 
     const cross = Object.keys(protocols).filter((key) => protocols[key].modelLayer && !layerKeys.has(protocols[key].modelLayer));
     if (cross.length) {
       html += '<div class="mobile-nav__group"><p class="rail__label">cross-layer</p><ul>' +
-        cross.map((key) => link(key, key)).join("") + "</ul></div>";
+        cross.map((key) => link(key, protocols[key].name || key)).join("") + "</ul></div>";
     }
 
     html += '<div class="mobile-nav__group"><p class="rail__label">about</p><ul>' +

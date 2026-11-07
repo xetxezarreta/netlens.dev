@@ -11,7 +11,7 @@ window.PH_PROTOCOLS = {
     layerNote: "network layer · RFC 791",
     family: "internet",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4", href: "ipv4.html", note: "internet", current: true },
       { label: "TCP · UDP · ICMP", note: "next header" }
     ]
@@ -44,7 +44,7 @@ window.PH_PROTOCOLS = {
     layerNote: "errors & diagnostics · RFC 792",
     family: "internet",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4", href: "ipv4.html", note: "internet" },
       { label: "ICMP", href: "icmp.html", note: "internet", current: true },
       { label: "Payload / quoted datagram", note: "type-specific" }
@@ -61,7 +61,7 @@ window.PH_PROTOCOLS = {
     layerNote: "host-to-host · RFC 9293",
     family: "transport",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4 / IPv6", note: "internet" },
       { label: "TCP", href: "tcp.html", note: "transport", current: true },
       { label: "Application", note: "application" }
@@ -78,7 +78,7 @@ window.PH_PROTOCOLS = {
     layerNote: "datagram delivery · RFC 768",
     family: "transport",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4 / IPv6", note: "internet" },
       { label: "UDP", href: "udp.html", note: "transport", current: true },
       { label: "Application", note: "application" }
@@ -95,7 +95,7 @@ window.PH_PROTOCOLS = {
     layerNote: "name resolution · RFC 1035",
     family: "application",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4 / IPv6", note: "internet" },
       { label: "UDP / TCP", href: "udp.html", note: "transport" },
       { label: "DNS", href: "dns.html", note: "application", current: true },
@@ -113,7 +113,7 @@ window.PH_PROTOCOLS = {
     layerNote: "semantics · framing · RFC 9110/9112/9113",
     family: "application",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4 / IPv6", note: "internet" },
       { label: "TCP/80 · TCP/443", href: "tcp.html", note: "transport" },
       { label: "HTTP", href: "http.html", note: "application", current: true },
@@ -131,7 +131,7 @@ window.PH_PROTOCOLS = {
     layerNote: "records & handshakes · RFC 8446",
     family: "application",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4 / IPv6", note: "internet" },
       { label: "TCP/443", href: "tcp.html", note: "transport" },
       { label: "TLS", href: "tls.html", note: "application", current: true },
@@ -149,7 +149,7 @@ window.PH_PROTOCOLS = {
     layerNote: "encrypted transport · RFC 9000",
     family: "transport",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4 / IPv6", note: "internet" },
       { label: "UDP", href: "udp.html", note: "transport" },
       { label: "QUIC", href: "quic.html", note: "transport", current: true },
@@ -167,7 +167,7 @@ window.PH_PROTOCOLS = {
     layerNote: "over TCP/179 · RFC 4271",
     family: "application",
     path: [
-      { label: "Ethernet", note: "link" },
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
       { label: "IPv4 / IPv6", note: "internet" },
       { label: "TCP/179", href: "tcp.html", note: "transport" },
       { label: "BGP", href: "bgp.html", note: "routing", current: true },

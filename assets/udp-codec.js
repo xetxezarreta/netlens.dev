@@ -33,6 +33,7 @@
 
   function portInfo(port) {
     const p = Number(port);
+    if (p === 0) return { port: 0, service: null, range: "reserved", name: "reserved" };
     let range = "dynamic / private";
     if (p <= 1023) range = "system / well-known";
     else if (p <= 49151) range = "user / registered";
