@@ -28,6 +28,12 @@
     return Math.max(0, Number(n)).toString(2).padStart(width, "0");
   }
 
+  // Home links should land on the site root (https://netlens.dev/), not
+  // index.html. Keep file:// working by resolving to the local file there.
+  function homeHref() {
+    return location.protocol === "file:" ? "index.html" : "/";
+  }
+
   function parseNumber(raw) {
     if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
     if (raw == null) return null;
@@ -1005,7 +1011,7 @@
       : '<a class="icon-btn" href="about.html">about</a>';
     const html =
       '<div class="site-header__inner">' +
-      '<a class="brand" href="index.html" aria-label="netlens.dev home">' +
+      `<a class="brand" href="${homeHref()}" aria-label="netlens.dev home">` +
       '<span class="brand__box"><span class="prompt">$</span> netlens.dev <span class="brand__cursor" aria-hidden="true"></span></span>' +
       '</a>' +
       '<span class="brand__rule" aria-hidden="true"></span>' +
@@ -1030,7 +1036,7 @@
     const hosts = $$("[data-site-footer]");
     if (!hosts.length) return;
     const protocols = window.PH_PROTOCOLS || {};
-    const links = ['<a href="index.html">home</a>'];
+    const links = [`<a href="${homeHref()}">home</a>`];
     Object.keys(protocols).forEach((key) => {
       if (protocols[key].footer === false) return;
       links.push(`<a href="${esc(key)}.html">${esc(key)}</a>`);
@@ -1061,7 +1067,7 @@
       return `<li><a href="${esc(key)}.html"${active}>${esc(label)}</a></li>`;
     };
     let html = '<div class="mobile-nav__group"><p class="rail__label">site</p><ul>' +
-      `<li><a href="index.html"${current === "" || current === "index" ? ' class="is-active" aria-current="page"' : ""}>home</a></li>` +
+      `<li><a href="${homeHref()}"${current === "" || current === "index" ? ' class="is-active" aria-current="page"' : ""}>home</a></li>` +
       "</ul></div>";
 
     layers.forEach((layer) => {
@@ -1218,6 +1224,19 @@
   function initExternal() {
     $$('a[target="_blank"]').forEach((a) => {
       if (!a.rel) a.rel = "noopener";
+    });
+  }
+
+  // Static markup and noscript fallbacks still point at index.html; rewrite
+  // visible home links to the root so navigating home never shows the filename.
+  function initHomeLinks() {
+    const home = homeHref();
+    if (home === "index.html") return;
+    const from = "index.html";
+    $$("a[href]").forEach((a) => {
+      const href = a.getAttribute("href");
+      if (href === from) a.setAttribute("href", home);
+      else if (href.indexOf(from + "#") === 0) a.setAttribute("href", home + href.slice(from.length));
     });
   }
 
@@ -1452,6 +1471,7 @@
     initTabs();
     initYear();
     initExternal();
+    initHomeLinks();
     initStacks();
     initStackModel();
     initProtocolFilter();
