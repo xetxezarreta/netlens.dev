@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="favicon.svg" alt="packet-headers.sh logo" width="72" height="72">
+  <img src="favicon.svg" alt="netlens.dev logo" width="72" height="72">
 </p>
 
-# packet-headers.sh
+# netlens.dev
 
 A static, interactive field guide to network wire formats. Read the header, inspect every
 field, then build or decode real bytes in the browser.
@@ -10,9 +10,11 @@ field, then build or decode real bytes in the browser.
 Plain HTML, CSS and JavaScript. No build step, no dependencies, no tracking, and no runtime
 network requests. External RFC links open only when clicked.
 
-Source: <https://github.com/xetxezarreta/packet-headers.sh>
+Site: <https://netlens.dev>
 
-Contact: <contact@packet-header.sh> · [GitHub Issues](https://github.com/xetxezarreta/packet-headers.sh/issues)
+Source repository: <https://github.com/xetxezarreta/netlens.dev>
+
+Contact: <contact@netlens.dev> · [GitHub Issues](https://github.com/xetxezarreta/netlens.dev/issues)
 
 ## Run it
 

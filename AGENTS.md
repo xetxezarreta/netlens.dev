@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for future coding sessions in `packet-headers.sh`.
+Guidance for future coding sessions in `netlens.dev`.
 
 ## What this project is
 

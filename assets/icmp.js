@@ -17,7 +17,7 @@
   const SAMPLE_INNER =
     "45 00 00 1c 1c 46 40 00 40 11 32 39 c0 00 02 0a c6 33 64 14 " +
     "30 39 00 35 00 08 00 00";
-  const SAMPLE_ECHO = "packet-headers.sh ping";
+  const SAMPLE_ECHO = "netlens.dev ping";
   const SAMPLE_TIMESTAMPS = "00 00 00 00 00 00 00 64 00 00 00 c8";
 
   const fields = [

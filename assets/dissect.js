@@ -108,7 +108,7 @@
     const http = window.HTTPCodec.buildHttp1({
       kind: "request", method: "GET", target: "/index.html", host: "example.com",
       headers: [
-        { name: "User-Agent", value: "packet-headers/1.0" },
+        { name: "User-Agent", value: "netlens.dev/1.0" },
         { name: "Accept", value: "text/html" }
       ]
     }).bytes;

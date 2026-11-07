@@ -1357,7 +1357,7 @@ const HUFFMAN = [
       { name: ":scheme", value: "https" },
       { name: ":authority", value: "example.com" },
       { name: ":path", value: "/index.html" },
-      { name: "user-agent", value: "packet-headers/1.0" },
+      { name: "user-agent", value: "netlens.dev/1.0" },
       { name: "accept", value: "text/html" }
     ])));
     parts.push(buildFrame(0, 0x1, 1, asciiBytes("<html><body>hello</body></html>\n")));
@@ -1412,7 +1412,7 @@ const HUFFMAN = [
     const request = buildHttp1({
       kind: "request", method: "GET", target: "/index.html", host: "example.com",
       headers: [
-        { name: "User-Agent", value: "packet-headers/1.0" },
+        { name: "User-Agent", value: "netlens.dev/1.0" },
         { name: "Accept", value: "text/html,application/xhtml+xml" },
         { name: "Accept-Encoding", value: "gzip, br" }
       ]

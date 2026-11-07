@@ -261,7 +261,7 @@
       setFields({
         "http-enc-kind": "request", "http-enc-version": "HTTP/1.1", "http-enc-method": "GET",
         "http-enc-target": "/index.html", "http-enc-host": "example.com",
-        "http-enc-headers": "User-Agent: packet-headers/1.0\nAccept: text/html,application/xhtml+xml\nAccept-Encoding: gzip, br",
+        "http-enc-headers": "User-Agent: netlens.dev/1.0\nAccept: text/html,application/xhtml+xml\nAccept-Encoding: gzip, br",
         "http-enc-body": "", "http-enc-body-mode": "ascii", "http-enc-chunked": false
       });
     } else if (key === "response") {
@@ -618,7 +618,7 @@
         { name: ":scheme", value: "https" },
         { name: ":authority", value: "example.com" },
         { name: ":path", value: "/index.html" },
-        { name: "user-agent", value: "packet-headers/1.0" }
+        { name: "user-agent", value: "netlens.dev/1.0" }
       ]);
       kind = "hpack";
     } else {
