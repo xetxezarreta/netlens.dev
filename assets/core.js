@@ -531,16 +531,20 @@
       fields.push(f);
     });
     const inspector = spec.inspector ? (typeof spec.inspector === "string" ? $(spec.inspector) : spec.inspector) : null;
+    // Track and ticks share one explicit column template so every offset
+    // tick lines up with the left edge of its box, regardless of padding.
+    const columns = fields.length
+      ? fields.map((f) => `minmax(14px, ${f.variable ? 2 : f._displayBytes}fr)`).join(" ")
+      : "1fr";
     let html = '<div class="byte-lane' + (spec.compact ? " byte-lane--compact" : "") + '">';
     html += '<div class="byte-lane__head"><div class="byte-lane__title">' + (spec.title || "byte layout") +
       (spec.badge ? ' <span class="badge">' + spec.badge + "</span>" : "") +
       '</div><div class="byte-lane__legend"><span><i></i> click a field</span><span>byte offsets</span></div></div>';
-    html += '<div class="byte-lane__scroll"><div class="byte-lane__inner"><div class="byte-lane__track">';
+    html += `<div class="byte-lane__scroll"><div class="byte-lane__inner" style="--cols:${columns}"><div class="byte-lane__track">`;
     fields.forEach((f) => {
-      const flex = f.variable ? 2 : f._displayBytes;
       const size = f.variable ? "var" : f._displayBytes + " B";
       html += `<button type="button" class="byte-field" data-byte-field="${esc(f.id)}" data-variable="${f.variable ? "1" : "0"}" ` +
-        `style="--flex:${flex};--tone:var(--tone-${esc(f.tone)})" ` +
+        `style="--tone:var(--tone-${esc(f.tone)})" ` +
         `aria-label="${esc(f.name)}, ${size}, starting at byte ${f._start}">` +
         `<span class="bf-name">${esc(f.name)}</span>` +
         `<span class="bf-size">${esc(size)}</span>` +
@@ -550,7 +554,7 @@
     });
     html += '</div><div class="byte-lane__ticks">';
     fields.forEach((f) => {
-      html += `<span style="--flex:${f.variable ? 2 : f._displayBytes}">${f._start}</span>`;
+      html += `<span>${f._start}</span>`;
     });
     html += "</div></div></div>";
     html += `<p class="diagram__note">${spec.note || "Byte-aligned wire layout. Variable-length fields are shown at a nominal width; the actual length is carried by the field before them (or by the packet boundary)."}</p>`;

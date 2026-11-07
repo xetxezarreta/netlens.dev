@@ -1387,7 +1387,8 @@ table.data-table td .flag-tag {
 .byte-lane__inner { min-width: 520px; }
 .byte-lane--compact .byte-lane__inner { min-width: 380px; }
 .byte-lane__track {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--cols, repeat(auto-fit, minmax(0, 1fr)));
   gap: 2px;
   min-height: 66px;
   border: 1px solid var(--line);
@@ -1397,8 +1398,6 @@ table.data-table td .flag-tag {
 .byte-field {
   --tone: var(--tone-a);
   appearance: none;
-  flex: var(--flex, 1) 1 0;
-  min-width: 56px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1446,17 +1445,17 @@ table.data-table td .flag-tag {
 .byte-field .bf-ellipsis { position: absolute; }
 .byte-field { position: relative; }
 .byte-lane__ticks {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--cols, repeat(auto-fit, minmax(0, 1fr)));
   gap: 2px;
   padding: 3px 3px 0;
   color: var(--dim);
   font-size: 0.52rem;
 }
-.byte-lane__ticks span { flex: var(--flex, 1) 1 0; min-width: 0; padding-left: 1px; border-left: 1px solid var(--line); }
+.byte-lane__ticks span { min-width: 0; padding-left: 1px; border-left: 1px solid var(--line); overflow: hidden; white-space: nowrap; }
 .byte-lane .diagram__note { border-top: 1px dashed var(--line); }
 @media (max-width: 720px) {
   .byte-lane__inner { min-width: 460px; }
-  .byte-field { min-width: 52px; }
 }
 
 /* ---------- callouts ---------- */
