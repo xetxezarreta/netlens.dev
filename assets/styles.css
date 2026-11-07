@@ -1570,11 +1570,11 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   color: var(--muted);
 }
 .hexdump .hd-row { display: flex; gap: 12px; min-width: 340px; }
-.hexdump .hd-off { color: var(--dim); flex: 0 0 4ch; }
-.hexdump .hd-bytes { color: var(--muted); flex: 1 1 auto; letter-spacing: 0.04em; }
+.hexdump .hd-off { color: var(--dim); flex: 0 0 3.2em; }
+.hexdump .hd-bytes { color: var(--muted); flex: 1 1 0; min-width: 32.2em; letter-spacing: 0.04em; }
 .hexdump .hd-bytes b { color: var(--accent); font-weight: 400; }
 .hexdump .hd-bytes .sp { color: var(--dim); }
-.hexdump .hd-ascii { color: var(--dim); flex: 0 0 18ch; border-left: 1px solid var(--line); padding-left: 8px; }
+.hexdump .hd-ascii { color: var(--dim); flex: 0 0 11.2em; border-left: 1px solid var(--line); padding-left: 8px; }
 .hexdump .hd-ascii b { color: var(--fg); font-weight: 400; }
 
 /* decoded fields */
