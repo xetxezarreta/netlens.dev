@@ -47,12 +47,12 @@ index.html              homepage, TCP/IP model, protocol index and search
 about.html              conventions, shortcuts and RFC sources
 dissect.html            cross-layer packet walk
 *.html                  one flat-URL page per protocol
-assets/styles.css       design system and layout
-assets/core.js          shared utilities, diagrams, search, theme and chrome
-assets/protocol-meta.js TCP/IP taxonomy and stack model
-assets/search-index.js  static search index
-assets/*-codec.js       shared protocol codecs
-assets/*.js             page wiring and page-local codecs
+css/styles.css          design system and layout
+js/core.js              shared utilities, diagrams, search, theme and chrome
+js/protocol-meta.js     TCP/IP taxonomy and stack model
+js/search-index.js      static search index
+js/*-codec.js           shared protocol codecs
+js/*.js                 page wiring and page-local codecs
 fonts/                  JetBrains Mono (SIL OFL) + license
 ```
 

@@ -21,7 +21,7 @@ python3 -m http.server 8000
 # then open http://localhost:8000/
 ```
 
-`file://` must keep working. Fonts are embedded in `assets/styles.css` for that reason; do not
+`file://` must keep working. Fonts are embedded in `css/styles.css` for that reason; do not
 replace them with an external font URL. Do not introduce `fetch()`-based includes or ES module
 imports that only work over HTTP.
 
@@ -33,12 +33,12 @@ index.html              homepage, TCP/IP model, protocol cards, filter, global s
 about.html              conventions, shortcuts, sources; no rail protocol list
 dissect.html            cross-layer packet walk: layer tree, hex sync, warnings
 *.html                  one flat-URL protocol page per protocol
-assets/styles.css       design system and all layout rules
-assets/core.js          shared PH utilities, diagram engines, search, theme, chrome
-assets/protocol-meta.js PH_PROTOCOLS taxonomy + PH_STACK four-layer model
-assets/search-index.js  static search index (every entry must resolve)
-assets/*-codec.js       pure-ish codecs, exported on window for tests and other pages
-assets/*.js             page wiring for one page
+css/styles.css          design system and all layout rules
+js/core.js              shared PH utilities, diagram engines, search, theme, chrome
+js/protocol-meta.js     PH_PROTOCOLS taxonomy + PH_STACK four-layer model
+js/search-index.js      static search index (every entry must resolve)
+js/*-codec.js           pure-ish codecs, exported on window for tests and other pages
+js/*.js                 page wiring for one page
 fonts/                  embedded JetBrains Mono source + license
 ```
 
@@ -140,14 +140,14 @@ Diagram fields accept `id`, `name`, `bits` (or `bytes` for lanes), `range`, `des
 
 ## Adding a protocol: complete checklist
 
-1. **Codec** — add `assets/<name>-codec.js`, export a single `window.<Name>Codec` object, and
+1. **Codec** — add `js/<name>-codec.js`, export a single `window.<Name>Codec` object, and
    write a Node round-trip/malformed-input test.
 2. **Page** — add `<name>.html` with the standard header, `data-rail-protocols` block,
    `data-site-footer` footer, page-head, stack bar, diagrams, field tables, encoder, decoder,
    notes and RFC references. Keep the “on this page” rail group and `.toc`.
-3. **Wiring** — add `assets/<name>.js`, guard initialization, wire encoder/decoder, permalink,
+3. **Wiring** — add `js/<name>.js`, guard initialization, wire encoder/decoder, permalink,
    JSON export and hash restore.
-4. **Taxonomy** — add an entry to `PH_PROTOCOLS` in `assets/protocol-meta.js` with `name`,
+4. **Taxonomy** — add an entry to `PH_PROTOCOLS` in `js/protocol-meta.js` with `name`,
    `layer`, `modelLayer`, `modelNote`, `tone`, `layerCode` (`1`–`4`, or `ALL` for cross-layer
    tools), `layerLabel`, `layerNote`, `family` and a `path`. Add `railLayer` for cross-layer
    tools.
@@ -157,8 +157,8 @@ Diagram fields accept `id`, `name`, `bits` (or `bytes` for lanes), `range`, `des
    static chip/status counts and hero stats when the number of cards changes. The JS recalculates
    filter counts at runtime, but the static values should still match.
 6. **Search** — add a `kind:"protocol"` entry plus field/tool entries in
-   `assets/search-index.js`. Every `href` and `#anchor` must exist.
-7. **Dissector** — if the protocol can appear inside a frame, teach `assets/dissect-codec.js`
+   `js/search-index.js`. Every `href` and `#anchor` must exist.
+7. **Dissector** — if the protocol can appear inside a frame, teach `js/dissect-codec.js`
    to identify it and link to the page. Add a dissector example if useful.
 8. **Docs** — update `README.md` and `about.html` (page list, layer table, RFC sources,
    conventions).
@@ -214,7 +214,7 @@ dissect.html about.html 404.html
 Also run:
 
 ```sh
-for f in assets/*.js; do "$NODE" --check "$f" || echo "FAIL $f"; done
+for f in js/*.js; do "$NODE" --check "$f" || echo "FAIL $f"; done
 ```
 
 And validate links/anchors with a Python parser or an equivalent check. Search-index links are
