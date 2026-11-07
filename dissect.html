@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Packet dissector — follow one frame across every layer · netlens.dev</title>
-<meta name="description" content="Cross-layer packet dissector: walk Ethernet, VLAN, ARP, IPv4, IPv6, TCP, UDP, ICMP, DNS, TLS and application payloads in one frame, with offset-linked hex, field detail and links into each protocol explorer.">
+<meta name="description" content="Cross-layer packet dissector: walk Ethernet, VLAN, ARP, IPv4, IPv6, TCP, UDP, ICMP, DNS, DHCP, TLS and application payloads in one frame, with offset-linked hex, field detail and links into each protocol explorer.">
 <meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/styles.css">
@@ -45,7 +45,7 @@
       <h1>Packet dissect <span class="on">// cross-layer</span></h1>
       <p class="lead">
         Paste a captured frame and watch the encapsulation unfold: Ethernet II, VLAN tags,
-        IPv4 or IPv6, TCP, UDP or ICMP, then DNS, HTTP, TLS or an unknown payload. Every layer
+        IPv4 or IPv6, TCP, UDP or ICMP, then DNS, DHCP, HTTP, TLS or an unknown payload. Every layer
         links back to its dedicated explorer, and every byte range maps to a highlighted hex
         view.
       </p>
@@ -58,6 +58,7 @@
         <a class="badge" href="ipv6.html">IPv6</a>
         <a class="badge" href="udp.html">UDP</a>
         <a class="badge" href="dns.html">DNS</a>
+        <a class="badge" href="dhcp.html">DHCP</a>
         <a class="badge" href="http.html">HTTP</a>
         <a class="badge" href="tls.html">TLS</a>
       </div>
@@ -104,6 +105,7 @@
             <button class="btn btn--primary" type="button" id="dissect-run">Dissect</button>
             <button class="btn btn--ghost" type="button" id="dissect-example-tcp">TCP SYN</button>
             <button class="btn btn--ghost" type="button" id="dissect-example-dns">DNS over UDP</button>
+            <button class="btn btn--ghost" type="button" id="dissect-example-dhcp">DHCP DISCOVER</button>
             <button class="btn btn--ghost" type="button" id="dissect-example-v6">IPv6 DNS</button>
             <button class="btn btn--ghost" type="button" id="dissect-example-arp">ARP request</button>
             <button class="btn btn--ghost" type="button" id="dissect-example-icmp">ICMP echo</button>
@@ -160,16 +162,17 @@
             <tr><td><b>802.1Q / 802.1ad</b></td><td>TPID <code>0x8100</code> / <code>0x88A8</code></td><td>One or more 4-byte tags</td><td>Inner EtherType</td></tr>
             <tr><td><b>IPv4</b></td><td>Protocol byte at offset 9</td><td><code>1</code> ICMP · <code>6</code> TCP · <code>17</code> UDP</td><td>Transport header</td></tr>
             <tr><td><b>IPv6</b></td><td>Next Header byte at offset 6</td><td>Hop-by-Hop, Routing, Fragment, AH, Destination Options</td><td>Terminal transport header</td></tr>
-            <tr><td><b>TCP / UDP</b></td><td>Port numbers and payload shape</td><td>53 DNS · 80/8080 HTTP · 443 TLS/QUIC · 179 BGP</td><td>Application layer</td></tr>
+            <tr><td><b>TCP / UDP</b></td><td>Port numbers and payload shape</td><td>53 DNS · 67/68 DHCP · 80/8080 HTTP · 443 TLS/QUIC · 179 BGP</td><td>Application layer</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="callout">
         <div class="callout__title">ports are hints, not proof</div>
-        <p>A UDP datagram to port 53 is usually DNS, but nothing in UDP enforces that. The
-        dissector tries the application decoder only when the payload parses; otherwise it
-        shows an opaque payload layer. Unknown protocols are a normal result, not a failure.</p>
+        <p>A UDP datagram to port 53 is usually DNS and one to port 67/68 is usually DHCP, but
+        nothing in UDP enforces that. The dissector tries the application decoder only when the
+        payload parses; otherwise it shows an opaque payload layer. Unknown protocols are a
+        normal result, not a failure.</p>
       </div>
     </section>
 
@@ -197,7 +200,7 @@
       <h2 class="mt-24">Next</h2>
       <p>
         Start with the dedicated explorer for the layer you care about, or open
-        <a href="dns.html">DNS</a>, <a href="http.html">HTTP</a>, <a href="tls.html">TLS</a>,
+        <a href="dns.html">DNS</a>, <a href="dhcp.html">DHCP</a>, <a href="http.html">HTTP</a>, <a href="tls.html">TLS</a>,
         <a href="udp.html">UDP</a>, <a href="ipv6.html">IPv6</a> or <a href="ethernet.html">Ethernet</a> to edit a header field by field.
       </p>
 
@@ -224,6 +227,7 @@
 <script src="assets/udp-codec.js"></script>
 <script src="assets/icmp-codec.js"></script>
 <script src="assets/dns-codec.js"></script>
+<script src="assets/dhcp-codec.js"></script>
 <script src="assets/tls-codec.js"></script>
 <script src="assets/http-codec.js"></script>
 <script src="assets/dissect-codec.js"></script>

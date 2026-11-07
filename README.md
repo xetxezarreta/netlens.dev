@@ -28,7 +28,7 @@ option.
 
 ## What is inside
 
-- **12 protocol pages:** BGP, DNS, HTTP, TLS, TCP, UDP, QUIC, IPv4, IPv6, ICMP, Ethernet, ARP
+- **13 protocol pages:** BGP, DNS, DHCP, HTTP, TLS, TCP, UDP, QUIC, IPv4, IPv6, ICMP, Ethernet, ARP
 - **Packet dissector:** one frame, every layer, with offset-linked hex
 - **Interactive diagrams:** bit and byte layouts with offsets, ranges and RFC citations
 - **Encoders and decoders:** structural checks, checksums and copyable output

@@ -102,6 +102,24 @@ window.PH_PROTOCOLS = {
       { label: "Records · EDNS", note: "sections" }
     ]
   },
+  dhcp: {
+    name: "DHCP",
+    layer: "application",
+    modelLayer: "application",
+    modelNote: "leases · options · BOOTP",
+    tone: "i",
+    layerCode: "4",
+    layerLabel: "Application",
+    layerNote: "address configuration · RFC 2131/2132",
+    family: "application",
+    path: [
+      { label: "Ethernet", href: "ethernet.html", note: "link" },
+      { label: "IPv4", href: "ipv4.html", note: "internet" },
+      { label: "UDP 68 → 67", href: "udp.html", note: "transport" },
+      { label: "DHCP", href: "dhcp.html", note: "application", current: true },
+      { label: "Options · magic cookie", note: "TLVs" }
+    ]
+  },
   http: {
     name: "HTTP",
     layer: "application",
@@ -236,7 +254,7 @@ window.PH_STACK = [
     key: "application",
     code: "4",
     name: "Application",
-    note: "routing, DNS, HTTP, TLS",
+    note: "routing, DNS, DHCP, HTTP, TLS",
     planned: []
   },
   {

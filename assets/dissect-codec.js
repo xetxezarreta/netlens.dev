@@ -106,6 +106,42 @@
     });
   }
 
+  function looksLikeDhcp(bytes) {
+    if (!bytes || bytes.length < 240) return false;
+    if (!global.DHCPCodec) return false;
+    return global.DHCPCodec.looksLikeDhcp(bytes);
+  }
+
+  function dhcpLayer(bytes, offset, state, depth) {
+    const message = global.DHCPCodec.decodeDhcp(bytes);
+    message.warnings.slice(0, 8).forEach((warning) => pushWarning(state, "DHCP: " + warning));
+    const lease = message.options.find((option) => option.code === 51 && !option.control);
+    const server = message.options.find((option) => option.code === 54 && !option.control);
+    const fields = [
+      field("Op", message.op + " · " + message.opName),
+      field("Message type", message.messageTypeName),
+      field("Transaction ID", "0x" + PH.hex(message.xid, 8)),
+      field("Client", message.chaddrText),
+      field("Your address", message.yiaddr),
+      field("Client address", message.ciaddr),
+      field("Relay address", message.giaddr),
+      field("Broadcast flag", message.broadcast ? "1 · broadcast reply requested" : "0"),
+      field("Options", message.optionCount + " · " + global.DHCPCodec.optionSummary(message.options)),
+      field("Magic cookie", message.cookieOk ? "0x63825363" : "missing")
+    ];
+    if (server) fields.push(field("Server identifier", server.valueText));
+    if (lease) fields.push(field("Lease time", lease.valueText));
+    const summary = "DHCP " + message.messageTypeName + " · xid 0x" + PH.hex(message.xid, 8) +
+      " · " + message.opName + " · " + message.chaddrText +
+      (message.yiaddr !== "0.0.0.0" ? " · yiaddr " + message.yiaddr : "") +
+      " · " + message.optionCount + " option(s)";
+    return layer({
+      proto: "dhcp", name: "DHCP", offset, length: message.messageLength, summary, fields,
+      warnings: message.warnings.slice(), depth, href: "dhcp.html",
+      meta: { message }
+    });
+  }
+
   function looksLikeTls(bytes) {
     if (!bytes || bytes.length < 5) return false;
     const type = bytes[0];
@@ -276,6 +312,20 @@
   function applicationLayer(bytes, offset, state, depth, hint) {
     if (!bytes || bytes.length === 0) return null;
     const app = hint || {};
+    if (app.dhcp) {
+      try {
+        return dhcpLayer(bytes, offset, state, depth);
+      } catch (err) {
+        pushWarning(state, "DHCP decode failed: " + err.message);
+      }
+    }
+    if (!app.dhcp && looksLikeDhcp(bytes)) {
+      try {
+        return dhcpLayer(bytes, offset, state, depth);
+      } catch (err) {
+        pushWarning(state, "DHCP decode failed: " + err.message);
+      }
+    }
     if (app.dns) {
       try {
         return dnsLayer(bytes, offset, state, depth);
@@ -388,6 +438,7 @@
       fields, warnings: parsed.warnings.slice(), depth, href: "udp.html", meta: { parsed }
     })];
     const app = applicationLayer(parsed.payload, offset + 8, state, depth + 1, {
+      dhcp: parsed.srcPort === 67 || parsed.dstPort === 67 || parsed.srcPort === 68 || parsed.dstPort === 68,
       dns: parsed.srcPort === 53 || parsed.dstPort === 53 || parsed.srcPort === 5353 || parsed.dstPort === 5353,
       quic: parsed.srcPort === 443 || parsed.dstPort === 443
     });

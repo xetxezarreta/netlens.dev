@@ -56,7 +56,7 @@
       <section class="section" id="about">
         <h2>What this is</h2>
         <p>
-          Twelve protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP, TLS, QUIC, BGP, Ethernet and ARP — plus a cross-layer
+          Thirteen protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP — plus a cross-layer
           <a href="dissect.html">packet dissector</a>. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
@@ -64,7 +64,7 @@
         <p>
           Every protocol page has a <strong>copy page link</strong> button that serializes the visible
           codec fields into the URL hash. A permalink restores the inputs; encoder panels rebuild
-          their output, and the DNS, UDP and dissector links also re-run their decoders. Every
+          their output, and the DNS, DHCP, UDP and dissector links also re-run their decoders. Every
           protocol and tool page can download a JSON snapshot of its fields and outputs; the
           packet dissector can also copy a BPF filter or a Scapy snippet for the frame on screen.
           Nothing is uploaded: the URL is the entire state.
@@ -110,7 +110,7 @@
 
         <h3>Byte order</h3>
         <p>
-          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, HTTP/2, TLS, QUIC and BGP. HTTP/1.1 is text.
+          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP/2, TLS, QUIC and BGP. HTTP/1.1 is text.
           Bytes inside a field are always written in transmission order; only the interpretation
           of multi-byte integers changes.
         </p>
@@ -119,7 +119,7 @@
         <p>
           The site uses the <strong>TCP/IP model</strong> as its primary map, with exactly four
           layers: <strong>1 Link</strong>, <strong>2 Internet</strong>, <strong>3 Transport</strong>
-          and <strong>4 Application</strong>. BGP, DNS, HTTP and TLS are application protocols;
+          and <strong>4 Application</strong>. BGP, DNS, DHCP, HTTP and TLS are application protocols;
           QUIC provides transport and integrates TLS; TCP and UDP provide process-to-process
           delivery; IPv4, ICMP and IPv6 cover addressing and control; Ethernet and ARP cover the
           link. The stack path at the top of each protocol page shows the actual encapsulation
@@ -130,7 +130,7 @@
           <table class="data-table">
             <thead><tr><th>Group</th><th>TCP/IP layer</th><th>Protocols</th><th>Why</th></tr></thead>
             <tbody>
-              <tr><td><b>Application</b></td><td><code>4</code></td><td>BGP, DNS, HTTP, TLS</td><td>Routing policy, name resolution, request/response semantics and the record layer that protects them. HTTP/2 adds binary framing and TLS sits between TCP and application bytes.</td></tr>
+              <tr><td><b>Application</b></td><td><code>4</code></td><td>BGP, DNS, DHCP, HTTP, TLS</td><td>Routing policy, name resolution, address configuration, request/response semantics and the record layer that protects them. DHCP carries BOOTP fields and TLV options over UDP; HTTP/2 adds binary framing and TLS sits between TCP and application bytes.</td></tr>
               <tr><td><b>Transport</b></td><td><code>3</code></td><td>TCP, UDP, QUIC</td><td>Process-to-process delivery: streams over TCP, datagrams over UDP, and encrypted transport with QUIC.</td></tr>
               <tr><td><b>Internet</b></td><td><code>2</code></td><td>IPv4, ICMP, IPv6</td><td>Addressing, fragmentation, checksums, errors, extension chains and path-MTU signalling.</td></tr>
               <tr><td><b>Link</b></td><td><code>1</code></td><td>Ethernet, ARP</td><td>Frames, MAC addressing, VLAN tags, FCS and IPv4-to-MAC resolution.</td></tr>
@@ -272,6 +272,16 @@
           <li><a href="https://www.rfc-editor.org/rfc/rfc8914" target="_blank" rel="noopener">RFC 8914</a><span>Extended DNS Errors</span></li>
           <li><a href="https://www.rfc-editor.org/rfc/rfc8484" target="_blank" rel="noopener">RFC 8484</a><span>DNS over HTTPS</span></li>
           <li><a href="https://www.rfc-editor.org/rfc/rfc9250" target="_blank" rel="noopener">RFC 9250</a><span>DNS over QUIC</span></li>
+        </ul>
+        <h3>DHCP</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2131" target="_blank" rel="noopener">RFC 2131</a><span>DHCPv4 operation</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2132" target="_blank" rel="noopener">RFC 2132</a><span>options &amp; BOOTP extensions</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc3396" target="_blank" rel="noopener">RFC 3396</a><span>option concatenation</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc3046" target="_blank" rel="noopener">RFC 3046</a><span>Relay Agent Information</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc3442" target="_blank" rel="noopener">RFC 3442</a><span>classless static routes</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6842" target="_blank" rel="noopener">RFC 6842</a><span>client identifier</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8415" target="_blank" rel="noopener">RFC 8415</a><span>DHCPv6</span></li>
         </ul>
         <h3>HTTP</h3>
         <ul class="rfc-list">

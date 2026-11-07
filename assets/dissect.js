@@ -33,6 +33,28 @@
     }).bytes;
   }
 
+  function exampleDhcp() {
+    const dhcp = window.DHCPCodec.buildDhcp({
+      op: 1, htype: 1, hlen: 6, hops: 0, xid: 0x3903f326, secs: 0, broadcast: true,
+      ciaddr: "0.0.0.0", yiaddr: "0.0.0.0", siaddr: "0.0.0.0", giaddr: "0.0.0.0",
+      chaddr: "02:00:00:00:00:0a", messageType: "DISCOVER",
+      extraOptions: "parameter-request-list = 1,3,6,15,51,54\nmax-message-size = 1500\nclient-id = 01:02:00:00:00:0a"
+    }).bytes;
+    const udp = window.UDPCodec.buildUdp({
+      srcPort: 68, dstPort: 67, payload: dhcp, ipVersion: 4,
+      srcIp: "0.0.0.0", dstIp: "255.255.255.255"
+    });
+    const ip = window.IPv4Codec.buildHeader({
+      version: 4, dscp: 0, ecn: 0, id: 0x39d3, ttl: 64, protocol: 17,
+      fragmentOffset: 0, payloadLength: udp.bytes.length, reserved: false, df: false, mf: false,
+      src: "0.0.0.0", dst: "255.255.255.255", options: ""
+    });
+    return window.EthernetCodec.buildFrame({
+      dst: "ff:ff:ff:ff:ff:ff", src: "02:00:00:00:00:0a",
+      etherType: 0x0800, payload: PH.concatBytes(ip.bytes, udp.bytes), pad: false, fcs: true
+    }).bytes;
+  }
+
   function exampleV6() {
     const dns = window.DNSCodec.buildMessage(window.DNSCodec.examples().queryA).bytes;
     const udp = window.UDPCodec.buildUdp({
@@ -129,14 +151,14 @@
   }
 
   const EXAMPLES = {
-    tcp: exampleTcp, dns: exampleDns, v6: exampleV6,
+    tcp: exampleTcp, dns: exampleDns, dhcp: exampleDhcp, v6: exampleV6,
     arp: exampleArp, icmp: exampleIcmp, vlan: exampleVlan,
     tls: exampleTls, http: exampleHttp
   };
 
   function layerNode(item, index) {
     const depth = Math.min(item.depth || 0, 6);
-    const tone = ["ethernet", "vlan", "fcs", "ipv4", "ipv6", "arp", "tcp", "udp", "icmp", "dns", "tls", "http", "payload"].indexOf(item.proto);
+    const tone = ["ethernet", "vlan", "fcs", "ipv4", "ipv6", "arp", "tcp", "udp", "icmp", "dns", "dhcp", "tls", "http", "payload"].indexOf(item.proto);
     return `<button type="button" class="layer-node${index === selected ? " is-active" : ""}${item.error ? " has-error" : ""}" ` +
       `data-layer="${index}" style="--depth:${depth};--node-tone:var(--tone-${"abcdefghij"[(tone + 10) % 10]})" ` +
       `aria-pressed="${index === selected ? "true" : "false"}">` +

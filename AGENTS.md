@@ -206,7 +206,7 @@ Some older harness files (`all17.js`, `axe17.js`, `overflow17.js`) still list th
 `tools.html` and `wireguard.html`. Prefer the current page list:
 
 ```
-index.html ipv4.html icmp.html ipv6.html tcp.html udp.html dns.html
+index.html ipv4.html icmp.html ipv6.html tcp.html udp.html dns.html dhcp.html
 http.html tls.html quic.html bgp.html ethernet.html arp.html
 dissect.html about.html 404.html
 ```
@@ -264,7 +264,7 @@ part of the public surface; do not leave a stale `#anchor`.
 Before calling a change complete:
 
 - all relevant codec unit tests pass
-- all 16 pages load with zero console/page errors
+- all 17 pages load with zero console/page errors
 - Axe reports 0 violations on desktop and mobile
 - no horizontal overflow at 320, 360, 390, 430, 720, 768, 900, 980, 981, 1024, 1200 and 1440px
 - `file://` loads and codecs work

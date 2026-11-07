@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DHCP — BOOTP header, message types &amp; options · netlens.dev</title>
+<meta name="description" content="Interactive DHCPv4 explorer: BOOTP fixed header, flags, message types, option TLVs, lease timers, relay agent information, and a byte-accurate encoder/decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols>
+        <noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript>
+      </div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">message layout</a></li>
+        <li><a href="#types">message types</a></li>
+        <li><a href="#options">options</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>DHCPv4 is BOOTP plus options.</b> A request goes from UDP/68 to UDP/67; a server reply goes from UDP/67 to UDP/68. The magic cookie at offset 236 marks the option area.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>dhcp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>DHCP <span class="on">// RFC 2131</span></h1>
+      <p class="lead">
+        DHCP gives a host an IPv4 address and the configuration that goes with it: routes,
+        DNS servers, a lease lifetime and more. The packet is a BOOTP header followed by a
+        magic cookie and a list of type-length-value options.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 2131</b> · DHCPv4</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc2132" target="_blank" rel="noopener">RFC 2132 · options</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3396" target="_blank" rel="noopener">RFC 3396 · option concatenation</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc6842" target="_blank" rel="noopener">RFC 6842 · client identifier</a>
+        <span class="badge">UDP 67/68</span>
+        <span class="badge">236 B + options</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> application</span>
+        <span><b>transport</b> UDP/67 · UDP/68</span>
+        <span><b>fixed header</b> 236 B</span>
+        <span><b>options</b> TLV · magic cookie</span>
+      </div>
+      <div class="stackbar" data-stack="dhcp"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#types">types</a></li>
+        <li><a href="#options">options</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message layout</h2>
+        <span class="section__hint">BOOTP fixed header · magic cookie · options</span>
+      </div>
+      <p>
+        Every DHCPv4 message starts with the 236-byte BOOTP header. The first four octets
+        identify the operation and the client hardware address type; the next fields carry
+        the transaction ID, timing, flags and four IPv4 addresses. A DHCP message then adds
+        the magic cookie <code>63 82 53 63</code> and the option area.
+      </p>
+
+      <div id="dhcp-diagram"></div>
+      <div class="field-detail" id="dhcp-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Field</th><th class="num">Offset</th><th class="num">Width</th><th>Meaning</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><b>op</b></td><td class="num">0</td><td class="num">1 B</td><td>1 = BOOTREQUEST (client), 2 = BOOTREPLY (server).</td><td>RFC 2131 §2 · RFC 951</td></tr>
+            <tr><td><b>htype</b></td><td class="num">1</td><td class="num">1 B</td><td>Hardware type. 1 is Ethernet.</td><td>RFC 2131 §2 · RFC 1700</td></tr>
+            <tr><td><b>hlen</b></td><td class="num">2</td><td class="num">1 B</td><td>Hardware address length in bytes; normally 6.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>hops</b></td><td class="num">3</td><td class="num">1 B</td><td>Relay hop count, set by relay agents.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>xid</b></td><td class="num">4</td><td class="num">4 B</td><td>Transaction identifier, chosen by the client and echoed by the server.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>secs</b></td><td class="num">8</td><td class="num">2 B</td><td>Seconds elapsed since the client began address acquisition.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>flags</b></td><td class="num">10</td><td class="num">2 B</td><td>Broadcast bit (0x8000); remaining bits reserved and zero.</td><td>RFC 2131 §2 · RFC 2132 §2</td></tr>
+            <tr><td><b>ciaddr</b></td><td class="num">12</td><td class="num">4 B</td><td>Client IP address, filled in by a client that already has one.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>yiaddr</b></td><td class="num">16</td><td class="num">4 B</td><td>“Your” IP address offered by the server.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>siaddr</b></td><td class="num">20</td><td class="num">4 B</td><td>Next server address for bootstrap; often the DHCP server or TFTP server.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>giaddr</b></td><td class="num">24</td><td class="num">4 B</td><td>Relay agent address; zero when no relay is involved.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>chaddr</b></td><td class="num">28</td><td class="num">16 B</td><td>Client hardware address, padded to 16 bytes.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>sname</b></td><td class="num">44</td><td class="num">64 B</td><td>Optional server host name, null-terminated. May be overloaded with options.</td><td>RFC 2131 §2 · RFC 2132 §9.3</td></tr>
+            <tr><td><b>file</b></td><td class="num">108</td><td class="num">128 B</td><td>Boot file name, null-terminated. May be overloaded with options.</td><td>RFC 2131 §2 · RFC 2132 §9.3</td></tr>
+            <tr><td><b>magic cookie</b></td><td class="num">236</td><td class="num">4 B</td><td><code>63 82 53 63</code> (0x63825363), marking the DHCP option area.</td><td>RFC 2131 §3</td></tr>
+            <tr><td><b>options</b></td><td class="num">240</td><td class="num">var</td><td>TLV options, terminated by option 255. Pad with option 0.</td><td>RFC 2132</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mt-24">The flags word</h3>
+      <div id="dhcp-flags-diagram"></div>
+      <div class="field-detail" id="dhcp-flags-inspector"></div>
+      <div id="dhcp-flags-fields"></div>
+
+      <div id="dhcp-frame-lane"></div>
+      <div class="field-detail" id="dhcp-frame-inspector"></div>
+
+      <div class="callout">
+        <div class="callout__title">the fixed header is not the whole message</div>
+        <p>A DHCP message is at least 240 bytes once the magic cookie is present. The option area
+        carries the message type, addresses, lease timers and every other parameter. A message
+        with no option 53 is BOOTP-shaped but cannot identify itself as DHCP.</p>
+      </div>
+    </section>
+
+    <section class="section" id="types">
+      <div class="section__head">
+        <h2><span class="num">02</span>Message types</h2>
+        <span class="section__hint">option 53 · one byte · eight standard messages</span>
+      </div>
+      <p>
+        The DHCP message type lives in option <code>53</code>. It is one byte and must be present
+        in every DHCP message. The standard exchange is DISCOVER → OFFER → REQUEST → ACK;
+        NAK rejects a request, while RELEASE and DECLINE are client notifications.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Code</th><th>Message</th><th>Direction</th><th>Purpose</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>DISCOVER</b></td><td>C → S</td><td>Client broadcasts a request for an address; yiaddr is zero.</td><td>RFC 2131 §4.3.1</td></tr>
+            <tr><td><code>2</code></td><td><b>OFFER</b></td><td>S → C</td><td>Server offers an address and configuration in yiaddr.</td><td>RFC 2131 §4.3.2</td></tr>
+            <tr><td><code>3</code></td><td><b>REQUEST</b></td><td>C → S</td><td>Client requests an offered address or renewal; option 50 and/or option 54 identify the choice.</td><td>RFC 2131 §4.3.2</td></tr>
+            <tr><td><code>4</code></td><td><b>DECLINE</b></td><td>C → S</td><td>Client reports that an offered address is already in use.</td><td>RFC 2131 §4.3.3</td></tr>
+            <tr><td><code>5</code></td><td><b>ACK</b></td><td>S → C</td><td>Server commits the lease and returns the final configuration.</td><td>RFC 2131 §4.3.3</td></tr>
+            <tr><td><code>6</code></td><td><b>NAK</b></td><td>S → C</td><td>Server rejects a request, often because the address is no longer valid.</td><td>RFC 2131 §4.3.4</td></tr>
+            <tr><td><code>7</code></td><td><b>RELEASE</b></td><td>C → S</td><td>Client gives up its lease and returns the address to the server.</td><td>RFC 2131 §4.4.1</td></tr>
+            <tr><td><code>8</code></td><td><b>INFORM</b></td><td>C → S</td><td>Client already has an address and asks only for configuration parameters.</td><td>RFC 2131 §4.3.5</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="recipe-grid">
+        <button type="button" class="recipe" data-dhcp-preset="discover"><b>DISCOVER</b><code>type 1</code><span>Client broadcasts with xid and chaddr; asks for options it wants.</span></button>
+        <button type="button" class="recipe" data-dhcp-preset="offer"><b>OFFER</b><code>type 2</code><span>Server proposes yiaddr, siaddr and a lease, plus subnet, router and DNS.</span></button>
+        <button type="button" class="recipe" data-dhcp-preset="request"><b>REQUEST</b><code>type 3</code><span>Client accepts an offer with option 50 (requested address) and option 54 (server identifier).</span></button>
+        <button type="button" class="recipe" data-dhcp-preset="ack"><b>ACK</b><code>type 5</code><span>Server commits the lease and returns the full configuration.</span></button>
+        <button type="button" class="recipe" data-dhcp-preset="nak"><b>NAK</b><code>type 6</code><span>Server rejects the request; the client must restart address acquisition.</span></button>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">DHCP is unauthenticated</div>
+        <p>Any host on the link can answer a DISCOVER. Rogue DHCP servers, spoofed ACKs and
+        malicious option 82 data are operational security problems. DHCP snooping, port
+        security and trusted relay ports are network controls, not protocol features.</p>
+      </div>
+    </section>
+
+    <section class="section" id="options">
+      <div class="section__head">
+        <h2><span class="num">03</span>Options</h2>
+        <span class="section__hint">code · length · value · end</span>
+      </div>
+      <p>
+        Options are one-byte code and one-byte length TLVs. Code <code>0</code> is a one-byte
+        Pad; code <code>255</code> is a one-byte End. A zero-length option is valid only when the
+        option definition allows it. Repeated options are concatenated in the order they appear
+        (RFC 3396).
+      </p>
+
+      <div id="dhcp-option-lane"></div>
+      <div class="field-detail" id="dhcp-option-inspector"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Code</th><th>Option</th><th>Length</th><th>Meaning</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>Pad</b></td><td class="num">1</td><td>Alignment padding; no length or value.</td><td>RFC 2132 §3.1</td></tr>
+            <tr><td><code>255</code></td><td><b>End</b></td><td class="num">1</td><td>End of the option area.</td><td>RFC 2132 §3.2</td></tr>
+            <tr><td><code>1</code></td><td><b>Subnet Mask</b></td><td class="num">4</td><td>Client subnet mask.</td><td>RFC 2132 §3.3</td></tr>
+            <tr><td><code>3</code></td><td><b>Router</b></td><td class="num">4n</td><td>Default gateway addresses, in preference order.</td><td>RFC 2132 §3.5</td></tr>
+            <tr><td><code>6</code></td><td><b>Domain Name Server</b></td><td class="num">4n</td><td>DNS resolver addresses.</td><td>RFC 2132 §3.8</td></tr>
+            <tr><td><code>12</code></td><td><b>Host Name</b></td><td class="num">n</td><td>Client host name.</td><td>RFC 2132 §3.14</td></tr>
+            <tr><td><code>15</code></td><td><b>Domain Name</b></td><td class="num">n</td><td>DNS domain suffix.</td><td>RFC 2132 §3.17</td></tr>
+            <tr><td><code>28</code></td><td><b>Broadcast Address</b></td><td class="num">4</td><td>Broadcast address for the client subnet.</td><td>RFC 2132 §5.3</td></tr>
+            <tr><td><code>50</code></td><td><b>Requested IP Address</b></td><td class="num">4</td><td>Address requested in a DHCPREQUEST.</td><td>RFC 2132 §9.1</td></tr>
+            <tr><td><code>51</code></td><td><b>IP Address Lease Time</b></td><td class="num">4</td><td>Lease lifetime in seconds.</td><td>RFC 2132 §9.2</td></tr>
+            <tr><td><code>52</code></td><td><b>Option Overload</b></td><td class="num">1</td><td>1 = file, 2 = sname, 3 = both contain options.</td><td>RFC 2132 §9.3</td></tr>
+            <tr><td><code>53</code></td><td><b>DHCP Message Type</b></td><td class="num">1</td><td>DISCOVER, OFFER, REQUEST, DECLINE, ACK, NAK, RELEASE or INFORM.</td><td>RFC 2132 §9.6</td></tr>
+            <tr><td><code>54</code></td><td><b>Server Identifier</b></td><td class="num">4</td><td>DHCP server address; required in OFFER, ACK and NAK.</td><td>RFC 2132 §9.7</td></tr>
+            <tr><td><code>55</code></td><td><b>Parameter Request List</b></td><td class="num">n</td><td>Options the client wants the server to return.</td><td>RFC 2132 §9.8</td></tr>
+            <tr><td><code>56</code></td><td><b>Message</b></td><td class="num">n</td><td>Diagnostic text, often in a NAK.</td><td>RFC 2132 §9.9</td></tr>
+            <tr><td><code>57</code></td><td><b>Maximum DHCP Message Size</b></td><td class="num">2</td><td>Largest DHCP message the client accepts.</td><td>RFC 2132 §9.10</td></tr>
+            <tr><td><code>58</code></td><td><b>Renewal Time Value</b></td><td class="num">4</td><td>Time until the client moves to RENEWING.</td><td>RFC 2132 §9.11</td></tr>
+            <tr><td><code>59</code></td><td><b>Rebinding Time Value</b></td><td class="num">4</td><td>Time until the client moves to REBINDING.</td><td>RFC 2132 §9.12</td></tr>
+            <tr><td><code>60</code></td><td><b>Vendor Class Identifier</b></td><td class="num">n</td><td>Vendor or platform identity.</td><td>RFC 2132 §9.13</td></tr>
+            <tr><td><code>61</code></td><td><b>Client Identifier</b></td><td class="num">n</td><td>Stable client identity; type byte plus identifier bytes.</td><td>RFC 2132 §9.14 · RFC 6842</td></tr>
+            <tr><td><code>66</code></td><td><b>TFTP Server Name</b></td><td class="num">n</td><td>Bootstrap server name.</td><td>RFC 2132 §9.4</td></tr>
+            <tr><td><code>67</code></td><td><b>Bootfile Name</b></td><td class="num">n</td><td>Boot file path.</td><td>RFC 2132 §9.5</td></tr>
+            <tr><td><code>82</code></td><td><b>Relay Agent Information</b></td><td class="num">n</td><td>Relay-added sub-options such as circuit-id and remote-id.</td><td>RFC 3046</td></tr>
+            <tr><td><code>121</code></td><td><b>Classless Static Route</b></td><td class="num">n</td><td>Destination prefix, prefix length and next-hop.</td><td>RFC 3442</td></tr>
+            <tr><td><code>249</code></td><td><b>Microsoft Classless Route</b></td><td class="num">n</td><td>Microsoft encoding of classless static routes.</td><td>RFC 3442 · Microsoft</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">option overload and concatenation</div>
+        <p>When option 52 is present, the server may place additional options in the
+        <code>file</code> field (bit 1), the <code>sname</code> field (bit 2), or both (bit 3).
+        RFC 3396 allows a single option to be split across multiple occurrences; a decoder must
+        concatenate the values in order before interpreting them.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">BOOTP header · common options · arbitrary TLVs</span>
+      </div>
+      <p>
+        Build a DHCP message with a valid BOOTP header, magic cookie and option area. The
+        message type is always emitted as option 53. Common lease fields have dedicated inputs;
+        everything else can be supplied as one <code>code = value</code> option per line.
+      </p>
+
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>DHCP parameters</h3><span class="tag">RFC 2131 · RFC 2132</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid field-grid--three">
+              <div class="form-field"><label for="dhcp-enc-op">op</label><select id="dhcp-enc-op"><option value="1">1 · BOOTREQUEST</option><option value="2">2 · BOOTREPLY</option></select></div>
+              <div class="form-field"><label for="dhcp-enc-htype">hardware type</label><select id="dhcp-enc-htype"><option value="1">1 · Ethernet</option><option value="6">6 · IEEE 802</option><option value="0">0 · other</option></select></div>
+              <div class="form-field"><label for="dhcp-enc-hlen">hardware length</label><input type="number" id="dhcp-enc-hlen" value="6" min="0" max="16" inputmode="numeric"></div>
+              <div class="form-field"><label for="dhcp-enc-hops">hops</label><input type="number" id="dhcp-enc-hops" value="0" min="0" max="255" inputmode="numeric"></div>
+              <div class="form-field"><label for="dhcp-enc-xid">transaction ID <span class="units">32-bit</span></label><input type="text" id="dhcp-enc-xid" value="0x3903f326" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-secs">seconds</label><input type="number" id="dhcp-enc-secs" value="0" min="0" max="65535" inputmode="numeric"></div>
+              <div class="form-field"><label for="dhcp-enc-ciaddr">ciaddr <span class="units">client</span></label><input type="text" id="dhcp-enc-ciaddr" value="0.0.0.0" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-yiaddr">yiaddr <span class="units">offered</span></label><input type="text" id="dhcp-enc-yiaddr" value="0.0.0.0" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-siaddr">siaddr <span class="units">server</span></label><input type="text" id="dhcp-enc-siaddr" value="0.0.0.0" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-giaddr">giaddr <span class="units">relay</span></label><input type="text" id="dhcp-enc-giaddr" value="0.0.0.0" spellcheck="false"></div>
+              <div class="form-field span-2"><label for="dhcp-enc-chaddr">client hardware address <span class="units">MAC or hex</span></label><input type="text" id="dhcp-enc-chaddr" value="02:00:00:00:00:0a" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-message-type">message type</label><select id="dhcp-enc-message-type"></select></div>
+              <div class="form-field"><label class="inline-checks" style="min-height:34px"><input type="checkbox" id="dhcp-enc-broadcast" checked> broadcast flag</label></div>
+              <div class="form-field"><label for="dhcp-enc-server-id">server identifier</label><input type="text" id="dhcp-enc-server-id" value="" placeholder="192.0.2.1" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-subnet">subnet mask</label><input type="text" id="dhcp-enc-subnet" value="" placeholder="255.255.255.0" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-routers">routers</label><input type="text" id="dhcp-enc-routers" value="" placeholder="192.0.2.1" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-dns">DNS servers</label><input type="text" id="dhcp-enc-dns" value="" placeholder="192.0.2.53, 192.0.2.54" spellcheck="false"></div>
+              <div class="form-field"><label for="dhcp-enc-lease">lease time <span class="units">seconds</span></label><input type="number" id="dhcp-enc-lease" value="" min="0" max="4294967295" inputmode="numeric"></div>
+              <div class="form-field"><label for="dhcp-enc-renewal">renewal time <span class="units">seconds</span></label><input type="number" id="dhcp-enc-renewal" value="" min="0" max="4294967295" inputmode="numeric"></div>
+              <div class="form-field"><label for="dhcp-enc-rebinding">rebinding time <span class="units">seconds</span></label><input type="number" id="dhcp-enc-rebinding" value="" min="0" max="4294967295" inputmode="numeric"></div>
+              <div class="form-field span-2"><label for="dhcp-enc-domain">domain name</label><input type="text" id="dhcp-enc-domain" value="" placeholder="example.com" spellcheck="false"></div>
+            </div>
+            <div class="field-grid">
+              <div class="form-field span-2"><label for="dhcp-enc-sname">sname <span class="units">optional · 64 B</span></label><input type="text" id="dhcp-enc-sname" value="" spellcheck="false"></div>
+              <div class="form-field span-2"><label for="dhcp-enc-file">file <span class="units">optional · 128 B</span></label><input type="text" id="dhcp-enc-file" value="" spellcheck="false"></div>
+              <div class="form-field span-2"><label for="dhcp-enc-extra">extra options <span class="units">one per line · code or name = value</span></label><textarea id="dhcp-enc-extra" class="hex-input" rows="4" spellcheck="false" placeholder="requested-ip = 192.0.2.100&#10;parameter-request-list = 1,3,6,15,51,54"></textarea></div>
+            </div>
+            <div class="presets" style="margin-top:10px">
+              <button type="button" data-dhcp-preset="discover">DISCOVER</button>
+              <button type="button" data-dhcp-preset="offer">OFFER</button>
+              <button type="button" data-dhcp-preset="request">REQUEST</button>
+              <button type="button" data-dhcp-preset="ack">ACK</button>
+              <button type="button" data-dhcp-preset="nak">NAK</button>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn btn--primary" type="button" id="dhcp-enc-build">Build DHCP</button>
+              <button class="btn btn--ghost" type="button" id="dhcp-enc-example">Load DISCOVER</button>
+            </div>
+            <p class="form-note">Options can use numeric codes or names such as <code>subnet-mask</code>, <code>router</code>, <code>dns</code>, <code>requested-ip</code>, <code>parameter-request-list</code>, <code>client-id</code>, <code>relay-agent</code> and <code>classless-route</code>. Duplicate code 53 is generated from the message-type selector.</p>
+          </div>
+        </div>
+
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag" id="dhcp-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="dhcp-enc-status" role="status" aria-live="polite">Set the fields and press Build DHCP.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">DHCP message hex</div><button class="copy-btn" type="button" data-copy-target="#dhcp-enc-output">copy</button></div>
+              <pre id="dhcp-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="dhcp-enc-summary"></div>
+            <div class="flag-readout">
+              <span>message <b id="dhcp-enc-length">—</b></span>
+              <span>options <b id="dhcp-enc-option-count">—</b></span>
+              <span>type <b id="dhcp-enc-type">—</b></span>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--ghost" type="button" id="dhcp-enc-permalink">Copy permalink</button>
+              <button class="btn btn--ghost" type="button" id="dhcp-enc-export">Download JSON</button>
+            </div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">this is the DHCP message, not the UDP wrapper</div>
+              <p>The output starts at the BOOTP <code>op</code> byte and includes the magic cookie
+              and option area. The decoder accepts raw DHCP, UDP, IPv4 or Ethernet input, so you
+              can wrap these bytes in UDP/68→67 or UDP/67→68 for a lab test.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">raw DHCP · UDP · IPv4 · Ethernet</span>
+      </div>
+      <p>
+        Paste a DHCP message, a UDP datagram on ports 67/68, an IPv4 packet with protocol 17,
+        or an Ethernet frame carrying IPv4/UDP. The decoder reports the BOOTP fields, the
+        message type, every option TLV, overloaded options and any structural warnings.
+      </p>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 2131 · BOOTP · options</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2">
+              <label for="dhcp-decode-input">hex input <span class="units">DHCP, UDP, IPv4 or Ethernet</span></label>
+              <textarea id="dhcp-decode-input" class="hex-input" rows="6" spellcheck="false" placeholder="Paste a DHCP message, or load one of the examples below."></textarea>
+            </div>
+            <div class="form-field">
+              <label for="dhcp-decode-kind">input type</label>
+              <select id="dhcp-decode-kind">
+                <option value="auto">auto-detect</option>
+                <option value="raw">raw DHCP message</option>
+                <option value="udp">raw UDP datagram</option>
+                <option value="ipv4">IPv4 packet / Ethernet</option>
+                <option value="ethernet">Ethernet frame</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="dhcp-decode">Decode DHCP</button>
+            <button class="btn btn--ghost" type="button" id="dhcp-decode-discover">Load DISCOVER</button>
+            <button class="btn btn--ghost" type="button" id="dhcp-decode-offer">Load OFFER</button>
+            <button class="btn btn--ghost" type="button" id="dhcp-decode-ack">Load ACK</button>
+            <button class="btn btn--ghost" type="button" id="dhcp-decode-nak">Load NAK</button>
+            <button class="btn btn--ghost" type="button" id="dhcp-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="dhcp-decode-status" role="status" aria-live="polite">No DHCP message decoded yet.</div>
+          <div id="dhcp-decode-result"></div>
+          <div class="btn-row">
+            <button class="btn btn--ghost" type="button" id="dhcp-decode-permalink">Copy permalink</button>
+            <button class="btn btn--ghost" type="button" id="dhcp-decode-export">Download JSON</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">operational details that matter</span>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">DHCP is not authenticated</div>
+        <p>The transaction ID, client hardware address, server identifier and option 82 data are
+        all claims. Use DHCP snooping, trusted relay ports and switch-port security to limit who
+        can answer. A valid checksum proves only that the bytes survived the path.</p>
+      </div>
+      <ul class="dashed">
+        <li><strong>Client and server ports are fixed.</strong> Clients use UDP/68 and servers use UDP/67. The first DISCOVER is broadcast because the client does not yet have an address.</li>
+        <li><strong>xid is matching, not authentication.</strong> A 32-bit transaction ID lets a client discard unrelated replies. It does not prove that a reply came from a legitimate server.</li>
+        <li><strong>The broadcast flag is a workaround.</strong> A client that cannot receive unicast before its address is configured sets 0x8000 and asks the server to broadcast the reply.</li>
+        <li><strong>Lease timers are relative.</strong> Option 51 is the total lease. Options 58 and 59 are renewal (T1) and rebinding (T2) times. Servers should keep T1 &lt; T2 &lt; lease, but clients must tolerate unusual values.</li>
+        <li><strong>Option overload is legal.</strong> When option 52 is set, options may continue in <code>file</code>, <code>sname</code>, or both. Parse those areas before declaring an option missing.</li>
+        <li><strong>Repeated options are concatenated.</strong> RFC 3396 permits a long option to be split across multiple TLVs. Concatenate the values in order; do not keep only the first occurrence.</li>
+        <li><strong>Relay agent information is link metadata.</strong> Option 82 is added by a relay. A server must treat it as untrusted unless the relay is trusted, and the circuit-id format is deployment-specific.</li>
+        <li><strong>DHCPv6 is a different protocol.</strong> DHCPv6 uses UDP/546 and UDP/547, different message types and options, and RFC 8415. Do not parse DHCPv6 with a DHCPv4 decoder.</li>
+      </ul>
+
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2131" target="_blank" rel="noopener">RFC 2131</a><span>DHCPv4 operation and message flow</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2132" target="_blank" rel="noopener">RFC 2132</a><span>DHCP options and BOOTP vendor extensions</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3396" target="_blank" rel="noopener">RFC 3396</a><span>Option concatenation</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3046" target="_blank" rel="noopener">RFC 3046</a><span>Relay Agent Information option</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3442" target="_blank" rel="noopener">RFC 3442</a><span>Classless static routes</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6842" target="_blank" rel="noopener">RFC 6842</a><span>Client identifier handling</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8415" target="_blank" rel="noopener">RFC 8415</a><span>DHCPv6</span></li>
+        <li><a href="https://www.iana.org/assignments/bootp-dhcp-parameters/bootp-dhcp-parameters.xhtml" target="_blank" rel="noopener">IANA registry</a><span>BOOTP/DHCP option codes and message types</span></li>
+      </ul>
+
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="http.html">HTTP messages &amp; framing -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/protocol-meta.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/ethernet-codec.js"></script>
+<script src="assets/arp-codec.js"></script>
+<script src="assets/ipv4.js"></script>
+<script src="assets/udp-codec.js"></script>
+<script src="assets/dhcp-codec.js"></script>
+<script src="assets/dhcp.js"></script>
+</body>
+</html>
