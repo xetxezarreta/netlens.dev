@@ -31,12 +31,17 @@ imports that only work over HTTP.
 index.html              homepage, TCP/IP model, protocol cards, filter, global search
 404.html                custom not-found page
 about.html              conventions, shortcuts, sources; no rail protocol list
-dissect.html            cross-layer packet walk: layer tree, hex sync, warnings
+workbench.html          local pcap/pcapng capture workbench: list, filters, streams
 *.html                  one flat-URL protocol page per protocol
 css/styles.css          design system and all layout rules
 js/core.js              shared PH utilities, diagram engines, search, theme, chrome
 js/protocol-meta.js     PH_PROTOCOLS taxonomy + PH_STACK four-layer model
 js/search-index.js      static search index (every entry must resolve)
+js/pcap-codec.js        classic pcap + minimal pcapng reader/writer
+js/filter.js            workbench display-filter parser/evaluator
+js/streams.js           best-effort TCP stream assembly
+js/dissect-codec.js     cross-layer dissection engine + link-type wrapper
+js/dissect-view.js      shared layer tree, hexdump and field-detail renderer
 js/*-codec.js           pure-ish codecs, exported on window for tests and other pages
 js/*.js                 page wiring for one page
 fonts/                  embedded JetBrains Mono source + license
@@ -102,7 +107,7 @@ Diagram fields accept `id`, `name`, `bits` (or `bytes` for lanes), `range`, `des
 - Use `role="status" aria-live="polite"` for codec status elements.
 - Do not use `display:none` for form groups; use the `hidden` attribute.
 - Page-specific hash state uses keys such as `tls-enc`, `tls-dec`, `http-enc`, `http-dec`,
-  `dns-enc`, `udp-dec`, `dissect`. The generic page actions use `page:"form"` and
+  `dns-enc`, `udp-dec`, `workbench`. The generic page actions use `page:"form"` and
   `page:"snapshot"`; do not break those keys.
 
 ## Non-negotiable conventions
@@ -158,8 +163,8 @@ Diagram fields accept `id`, `name`, `bits` (or `bytes` for lanes), `range`, `des
    filter counts at runtime, but the static values should still match.
 6. **Search** — add a `kind:"protocol"` entry plus field/tool entries in
    `js/search-index.js`. Every `href` and `#anchor` must exist.
-7. **Dissector** — if the protocol can appear inside a frame, teach `js/dissect-codec.js`
-   to identify it and link to the page. Add a dissector example if useful.
+7. **Workbench** — if the protocol can appear inside a frame, teach `js/dissect-codec.js`
+   to identify it and link to the page. Add a workbench example if useful.
 8. **Docs** — update `README.md` and `about.html` (page list, layer table, RFC sources,
    conventions).
 9. **Chrome** — do **not** manually edit the header nav, footer links, rail protocol list, or
@@ -188,6 +193,7 @@ Codec tests (all should exit 0; `test-wg.js` is obsolete):
 test-udp.js  test-ipv6.js  test-icmp.js  test-icmp-vlan.js  test-l2.js
 test-ipv4.js test-tcp.js   test-quic.js  test-bgp.js        test-dns.js
 test-tls.js  test-http.js  test-dissect.js test-dissect2.js  test-arp-vlan.js
+test-pcap.js test-filter.js test-streams.js test-dissect-link.js
 ```
 
 Browser checks:
@@ -199,7 +205,7 @@ overflow16.js  no horizontal overflow from 320px to 1440px
 file17.js      file:// loading and codec interaction
 network17.js   zero external requests and no 4xx responses
 perm2.js       TLS/HTTP permalink and JSON export round trips
-deeppages.js   TLS/HTTP packet envelopes and dissector examples
+deeppages.js   TLS/HTTP packet envelopes and workbench examples
 ```
 
 Some older harness files (`all17.js`, `axe17.js`, `overflow17.js`) still list the removed
@@ -208,13 +214,14 @@ Some older harness files (`all17.js`, `axe17.js`, `overflow17.js`) still list th
 ```
 index.html ipv4.html icmp.html ipv6.html tcp.html udp.html dns.html dhcp.html
 http.html tls.html quic.html bgp.html ethernet.html arp.html
-dissect.html about.html 404.html
+workbench.html about.html 404.html
 ```
 
 Also run:
 
 ```sh
 for f in js/*.js; do "$NODE" --check "$f" || echo "FAIL $f"; done
+for f in tests/test-*.js; do "$NODE" "$f" || echo "FAIL $f"; done
 ```
 
 And validate links/anchors with a Python parser or an equivalent check. Search-index links are
@@ -233,7 +240,7 @@ part of the public surface; do not leave a stale `#anchor`.
 - **Duplicate IDs.** A status div and a status-code input previously shared an ID. Validate IDs
   after adding forms.
 - **`tcp.js` has a page guard** (`if (!document.getElementById("tcp-diagram")) return;`) so it
-  can be loaded on DNS, HTTP, TLS and dissector pages without a TCP diagram.
+  can be loaded on DNS, HTTP, TLS and workbench pages without a TCP diagram.
 - **IPv4 vs IPv6 builders differ.** `IPv4Codec.buildHeader` returns the header only;
   `IPv6Codec.buildHeader` returns header + payload.
 - **UDP checksums.** IPv4 may use zero; IPv6 requires a checksum; a computed zero is transmitted
@@ -242,7 +249,7 @@ part of the public surface; do not leave a stale `#anchor`.
   IPv6 checksum validation is skipped.
 - **DNS 0x20.** Name compression must preserve label case. Do not lower-case the compression
   dictionary keys.
-- **DNS auto-detection is permissive.** The dissector prioritises explicit port hints and
+- **DNS auto-detection is permissive.** The workbench decoder prioritises explicit port hints and
   rejects DNS candidates with severe parse warnings; otherwise TLS ClientHello bytes can look
   like a DNS header.
 - **TLS 1.3 encrypted boundary.** Only ClientHello and ServerHello are plaintext. Everything
@@ -252,6 +259,19 @@ part of the public surface; do not leave a stale `#anchor`.
 - **HPACK state is per connection.** Static table indices 1–61, dynamic entries share the
   connection, entry size is `name + value + 32`, eviction is oldest-first. The RFC 7541
   Huffman table in `http-codec.js` is exact; do not regenerate it by hand.
+- **pcap endianness.** Classic pcap magic decides both byte order and micro/nanosecond
+  timestamps. pcapng uses the SHB byte-order magic; do not assume little-endian.
+- **pcapng timestamps.** `if_tsresol` defaults to 10^-6 and may encode 2^-n when the high bit
+  is set. Simple Packet Blocks carry no timestamp.
+- **Record offsets, not copies.** `pcap-codec.js` stores `{offset, caplen}` into the original
+  buffer. Keep `capture.bytes` alive while a capture is open; never slice frames during parsing.
+- **Link-type offsets.** `Dissector.dissectLink` shifts inner layer offsets for SLL/SLL2 and
+  null/loopback. If you add a link type, keep offsets absolute to the frame or hex highlighting
+  will point at the wrong byte.
+- **Follow-stream is best-effort.** It orders by sequence, drops exact retransmissions and marks
+  gaps. It is not a TCP state machine and must not claim to reconstruct missing bytes.
+- **No capture persistence.** The workbench reads with the File API and keeps the capture in
+  memory. Do not add uploads, `fetch()`, IndexedDB or localStorage for capture bytes.
 - **HPACK pseudo-headers.** `parseHeaderText` accepts `:method`/`:path` only with
   `{ allowPseudo: true }`. HTTP/1.1 build must reject pseudo-headers.
 - **Long protocol names widen pages.** Keep `overflow-wrap: break-word` on prose; test 320px

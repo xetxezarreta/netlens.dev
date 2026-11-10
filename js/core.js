@@ -727,8 +727,8 @@
       `<div class="stack-model__head"><span>TCP/IP model</span><span data-stack-model-status>${entries.length} protocol pages · ${layers.length} layers</span></div>` +
       rows +
       `<div class="stack-model__foot"><span class="layer-code">ALL</span>` +
-      `<div><b>Packet dissector</b><small>one frame · every layer · hex sync</small></div>` +
-      `<a href="dissect.html">open dissector →</a></div>`;
+      `<div><b>Packet workbench</b><small>capture · filters · streams</small></div>` +
+      `<a href="workbench.html">open workbench →</a></div>`;
   }
 
   function initProtocolFilter() {
@@ -1313,6 +1313,18 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function downloadBytes(filename, bytes, mime) {
+    const blob = new Blob([bytes], { type: mime || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   function captureFormState() {
     const values = {};
     $$("main input[id], main select[id], main textarea[id]").forEach((el) => {
@@ -1489,7 +1501,7 @@
     u8, u16be, u16le, u32be, u32le, u64le, put16be, put16le, put32be, put32le, put64le,
     checksum16, checksumValid, parseIPv4, ipv4String, toast, copyText, setStatus,
     hexdump, diagram, fieldTable, byteLane, renderInspector, tabs, applyTheme, openSearch, initStacks,
-    encodeState, decodeState, readHashState, hashForState, shareState, downloadText,
+    encodeState, decodeState, readHashState, hashForState, shareState, downloadText, downloadBytes,
     bytesToBase64Url, base64UrlToBytes, captureFormState, applyFormState, pageSnapshot
   });
 

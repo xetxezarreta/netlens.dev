@@ -13,7 +13,12 @@ window.PH_SEARCH = [
   {kind:"protocol", p:"bgp", name:"BGP path attributes", meta:"application · routing · RFC 4271 · UPDATE", href:"bgp.html", text:"routing control plane application layer l7 tcp 179 origin as_path next_hop med local_pref communities mp_reach nlri flags transitive optional"},
   {kind:"protocol", p:"ethernet", name:"Ethernet II frames", meta:"link · IEEE 802.3 · FCS", href:"ethernet.html", text:"link layer l2 ethernet frame mac address ethertype 802.1q vlan pcp dei vid fcs crc32 payload preamble broadcast multicast"},
   {kind:"protocol", p:"arp", name:"ARP", meta:"link · RFC 826 · 28 B", href:"arp.html", text:"link layer address resolution protocol arp ipv4 mac broadcast request reply opcode gratuitous probe ethernet 0x0806"},
-  {kind:"protocol", p:"dissect", name:"Packet dissector", meta:"cross-layer · one frame", href:"dissect.html", text:"packet dissector cross layer layer tree ethernet vlan arp ipv4 ipv6 tcp udp icmp dns tls http payload hex offsets warnings"},
+  {kind:"protocol", p:"workbench", name:"Packet workbench", meta:"cross-layer · pcap/pcapng · local-only", href:"workbench.html", text:"packet workbench pcap pcapng capture file packet list display filter conversations endpoints follow tcp stream reassembly local offline no upload export csv json pcap"},
+  {kind:"field", p:"workbench", name:"pcap import", meta:"capture · local-only", href:"workbench.html#load", text:"pcap pcapng capture file drop drag drop open capture read file no upload browser"},
+  {kind:"field", p:"workbench", name:"Display filter", meta:"tcp · udp · ip · frame", href:"workbench.html#packets", text:"display filter expression tcp udp ip ipv6 port addr syn frame.len dns.qname tls.sni http.method and or not cidr"},
+  {kind:"field", p:"workbench", name:"Follow TCP stream", meta:"reassembly · best-effort", href:"workbench.html#detail", text:"follow tcp stream reassembly sequence retransmission gap payload http dns tls"},
+  {kind:"field", p:"workbench", name:"Conversations & endpoints", meta:"statistics · filtered", href:"workbench.html#stats", text:"conversations endpoints protocols statistics top talkers bytes packets duration"},
+  {kind:"field", p:"workbench", name:"Link types", meta:"Ethernet · SLL · raw IP", href:"workbench.html#limits", text:"link type ethernet linux sll sll2 null loopback raw ip ipv4 ipv6 supported formats"},
   {kind:"protocol", p:"about", name:"About & conventions", meta:"reference · conventions", href:"about.html", text:"tcp/ip stack model layer grouping bit numbering network order endianness rfc sources keyboard shortcuts"},
 
   /* IPv4 */
@@ -308,15 +313,15 @@ window.PH_SEARCH = [
 
 
 
-  /* dissector */
-  {kind:"tool", p:"dissect", name:"Packet walk", meta:"cross-layer · tool", href:"dissect.html#walk", text:"packet walk dissector paste frame ethernet ip tcp udp dns layer chain", popular:true},
-  {kind:"tool", p:"dissect", name:"Layer tree", meta:"cross-layer · tool", href:"dissect.html#tree", text:"layer tree encapsulation expand layers offsets highlights"},
-  {kind:"tool", p:"dissect", name:"Ethernet frame dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"ethernet frame mac vlan ethertype fcs dissect"},
-  {kind:"tool", p:"dissect", name:"IPv4 packet dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"ipv4 packet protocol tcp udp icmp dissect"},
-  {kind:"tool", p:"dissect", name:"IPv6 packet dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"ipv6 packet extension header next header dissect"},
-  {kind:"tool", p:"dissect", name:"DNS payload dissect", meta:"cross-layer · tool", href:"dissect.html#walk", text:"dns payload udp 53 query response records dissect"},
-  {kind:"tool", p:"dissect", name:"TLS record dissect", meta:"cross-layer · tool", href:"dissect.html#limits", text:"tls record handshake application data encrypted dissect"},
-  {kind:"tool", p:"dissect", name:"Dissector limits", meta:"cross-layer · tool", href:"dissect.html#limits", text:"no decryption no reassembly fragments tcp stream opaque payload"},
+  /* workbench */
+  {kind:"tool", p:"workbench", name:"Packet walk", meta:"cross-layer · capture", href:"workbench.html#detail", text:"packet walk layer tree ethernet ip tcp udp dns payload offsets highlights", popular:true},
+  {kind:"tool", p:"workbench", name:"Layer tree", meta:"cross-layer · capture", href:"workbench.html#detail", text:"layer tree encapsulation expand layers offsets highlights"},
+  {kind:"tool", p:"workbench", name:"Ethernet frame dissect", meta:"cross-layer · capture", href:"workbench.html#packets", text:"ethernet frame mac vlan ethertype fcs dissect"},
+  {kind:"tool", p:"workbench", name:"IPv4 packet dissect", meta:"cross-layer · capture", href:"workbench.html#packets", text:"ipv4 packet protocol tcp udp icmp dissect"},
+  {kind:"tool", p:"workbench", name:"IPv6 packet dissect", meta:"cross-layer · capture", href:"workbench.html#packets", text:"ipv6 packet extension header next header dissect"},
+  {kind:"tool", p:"workbench", name:"DNS payload dissect", meta:"cross-layer · capture", href:"workbench.html#packets", text:"dns payload udp 53 query response records dissect"},
+  {kind:"tool", p:"workbench", name:"TLS record dissect", meta:"cross-layer · capture", href:"workbench.html#detail", text:"tls record handshake application data encrypted dissect"},
+  {kind:"tool", p:"workbench", name:"Workbench limits", meta:"cross-layer · capture", href:"workbench.html#limits", text:"no decryption no reassembly fragments tcp stream opaque payload"},
 
   {kind:"tool", p:"http", name:"HTTP framing decoder", meta:"tool · HTTP/1.1", href:"http.html#decode", text:"http decode request response content length chunked framing"},
   {kind:"tool", p:"http", name:"HPACK encoder / decoder", meta:"tool · HTTP/2", href:"http.html#hpack", text:"hpack encode decode huffman static dynamic table header block"},

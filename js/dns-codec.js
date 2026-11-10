@@ -1,5 +1,5 @@
 /* DNS (RFC 1035, RFC 6891, RFC 3596) message codec — shared by the DNS page,
-   the packet dissector and tests. */
+   the workbench and tests. */
 (function (global) {
   "use strict";
 

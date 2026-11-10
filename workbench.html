@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Packet workbench — open a capture, follow the stack · netlens.dev</title>
+<meta name="description" content="Open a pcap or pcapng capture in your browser: packet list, display filters, conversations, follow TCP stream and field-level dissection. Parsed locally, never uploaded.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols>
+        <noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript>
+      </div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#load">open a capture</a></li>
+        <li><a href="#packets">packet list</a></li>
+        <li><a href="#detail">packet detail</a></li>
+        <li><a href="#stats">conversations</a></li>
+        <li><a href="#limits">limits</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Nothing leaves the browser.</b> The file is read with the File API and parsed locally. No upload, no fetch, no account.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>workbench</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Packet workbench <span class="on">// pcap + pcapng</span></h1>
+      <p class="lead">
+        Drop a capture and read it like a packet list: every frame, every layer, every offset.
+        Filter by protocol or field, follow an unencrypted TCP stream, inspect conversations,
+        then read every field in the packet detail. The file is parsed in this tab
+        and never leaves your browser.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>local-only</b> · nothing uploaded</span>
+        <span class="badge">pcap</span>
+        <span class="badge">pcapng</span>
+        <span class="badge">display filters</span>
+        <span class="badge">follow TCP stream</span>
+        <a class="badge" href="index.html#protocols">protocol field sheets</a>
+      </div>
+      <div class="page-meta">
+        <span><b>input</b> pcap / pcapng / pasted hex</span>
+        <span><b>walk</b> link → network → transport → app</span>
+        <span><b>output</b> packet list, fields, streams</span>
+        <span><b>limits</b> no decryption or IP reassembly</span>
+      </div>
+      <div class="stackbar" data-stack="workbench"></div>
+      <ul class="toc">
+        <li><a href="#load">load</a></li>
+        <li><a href="#packets">packets</a></li>
+        <li><a href="#detail">detail</a></li>
+        <li><a href="#stats">stats</a></li>
+        <li><a href="#limits">limits</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="load">
+      <div class="section__head">
+        <h2><span class="num">01</span>Open a capture</h2>
+        <span class="section__hint">drag, choose a file, or paste one frame</span>
+      </div>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>capture input</h3><span class="tag" id="wb-file-tag">waiting</span></div>
+        <div class="codec-panel__body">
+          <label class="wb-drop" id="wb-drop" for="wb-file" tabindex="0">
+            <span class="wb-drop__icon" aria-hidden="true">[ + ]</span>
+            <span class="wb-drop__title">Drop a pcap or pcapng file</span>
+            <span class="wb-drop__hint">or click to choose · parsed locally · nothing uploaded</span>
+            <input id="wb-file" type="file" accept=".pcap,.pcapng,.cap,application/vnd.tcpdump.pcap,application/octet-stream" hidden>
+          </label>
+
+          <div class="wb-load-row">
+            <button class="btn btn--ghost" type="button" id="wb-example">Load example capture</button>
+            <button class="btn btn--ghost" type="button" id="wb-clear">Clear capture</button>
+            <span class="wb-load-note">20,000 packets / 50 MB per capture in this build.</span>
+          </div>
+
+          <details class="wb-hex-details">
+            <summary>Paste one frame as hex instead</summary>
+            <div class="form-field" style="margin-top:10px">
+              <label for="wb-hex">hex input <span class="units">Ethernet frame, IPv4 packet, IPv6 packet or raw bytes</span></label>
+              <textarea id="wb-hex" class="hex-input" rows="4" spellcheck="false" placeholder="Paste a hex frame, or use the example above."></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn" type="button" id="wb-hex-load">Dissect this frame</button>
+            </div>
+          </details>
+
+          <div class="codec-status" id="wb-status" role="status" aria-live="polite">No capture loaded yet.</div>
+          <div class="wb-progress" id="wb-progress" hidden>
+            <div class="wb-progress__bar"><span id="wb-progress-fill"></span></div>
+            <span id="wb-progress-text">Parsing…</span>
+          </div>
+          <div class="decode-summary" id="wb-capture-summary"></div>
+          <div id="wb-load-warnings"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="packets">
+      <div class="section__head">
+        <h2><span class="num">02</span>Packet list</h2>
+        <span class="section__hint">filter by protocol, address, port or frame field</span>
+      </div>
+
+      <div class="wb-toolbar">
+        <div class="wb-filter-row">
+          <label for="wb-filter">display filter</label>
+          <input type="search" id="wb-filter" placeholder="tcp and tcp.flags.syn == 1" autocomplete="off" spellcheck="false" aria-describedby="wb-filter-status">
+          <button class="btn" type="button" id="wb-filter-apply">Apply</button>
+          <button class="btn btn--ghost" type="button" id="wb-filter-clear">Clear</button>
+          <span class="wb-filter-status" id="wb-filter-status" role="status" aria-live="polite">all packets</span>
+        </div>
+        <div class="wb-chips" id="wb-filter-chips" aria-label="Filter examples"></div>
+        <p class="small dim wb-filter-help">
+          Supported: protocols, <code>ip.addr</code>, <code>ipv6.addr</code>, <code>net.addr</code>,
+          <code>tcp.port</code>, <code>udp.port</code>, <code>tcp.flags.syn</code>, <code>frame.len</code>,
+          <code>dns.qname</code>, <code>tls.sni</code>, <code>http.method</code> and <code>and</code>/<code>or</code>/<code>not</code>.
+        </p>
+      </div>
+
+      <div class="wb-list-wrap">
+        <div class="wb-list-head" aria-hidden="true">
+          <span>#</span><span>time</span><span>source</span><span>destination</span><span>proto</span><span>len</span><span>info</span>
+        </div>
+        <div class="wb-list" id="wb-list" role="listbox" aria-label="Packets" tabindex="0"></div>
+        <div class="wb-empty" id="wb-empty">Open a capture to see packets here.</div>
+      </div>
+      <div class="wb-list-foot">
+        <button class="btn btn--ghost" type="button" id="wb-more" hidden>Show more packets</button>
+        <span id="wb-list-count" class="small dim">0 packets</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn--ghost" type="button" id="wb-permalink">Copy link to selected packet</button>
+        <button class="btn btn--ghost" type="button" id="wb-export-csv">Download filtered CSV</button>
+        <button class="btn btn--ghost" type="button" id="wb-export-json">Download analysis JSON</button>
+        <button class="btn btn--ghost" type="button" id="wb-export-pcap">Download filtered pcap</button>
+      </div>
+    </section>
+
+    <section class="section" id="detail">
+      <div class="section__head">
+        <h2><span class="num">03</span>Packet detail</h2>
+        <span class="section__hint">click a packet · hover a layer · read every byte</span>
+      </div>
+
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>selected packet</h3><span class="tag" id="wb-detail-tag">waiting</span></div>
+        <div class="codec-panel__body">
+          <div class="codec-status" id="wb-detail-status" role="status" aria-live="polite">Select a packet in the list.</div>
+          <div class="decode-summary" id="wb-detail-summary"></div>
+
+          <div class="dissect-layout">
+            <div class="dissect-tree" aria-label="Decoded layer tree">
+              <div class="dissect-tree__head">layer tree</div>
+              <div id="wb-tree"></div>
+            </div>
+            <div class="dissect-view">
+              <div id="wb-hexdump" class="dissect-hexdump"></div>
+              <div id="wb-detail"></div>
+            </div>
+          </div>
+
+          <div id="wb-warnings"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="stats">
+      <div class="section__head">
+        <h2><span class="num">04</span>Conversations</h2>
+        <span class="section__hint">counts and bytes for the current filter</span>
+      </div>
+
+      <div class="tabs" role="tablist" data-tabs aria-label="Workbench statistics">
+        <button class="tab" type="button" role="tab" id="wb-tab-conv" aria-controls="wb-panel-conv" aria-selected="true">conversations</button>
+        <button class="tab" type="button" role="tab" id="wb-tab-protos" aria-controls="wb-panel-protos" aria-selected="false">protocols</button>
+        <button class="tab" type="button" role="tab" id="wb-tab-endpoints" aria-controls="wb-panel-endpoints" aria-selected="false">endpoints</button>
+      </div>
+      <div class="tab-panel" id="wb-panel-conv" role="tabpanel" aria-labelledby="wb-tab-conv">
+        <div id="wb-stats-conv" class="wb-stats"></div>
+      </div>
+      <div class="tab-panel" id="wb-panel-protos" role="tabpanel" aria-labelledby="wb-tab-protos" hidden>
+        <div id="wb-stats-protos" class="wb-stats"></div>
+      </div>
+      <div class="tab-panel" id="wb-panel-endpoints" role="tabpanel" aria-labelledby="wb-tab-endpoints" hidden>
+        <div id="wb-stats-endpoints" class="wb-stats"></div>
+      </div>
+    </section>
+
+    <section class="section" id="limits">
+      <div class="section__head">
+        <h2><span class="num">05</span>Formats, filters &amp; limits</h2>
+        <span class="section__hint">what this build deliberately does not do</span>
+      </div>
+
+      <p>
+        The workbench reads classic pcap and a practical subset of pcapng. It follows the same
+        encapsulation chain as the protocol pages: Ethernet,
+        VLAN, Linux SLL/SLL2, null/loopback, raw IP, IPv4/IPv6, TCP/UDP/ICMP, then DNS, DHCP,
+        HTTP, TLS and opaque payloads.
+      </p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Input</th><th>Support</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><b>Classic pcap</b></td><td>microsecond and nanosecond, both byte orders</td><td>Global header, record headers, snaplen checks.</td></tr>
+            <tr><td><b>pcapng</b></td><td>SHB, IDB, EPB, SPB; multiple interfaces</td><td>Honours <code>if_tsresol</code>. One section per file.</td></tr>
+            <tr><td><b>Link types</b></td><td>Ethernet, raw IP, IPv4, IPv6, Linux SLL/SLL2, null/loopback</td><td>Other link types are shown as raw bytes with a warning.</td></tr>
+            <tr><td><b>Timestamps</b></td><td>absolute UTC and relative to packet 1</td><td>Simple Packet Blocks have no timestamp and show “—”.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ul class="dashed">
+        <li><strong>No decryption.</strong> TLS application data, QUIC protected packets, ESP and encrypted BGP sessions remain opaque.</li>
+        <li><strong>No IP reassembly.</strong> Non-initial IPv4/IPv6 fragments have no transport header. The walk marks fragment data and stops.</li>
+        <li><strong>No full TCP state machine.</strong> Follow-stream orders payload by sequence, drops exact retransmissions and shows gaps; it does not invent missing bytes.</li>
+        <li><strong>Filters are a subset.</strong> This is not Wireshark display-filter syntax. Unknown fields fail with a message instead of silently matching nothing.</li>
+        <li><strong>Bounded input.</strong> This build caps a capture at 20,000 packets / 50 MB and a frame at 256 KB.</li>
+        <li><strong>No upload.</strong> The File API reads the capture into this tab. There is no <code>fetch()</code>, no backend and no account.</li>
+      </ul>
+
+      <div class="callout callout--warn">
+        <div class="callout__title">captures can be hostile</div>
+        <p>Treat every capture as untrusted input. Every block and record is bounds-checked, decoded strings are escaped, and parsing is bounded. Clean parsing is not a security guarantee.</p>
+      </div>
+
+      <div class="next-protocol">
+        <span>field sheets</span>
+        <a href="index.html#protocols">All protocols -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ethernet-codec.js"></script>
+<script src="js/arp-codec.js"></script>
+<script src="js/ipv4.js"></script>
+<script src="js/ipv6-codec.js"></script>
+<script src="js/tcp.js"></script>
+<script src="js/udp-codec.js"></script>
+<script src="js/icmp-codec.js"></script>
+<script src="js/dns-codec.js"></script>
+<script src="js/dhcp-codec.js"></script>
+<script src="js/tls-codec.js"></script>
+<script src="js/http-codec.js"></script>
+<script src="js/dissect-codec.js"></script>
+<script src="js/dissect-view.js"></script>
+<script src="js/pcap-codec.js"></script>
+<script src="js/filter.js"></script>
+<script src="js/streams.js"></script>
+<script src="js/workbench.js"></script>
+</body>
+</html>

@@ -29,7 +29,7 @@ option.
 ## What is inside
 
 - **13 protocol pages:** BGP, DNS, DHCP, HTTP, TLS, TCP, UDP, QUIC, IPv4, IPv6, ICMP, Ethernet, ARP
-- **Packet dissector:** one frame, every layer, with offset-linked hex
+- **Packet workbench:** open a pcap/pcapng capture locally, browse the packet list, filter by field, follow an unencrypted TCP stream and inspect conversations
 - **Interactive diagrams:** bit and byte layouts with offsets, ranges and RFC citations
 - **Encoders and decoders:** structural checks, checksums and copyable output
 - **Search:** protocols, fields, flags, RFCs and hex
@@ -38,6 +38,8 @@ option.
 - **Custom 404 page:** `404.html`
 
 Protocols follow a strict four-layer TCP/IP model: Application, Transport, Internet and Link.
+Captures are parsed with the File API and never uploaded; the workbench keeps them in memory
+only.
 
 ## Layout
 
@@ -45,12 +47,17 @@ Protocols follow a strict four-layer TCP/IP model: Application, Transport, Inter
 index.html              homepage, TCP/IP model, protocol index and search
 404.html                not-found page
 about.html              conventions, shortcuts and RFC sources
-dissect.html            cross-layer packet walk
+workbench.html          local pcap/pcapng capture workbench
 *.html                  one flat-URL page per protocol
 css/styles.css          design system and layout
 js/core.js              shared utilities, diagrams, search, theme and chrome
 js/protocol-meta.js     TCP/IP taxonomy and stack model
 js/search-index.js      static search index
+js/pcap-codec.js        classic pcap and pcapng reader/writer
+js/filter.js            workbench display-filter parser and evaluator
+js/streams.js           best-effort TCP stream reassembly
+js/dissect-codec.js     cross-layer dissection engine
+js/dissect-view.js      shared layer tree, hexdump and field-detail renderer
 js/*-codec.js           shared protocol codecs
 js/*.js                 page wiring and page-local codecs
 fonts/                  JetBrains Mono (SIL OFL) + license
@@ -61,6 +68,8 @@ fonts/                  JetBrains Mono (SIL OFL) + license
 - Bit 0 is the MSB of the first octet; offsets start at the first byte of the described structure.
 - Network byte order is big-endian. HTTP/1.1 is text; HTTP/2 and TLS use big-endian integers.
 - URLs stay flat (`icmp.html`, not `/icmp`). Clean URLs require server rewrites.
+- The workbench reads classic pcap and pcapng (SHB/IDB/EPB/SPB) and supports Ethernet, raw IP,
+  IPv4, IPv6, Linux SLL/SLL2 and null/loopback link types. Captures are never uploaded or stored.
 - Serve `404.html` with a 404 status for missing paths. For nginx:
   `error_page 404 /404.html;`
 - RFCs are the source of truth. Verify against the current RFC, errata and your implementation

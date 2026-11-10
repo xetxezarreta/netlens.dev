@@ -224,15 +224,15 @@ window.PH_PROTOCOLS = {
       { label: "IPv4 address", note: "resolution" }
     ]
   },
-  dissect: {
-    name: "Dissector",
+  workbench: {
+    name: "Workbench",
     layer: "tools",
     modelLayer: "tools",
-    modelNote: "one frame · every layer",
-    tone: "h",
+    modelNote: "pcap · filters · streams",
+    tone: "b",
     layerCode: "ALL",
     layerLabel: "Cross-layer",
-    layerNote: "link → network → transport → app",
+    layerNote: "capture → packet list → fields",
     railLayer: "tool",
     family: "tools",
     path: [
@@ -240,8 +240,7 @@ window.PH_PROTOCOLS = {
       { label: "IPv4 / IPv6", href: "ipv4.html", note: "internet" },
       { label: "TCP / UDP / ICMP", href: "udp.html", note: "transport" },
       { label: "Application", href: "dns.html", note: "application" },
-      { label: "HTTP / TLS", href: "http.html", note: "application" },
-      { label: "Dissector", href: "dissect.html", note: "ALL", current: true }
+      { label: "Workbench", href: "workbench.html", note: "ALL", current: true }
     ]
   }
 };

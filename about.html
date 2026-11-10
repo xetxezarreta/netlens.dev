@@ -56,18 +56,19 @@
       <section class="section" id="about">
         <h2>What this is</h2>
         <p>
-          Thirteen protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP — plus a cross-layer
-          <a href="dissect.html">packet dissector</a>. Each protocol page has an interactive bit or byte
+          Thirteen protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP — plus a local <a href="workbench.html">packet workbench</a> for pcap/pcapng captures. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
         </p>
         <p>
           Every protocol page has a <strong>copy page link</strong> button that serializes the visible
           codec fields into the URL hash. A permalink restores the inputs; encoder panels rebuild
-          their output, and the DNS, DHCP, UDP and dissector links also re-run their decoders. Every
+          their output, and the DNS, DHCP and UDP links also re-run their decoders. Every
           protocol and tool page can download a JSON snapshot of its fields and outputs; the
-          packet dissector can also copy a BPF filter or a Scapy snippet for the frame on screen.
-          Nothing is uploaded: the URL is the entire state.
+          workbench can also copy a BPF filter or a Scapy snippet for the selected frame.
+          The workbench permalink carries the selected frame and filter, not the whole capture.
+          Nothing is uploaded: the URL is the entire state, and a capture stays in memory until
+          you clear it or close the tab.
         </p>
         <p>
           The design borrows the density and keyboard-friendly feel of a systems reference:
@@ -168,6 +169,9 @@
           <kbd>↵</kbd><span>Open the selected result.</span>
           <kbd>Esc</kbd><span>Close the search dialog or clear a pinned diagram field.</span>
           <kbd>Tab</kbd><span>Move through diagram fields and controls; diagrams are buttons.</span>
+          <kbd>↑ ↓</kbd><span>Move through the workbench packet list when it has focus.</span>
+          <kbd>Home End</kbd><span>Jump to the first or last packet in the current workbench filter.</span>
+          <kbd>↵</kbd><span>Jump from the workbench packet list to packet detail.</span>
         </div>
         <p class="mt-16">
           The search index covers protocol names, field names, option kinds, RFC numbers and
@@ -324,7 +328,9 @@
         <h3>Privacy &amp; tech</h3>
         <p>
           No cookies, analytics, fonts from third parties or background requests. The only
-          client-side storage is a theme preference in <code>localStorage</code>. The typeface is
+          client-side storage is a theme preference in <code>localStorage</code>. The workbench
+          reads a capture with the File API, parses it in memory and never uploads or stores it.
+          The typeface is
           JetBrains Mono (SIL Open Font License); the license text is in <a href="fonts/OFL.txt">fonts/OFL.txt</a>. Everything else is hand-written HTML, CSS and
           JavaScript. External RFC links open only when you click them.
         </p>

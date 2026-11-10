@@ -714,13 +714,151 @@
     return all;
   }
 
+  function rawLayer(bytes, note) {
+    return layer({
+      proto: "raw", name: "Raw bytes", offset: 0, length: bytes.length,
+      summary: bytes.length + " B · " + (note || "not an Ethernet frame, IPv4 packet or IPv6 packet"),
+      fields: [field("Length", bytes.length + " B"), field("First bytes", PH.bytesToHex(bytes.subarray(0, 16)))],
+      warnings: [], depth: 0
+    });
+  }
+
+  /* ---------- link types used by captures ---------- */
+
+  function linkLayerResult(result, fullBytes, headerLen, linkSpec) {
+    result.layers.forEach((item) => { item.offset = (item.offset || 0) + headerLen; });
+    result.layers.unshift(layer(Object.assign({
+      offset: 0, length: headerLen, depth: 0, fields: [], warnings: []
+    }, linkSpec)));
+    result.bytes = fullBytes;
+    result.totalBytes = fullBytes.length;
+    result.detectedAs = linkSpec.name;
+    result.summary = result.layers.map((item) => item.name).join(" → ");
+    result.deepest = result.layers[result.layers.length - 1];
+    return result;
+  }
+
+  function arpOnly(payload) {
+    const arp = global.ARPCodec.decodeArp(payload);
+    return {
+      bytes: payload,
+      layers: [layer({
+        proto: "arp", name: "ARP", offset: 0, length: arp.messageLength,
+        summary: arp.opcodeName + " · " + arp.senderIp + " (" + arp.senderMac + ") → " + arp.targetIp + " (" + arp.targetMac + ")",
+        fields: [field("Hardware", arp.htype + " · " + arp.hardwareName),
+          field("Protocol", "0x" + PH.hex(arp.ptype, 4) + " · " + arp.protocolName),
+          field("Opcode", arp.opcode + " · " + arp.opcodeName),
+          field("Sender MAC", arp.senderMac), field("Sender IP", arp.senderIp),
+          field("Target MAC", arp.targetMac), field("Target IP", arp.targetIp),
+          field("Padding", arp.paddingLength + " B")],
+        warnings: arp.warnings.slice(), depth: 1, href: "arp.html", meta: { arp }
+      })],
+      warnings: arp.warnings.slice(),
+      detectedAs: "ARP",
+      summary: "ARP",
+      totalBytes: payload.length,
+      deepest: null
+    };
+  }
+
+  function sllPacketType(value) {
+    return ["host", "broadcast", "multicast", "other host", "outgoing"][value] || ("type " + value);
+  }
+
+  function dissectLink(input, linkType) {
+    const bytes = input instanceof Uint8Array ? input : Uint8Array.from(input || []);
+    const type = Number(linkType);
+    if (type === 1) return dissect(bytes, { kind: "ethernet" });
+    if (type === 228) return dissect(bytes, { kind: "ipv4" });
+    if (type === 229) return dissect(bytes, { kind: "ipv6" });
+    if (type === 101) {
+      const version = bytes.length ? (bytes[0] >> 4) : 0;
+      return dissect(bytes, { kind: version === 6 ? "ipv6" : "ipv4" });
+    }
+    if (type === 0) {
+      if (bytes.length < 4) return dissect(bytes, { kind: "raw", note: "truncated null/loopback header" });
+      const le = PH.u32le(bytes, 0);
+      const be = PH.u32be(bytes, 0);
+      let family = null;
+      let kind = null;
+      [le, be].forEach((value) => {
+        if (kind) return;
+        if (value === 2) { family = value; kind = "ipv4"; }
+        else if (value === 10 || value === 24 || value === 28 || value === 30) { family = value; kind = "ipv6"; }
+      });
+      if (!kind) {
+        return dissect(bytes, { kind: "raw", note: "unknown null/loopback address family" });
+      }
+      const inner = dissect(bytes.subarray(4), { kind });
+      return linkLayerResult(inner, bytes, 4, {
+        proto: "link", name: "Null / loopback",
+        summary: "address family " + family + " · " + (kind === "ipv4" ? "IPv4" : "IPv6"),
+        fields: [field("Address family", family + " · " + (kind === "ipv4" ? "AF_INET" : "AF_INET6"))]
+      });
+    }
+    if (type === 113) {
+      if (bytes.length < 16) return dissect(bytes, { kind: "raw", note: "truncated Linux SLL header" });
+      const packetType = PH.u16be(bytes, 0);
+      const arphrd = PH.u16be(bytes, 2);
+      const addrLen = Math.min(PH.u16be(bytes, 4), 8);
+      const address = bytes.subarray(6, 6 + addrLen);
+      const protocol = PH.u16be(bytes, 14);
+      const link = {
+        proto: "link", name: "Linux SLL",
+        summary: "if " + arphrd + " · " + sllPacketType(packetType) + " · " + nameForEtherType(protocol),
+        fields: [field("Packet type", packetType + " · " + sllPacketType(packetType)),
+          field("ARPHRD", arphrd), field("Address length", addrLen),
+          field("Address", mac(address)), field("Protocol", "0x" + PH.hex(protocol, 4))]
+      };
+      if (protocol === 0x0800 || protocol === 0x86dd) {
+        return linkLayerResult(dissect(bytes.subarray(16), { kind: protocol === 0x0800 ? "ipv4" : "ipv6" }), bytes, 16, link);
+      }
+      if (protocol === 0x0806 && global.ARPCodec) {
+        try { return linkLayerResult(arpOnly(bytes.subarray(16)), bytes, 16, link); }
+        catch (err) { return dissect(bytes, { kind: "raw", note: "SLL ARP decode failed: " + err.message }); }
+      }
+      return linkLayerResult(dissect(bytes.subarray(16), { kind: "raw", note: "SLL payload" }), bytes, 16, link);
+    }
+    if (type === 276) {
+      if (bytes.length < 20) return dissect(bytes, { kind: "raw", note: "truncated Linux SLL2 header" });
+      const protocol = PH.u16be(bytes, 0);
+      const ifIndex = PH.u32be(bytes, 4);
+      const arphrd = PH.u16be(bytes, 8);
+      const packetType = bytes[10];
+      const addrLen = Math.min(bytes[11], 8);
+      const address = bytes.subarray(12, 12 + addrLen);
+      const link = {
+        proto: "link", name: "Linux SLL2",
+        summary: "if " + ifIndex + " · " + sllPacketType(packetType) + " · " + nameForEtherType(protocol),
+        fields: [field("Protocol", "0x" + PH.hex(protocol, 4)),
+          field("Interface index", ifIndex), field("ARPHRD", arphrd),
+          field("Packet type", packetType + " · " + sllPacketType(packetType)),
+          field("Address length", addrLen), field("Address", mac(address))]
+      };
+      if (protocol === 0x0800 || protocol === 0x86dd) {
+        return linkLayerResult(dissect(bytes.subarray(20), { kind: protocol === 0x0800 ? "ipv4" : "ipv6" }), bytes, 20, link);
+      }
+      if (protocol === 0x0806 && global.ARPCodec) {
+        try { return linkLayerResult(arpOnly(bytes.subarray(20)), bytes, 20, link); }
+        catch (err) { return dissect(bytes, { kind: "raw", note: "SLL2 ARP decode failed: " + err.message }); }
+      }
+      return linkLayerResult(dissect(bytes.subarray(20), { kind: "raw", note: "SLL2 payload" }), bytes, 20, link);
+    }
+    const name = global.PCapCodec ? global.PCapCodec.linkTypeName(type) : ("link type " + type);
+    const result = dissect(bytes, { kind: "raw", note: "link type " + type + " (" + name + ") is not decoded" });
+    result.warnings.push("Link type " + type + " (" + name + ") is not decoded; showing raw bytes.");
+    return result;
+  }
+
   function dissect(input, opts) {
     let bytes = input instanceof Uint8Array ? input : Uint8Array.from(input || []);
     const options = opts || {};
     const state = { warnings: [] };
     let layers;
     try {
-      if (options.kind === "ethernet" || (options.kind !== "ipv4" && options.kind !== "ipv6" && looksLikeEthernet(bytes))) {
+      if (options.kind === "raw") {
+        layers = [rawLayer(bytes, options.note)];
+      } else if (options.kind === "ethernet" || (options.kind !== "ipv4" && options.kind !== "ipv6" && looksLikeEthernet(bytes))) {
         if (!global.EthernetCodec) throw new Error("Ethernet codec is not loaded");
         layers = decodeEthernet(bytes, state);
       } else if (options.kind === "ipv6" || ((bytes[0] >> 4) === 6 && !(options.kind === "ipv4"))) {
@@ -730,12 +868,7 @@
         if (!global.IPv4Codec) throw new Error("IPv4 codec is not loaded");
         layers = decodeIpv4(bytes, 0, state, 4);
       } else {
-        layers = [layer({
-          proto: "raw", name: "Raw bytes", offset: 0, length: bytes.length,
-          summary: bytes.length + " B · not an Ethernet frame, IPv4 packet or IPv6 packet",
-          fields: [field("Length", bytes.length + " B"), field("First bytes", PH.bytesToHex(bytes.subarray(0, 16)))],
-          warnings: [], depth: 0
-        })];
+        layers = [rawLayer(bytes)];
       }
     } catch (err) {
       layers = [layer({
@@ -757,5 +890,5 @@
     };
   }
 
-  global.Dissector = { dissect, looksLikeEthernet, nameForProtocol, nameForEtherType, applicationLayer };
+  global.Dissector = { dissect, dissectLink, looksLikeEthernet, nameForProtocol, nameForEtherType, applicationLayer };
 })(window);

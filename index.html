@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>netlens.dev — Interactive packet field guide</title>
-<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP, plus a cross-layer packet dissector, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
+<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP, plus a local pcap/pcapng packet workbench, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
 <meta name="theme-color" content="#0b0e14">
 <meta property="og:type" content="website">
 <meta property="og:title" content="netlens.dev — Interactive packet field guide">
@@ -32,7 +32,7 @@
           it in the browser. <strong>No capture file required.</strong>
         </p>
         <div class="hero__actions">
-          <a class="btn btn--primary" href="dissect.html">Packet dissector <span aria-hidden="true">-&gt;</span></a>
+          <a class="btn btn--primary" href="workbench.html">Packet workbench <span aria-hidden="true">-&gt;</span></a>
           <a class="btn" href="#stack">TCP/IP map</a>
           <a class="btn" href="#protocols">All protocols</a>
         </div>
@@ -280,16 +280,16 @@
           <div class="protocol-card__meta"><span class="layer">link · resolution</span><span>28 B message</span><span>opcodes</span><span>EtherType 0x0806</span></div>
         </a>
 
-        <a class="protocol-card" href="dissect.html" data-layer="tools">
-          <div class="protocol-card__top"><span class="protocol-card__num">+</span><span class="protocol-card__rfc">CROSS-LAYER</span></div>
-          <h3>Packet dissector</h3>
-          <p>One frame, every layer: Ethernet, VLAN, IP, TCP/UDP/ICMP, DNS, HTTP, TLS and opaque payloads with offset-linked hex.</p>
+        <a class="protocol-card" href="workbench.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">+</span><span class="protocol-card__rfc">PCAP · PCAPNG</span></div>
+          <h3>Packet workbench</h3>
+          <p>Open a capture in the browser: packet list, display filters, conversations, follow TCP stream and field-level detail. Parsed locally, never uploaded.</p>
           <div class="protocol-card__bits" aria-hidden="true">
-            <i style="--span:14;--tone:var(--tone-a)"></i><i style="--span:18;--tone:var(--tone-b)"></i>
-            <i style="--span:20;--tone:var(--tone-c)"></i><i style="--span:12;--tone:var(--tone-d)"></i>
-            <i style="--span:8;--tone:var(--tone-e)"></i><i style="--span:24;--tone:var(--tone-f)"></i>
+            <i style="--span:12;--tone:var(--tone-a)"></i><i style="--span:20;--tone:var(--tone-b)"></i>
+            <i style="--span:24;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i>
+            <i style="--span:16;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i>
           </div>
-          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>layer tree</span><span>hex sync</span><span>warnings</span></div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>pcap / pcapng</span><span>local-only</span><span>streams</span></div>
         </a>
       </div>
     </section>
@@ -307,7 +307,7 @@
           <input type="search" placeholder="Search 100+ fields, flags, option kinds and RFCs…" aria-label="Search the field index" autocomplete="off" spellcheck="false">
           <button class="btn" type="button" data-search-open>Open full search <span aria-hidden="true">/</span></button>
         </div>
-        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · dhcp · http · tls · quic · bgp · ethernet · arp · dissect</span><span>fuzzy search across every page</span></div>
+        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · dhcp · http · tls · quic · bgp · ethernet · arp · workbench</span><span>fuzzy search across every page</span></div>
         <ul class="home-search__results"></ul>
       </form>
     </section>
