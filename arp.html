@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ARP — address resolution, opcodes &amp; Ethernet framing · netlens.dev</title>
-<meta name="description" content="Interactive ARP message diagram: hardware/protocol types, opcodes, sender and target MAC/IP fields, ARP probes and gratuitous ARP, plus a raw/Ethernet-wrapped encoder and decoder.">
+<meta name="description" content="Interactive ARP message diagram and step-by-step address resolution animation: hardware/protocol types, opcodes, sender and target MAC/IP fields, ARP probes and gratuitous ARP, plus a raw/Ethernet-wrapped encoder and decoder.">
 <meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/styles.css">
@@ -28,6 +28,7 @@
       <p class="rail__label">on this page</p>
       <ul>
         <li><a href="#layout">message layout</a></li>
+        <li><a href="#resolution">resolution</a></li>
         <li><a href="#opcodes">opcodes</a></li>
         <li><a href="#encode">encoder</a></li>
         <li><a href="#decode">decoder</a></li>
@@ -66,6 +67,7 @@
       <div class="stackbar" data-stack="arp"></div>
       <ul class="toc">
         <li><a href="#layout">layout</a></li>
+        <li><a href="#resolution">resolution</a></li>
         <li><a href="#opcodes">opcodes</a></li>
         <li><a href="#encode">encode</a></li>
         <li><a href="#decode">decode</a></li>
@@ -101,9 +103,140 @@
       <div class="field-detail" id="arp-frame-inspector"></div>
     </section>
 
+    <section class="section" id="resolution">
+      <div class="section__head">
+        <h2><span class="num">02</span>How a LAN resolves an address</h2>
+        <span class="section__hint">five frames · broadcast then unicast</span>
+      </div>
+      <p>
+        Host A has an IPv4 packet for <code>192.0.2.1</code> but no MAC address for the next
+        hop. Watch the exchange that fills that gap: an ARP cache miss, a broadcast
+        <strong>who-has</strong>, a switch flooding it to every port, one host answering
+        <strong>is-at</strong>, and A caching the mapping. Press <strong>Play</strong> to
+        animate the exchange, or move one frame at a time with <strong>Next</strong> and
+        <strong>Back</strong>.
+      </p>
+
+      <div class="arp-flow" id="arp-flow">
+        <div class="arp-flow__head">
+          <h3>who-has 192.0.2.1?</h3>
+          <span class="tag" id="arp-flow-counter">step 1 / 5</span>
+        </div>
+
+        <div class="arp-flow__scroll" tabindex="0" role="group" aria-label="ARP resolution diagram, scroll horizontally to see every host">
+          <div class="arp-flow__inner">
+            <svg class="arp-flow__svg" viewBox="0 0 720 336" role="img" aria-labelledby="arp-flow-svg-title arp-flow-svg-desc">
+              <title id="arp-flow-svg-title">ARP request and reply on a switched LAN</title>
+              <desc id="arp-flow-svg-desc">Host A at 192.0.2.10 broadcasts an ARP request for 192.0.2.1. The switch floods the broadcast to host B, which owns that address, and host C, which discards it. Host B replies with its MAC address 02:00:00:00:00:01 and host A caches the mapping.</desc>
+
+              <g class="arp-link" data-link="a-switch">
+                <line x1="190" y1="172" x2="300" y2="172"></line>
+              </g>
+              <g class="arp-link" data-link="switch-b">
+                <line x1="410" y1="172" x2="530" y2="80"></line>
+              </g>
+              <g class="arp-link" data-link="switch-c">
+                <line x1="410" y1="172" x2="530" y2="260"></line>
+              </g>
+
+              <g class="arp-node arp-node--a" data-node="a">
+                <rect x="20" y="110" width="170" height="124" rx="2"></rect>
+                <text class="n-label" x="34" y="133">HOST A · REQUESTER</text>
+                <text class="n-ip" x="34" y="160">192.0.2.10</text>
+                <text class="n-mac" x="34" y="179">02:00:00:00:00:0a</text>
+                <text class="n-note" id="arp-node-a-note" x="34" y="203">cache: empty</text>
+              </g>
+
+              <g class="arp-node arp-node--switch" data-node="switch">
+                <rect x="300" y="142" width="110" height="60" rx="2"></rect>
+                <text class="n-label" x="355" y="164" text-anchor="middle">SWITCH</text>
+                <text class="n-note" x="355" y="182" text-anchor="middle">floods broadcast</text>
+              </g>
+
+              <g class="arp-node arp-node--b" data-node="b">
+                <rect x="530" y="20" width="170" height="120" rx="2"></rect>
+                <text class="n-label" x="544" y="43">HOST B · TARGET</text>
+                <text class="n-ip" x="544" y="70">192.0.2.1</text>
+                <text class="n-mac" x="544" y="89">02:00:00:00:00:01</text>
+                <text class="n-note" id="arp-node-b-note" x="544" y="113">waiting</text>
+              </g>
+
+              <g class="arp-node arp-node--c" data-node="c">
+                <rect x="530" y="195" width="170" height="120" rx="2"></rect>
+                <text class="n-label" x="544" y="218">HOST C · BYSTANDER</text>
+                <text class="n-ip" x="544" y="245">192.0.2.20</text>
+                <text class="n-mac" x="544" y="264">02:00:00:00:00:14</text>
+                <text class="n-note" id="arp-node-c-note" x="544" y="288">waiting</text>
+              </g>
+
+              <g class="arp-packet arp-packet--req" data-token="reqA" style="transform: translate(200px, 172px)">
+                <rect x="-56" y="-19" width="112" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">ARP request</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">who-has 192.0.2.1?</text>
+              </g>
+              <g class="arp-packet arp-packet--req" data-token="reqB" style="transform: translate(410px, 172px)">
+                <rect x="-52" y="-19" width="104" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">broadcast</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">to host B</text>
+              </g>
+              <g class="arp-packet arp-packet--req" data-token="reqC" style="transform: translate(410px, 172px)">
+                <rect x="-52" y="-19" width="104" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">broadcast</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">to host C</text>
+              </g>
+              <g class="arp-packet arp-packet--reply" data-token="replyIn" style="transform: translate(530px, 80px)">
+                <rect x="-56" y="-19" width="112" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">ARP reply</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">is-at 02:…:01</text>
+              </g>
+              <g class="arp-packet arp-packet--reply" data-token="replyOut" style="transform: translate(410px, 172px)">
+                <rect x="-56" y="-19" width="112" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">ARP reply</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">is-at 02:…:01</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="arp-flow__body">
+          <div class="arp-flow__narration">
+            <p class="arp-flow__kicker">now · <span id="arp-flow-step">1</span> of 5</p>
+            <p class="arp-flow__caption" id="arp-flow-caption" role="status" aria-live="polite"><b>Cache miss.</b> Host A wants to send an IPv4 packet to <code>192.0.2.1</code>. It looks up the next hop in its ARP cache and finds no entry, so it cannot build the Ethernet destination yet.</p>
+          </div>
+          <div class="arp-flow__cache">
+            <div class="arp-flow__cache-head"><span>host A · ARP cache</span><span id="arp-flow-cache-state">empty</span></div>
+            <table class="arp-cache">
+              <thead><tr><th>IPv4</th><th>MAC</th><th>state</th></tr></thead>
+              <tbody id="arp-flow-cache-body"><tr><td colspan="3" class="is-empty">no entries</td></tr></tbody>
+            </table>
+            <p class="arp-flow__footnote">The pending row is illustrative; cache policy is implementation-specific.</p>
+          </div>
+        </div>
+
+        <div class="arp-flow__controls">
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="arp-flow-play">Play</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-prev" disabled>Back</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-next">Next</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-reset">Reset</button>
+          </div>
+          <div class="arp-flow__progress" id="arp-flow-progress" aria-hidden="true">
+            <span class="is-current"></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">Flooded request, targeted reply</div>
+        <p>The switch floods the broadcast out of every other port. Each host compares the ARP
+        target IP with its own address; only the owner answers. A stores the returned MAC
+        locally, so the next IPv4 frame can be unicast instead of broadcast.</p>
+      </div>
+    </section>
+
     <section class="section" id="opcodes">
       <div class="section__head">
-        <h2><span class="num">02</span>Opcodes &amp; common messages</h2>
+        <h2><span class="num">03</span>Opcodes &amp; common messages</h2>
         <span class="section__hint">1 request · 2 reply</span>
       </div>
       <p>
@@ -142,7 +275,7 @@
 
     <section class="section" id="encode">
       <div class="section__head">
-        <h2><span class="num">03</span>Encoder</h2>
+        <h2><span class="num">04</span>Encoder</h2>
         <span class="section__hint">raw ARP or Ethernet-wrapped</span>
       </div>
       <p>
@@ -232,7 +365,7 @@
 
     <section class="section" id="decode">
       <div class="section__head">
-        <h2><span class="num">04</span>Decoder</h2>
+        <h2><span class="num">05</span>Decoder</h2>
         <span class="section__hint">raw ARP or Ethernet frame</span>
       </div>
       <p>
@@ -261,7 +394,7 @@
 
     <section class="section" id="notes">
       <div class="section__head">
-        <h2><span class="num">05</span>Wire notes</h2>
+        <h2><span class="num">06</span>Wire notes</h2>
         <span class="section__hint">what every LAN operator eventually learns</span>
       </div>
       <div class="callout">

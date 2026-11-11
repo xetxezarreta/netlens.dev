@@ -12,7 +12,7 @@ window.PH_SEARCH = [
   {kind:"protocol", p:"quic", name:"QUIC frames & headers", meta:"transport · RFC 9000 · varint", href:"quic.html", text:"transport encrypted tls l4 long header short header frame stream ack crypto connection close varint spin key phase"},
   {kind:"protocol", p:"bgp", name:"BGP path attributes", meta:"application · routing · RFC 4271 · UPDATE", href:"bgp.html", text:"routing control plane application layer l7 tcp 179 origin as_path next_hop med local_pref communities mp_reach nlri flags transitive optional"},
   {kind:"protocol", p:"ethernet", name:"Ethernet II frames", meta:"link · IEEE 802.3 · FCS", href:"ethernet.html", text:"link layer l2 ethernet frame mac address ethertype 802.1q vlan pcp dei vid fcs crc32 payload preamble broadcast multicast"},
-  {kind:"protocol", p:"arp", name:"ARP", meta:"link · RFC 826 · 28 B", href:"arp.html", text:"link layer address resolution protocol arp ipv4 mac broadcast request reply opcode gratuitous probe ethernet 0x0806"},
+  {kind:"protocol", p:"arp", name:"ARP", meta:"link · RFC 826 · 28 B", href:"arp.html", text:"link layer address resolution protocol arp ipv4 mac broadcast request reply opcode gratuitous probe ethernet 0x0806 cache who-has is-at"},
   {kind:"protocol", p:"workbench", name:"Packet workbench", meta:"cross-layer · pcap/pcapng · local-only", href:"workbench.html", text:"packet workbench pcap pcapng capture file packet list display filter conversations endpoints follow tcp stream reassembly local offline no upload export csv json pcap"},
   {kind:"field", p:"workbench", name:"pcap import", meta:"capture · local-only", href:"workbench.html#load", text:"pcap pcapng capture file drop drag drop open capture read file no upload browser"},
   {kind:"field", p:"workbench", name:"Display filter", meta:"tcp · udp · ip · frame", href:"workbench.html#packets", text:"display filter expression tcp udp ip ipv6 port addr syn frame.len dns.qname tls.sni http.method and or not cidr"},
@@ -114,6 +114,7 @@ window.PH_SEARCH = [
   {kind:"field", p:"arp", name:"ARP probe", meta:"SPA 0.0.0.0 · ARP", href:"arp.html#opcodes", text:"probe duplicate address detection conflict rfc 5227", popular:true},
   {kind:"field", p:"arp", name:"Gratuitous ARP", meta:"SPA = TPA · ARP", href:"arp.html#opcodes", text:"gratuitous announce failover cache refresh"},
   {kind:"field", p:"arp", name:"Broadcast request", meta:"Ethernet dest ff:ff… · ARP", href:"arp.html#layout", text:"broadcast who-has tell request"},
+  {kind:"field", p:"arp", name:"ARP resolution", meta:"who-has → is-at · ARP", href:"arp.html#resolution", text:"animation step by step cache miss broadcast switch flood who-has is-at mac discovery", popular:true},
 
   /* TCP */
   {kind:"field", p:"tcp", name:"Source Port", meta:"bits 0–15 · TCP", href:"tcp.html#layout", text:"src port 0 65535"},

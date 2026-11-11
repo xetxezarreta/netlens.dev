@@ -20,6 +20,67 @@
 
   let diagramController = null;
 
+  const FLOW_STEPS = [
+    {
+      caption: "<b>Cache miss.</b> Host A wants to send an IPv4 packet to <code>192.0.2.1</code>. It looks up the next hop in its ARP cache and finds no entry, so it cannot build the Ethernet destination yet.",
+      cache: "empty",
+      notes: { a: "cache: miss", b: "waiting", c: "waiting" },
+      tokens: {},
+      active: ["a"],
+      match: [],
+      ignored: [],
+      links: []
+    },
+    {
+      caption: "<b>A broadcasts the question.</b> A sends an ARP request from <code>192.0.2.10</code> asking who owns <code>192.0.2.1</code>. The target MAC is all zeroes and the Ethernet destination is <code>ff:ff:ff:ff:ff:ff</code>.",
+      cache: "pending",
+      notes: { a: "cache: resolving", b: "waiting", c: "waiting" },
+      tokens: { reqA: [255, 172] },
+      active: ["a"],
+      match: [],
+      ignored: [],
+      links: ["a-switch"]
+    },
+    {
+      caption: "<b>The switch floods every port.</b> Host C compares the target IP with its own address and discards the frame. Host B owns <code>192.0.2.1</code>, so it accepts the request and prepares a reply.",
+      cache: "pending",
+      notes: { a: "cache: resolving", b: "target matches", c: "not my IP" },
+      tokens: { reqB: [470, 126], reqC: [470, 220] },
+      active: ["switch"],
+      match: ["b"],
+      ignored: ["c"],
+      links: ["switch-b", "switch-c"]
+    },
+    {
+      caption: "<b>B answers with its MAC.</b> Host B sends a unicast ARP reply to A: <code>192.0.2.1 is-at 02:00:00:00:00:01</code>. Unlike the request, this frame is addressed to A's MAC.",
+      cache: "pending",
+      notes: { a: "cache: resolving", b: "sends reply", c: "discards" },
+      tokens: { replyIn: [470, 126] },
+      active: [],
+      match: ["b"],
+      ignored: ["c"],
+      links: ["switch-b"]
+    },
+    {
+      caption: "<b>A caches the mapping.</b> Host A stores <code>192.0.2.1 → 02:00:00:00:00:01</code>. The next IPv4 frame for B can now use B's MAC as the Ethernet destination and be unicast through the switch.",
+      cache: "resolved",
+      notes: { a: "cache: resolved", b: "target matches", c: "discards" },
+      tokens: { replyOut: [255, 172] },
+      active: ["a"],
+      match: ["b"],
+      ignored: ["c"],
+      links: ["a-switch"]
+    }
+  ];
+
+  const TOKEN_HOME = {
+    reqA: [200, 172],
+    reqB: [410, 172],
+    reqC: [410, 172],
+    replyIn: [530, 80],
+    replyOut: [410, 172]
+  };
+
   function buildSample() {
     const arp = A.buildArp({
       opcode: 1,
@@ -277,11 +338,145 @@
     });
   }
 
+  function initFlow() {
+    const flow = document.getElementById("arp-flow");
+    if (!flow) return;
+
+    const caption = document.getElementById("arp-flow-caption");
+    const counter = document.getElementById("arp-flow-counter");
+    const stepLabel = document.getElementById("arp-flow-step");
+    const cacheBody = document.getElementById("arp-flow-cache-body");
+    const cacheState = document.getElementById("arp-flow-cache-state");
+    const playBtn = document.getElementById("arp-flow-play");
+    const prevBtn = document.getElementById("arp-flow-prev");
+    const nextBtn = document.getElementById("arp-flow-next");
+    const resetBtn = document.getElementById("arp-flow-reset");
+    const dots = Array.from(document.querySelectorAll("#arp-flow-progress span"));
+    const noteA = document.getElementById("arp-node-a-note");
+    const noteB = document.getElementById("arp-node-b-note");
+    const noteC = document.getElementById("arp-node-c-note");
+
+    const nodes = {};
+    flow.querySelectorAll("[data-node]").forEach((el) => { nodes[el.dataset.node] = el; });
+    const links = {};
+    flow.querySelectorAll("[data-link]").forEach((el) => { links[el.dataset.link] = el; });
+    const tokens = {};
+    flow.querySelectorAll("[data-token]").forEach((el) => { tokens[el.dataset.token] = el; });
+
+    let step = 1;
+    let playing = false;
+    let timer = null;
+
+    function syncControls() {
+      playBtn.textContent = playing ? "Pause" : step >= FLOW_STEPS.length ? "Replay" : "Play";
+      prevBtn.disabled = step <= 1;
+      nextBtn.disabled = step >= FLOW_STEPS.length;
+      counter.textContent = `step ${step} / ${FLOW_STEPS.length}`;
+      stepLabel.textContent = String(step);
+      dots.forEach((dot, index) => dot.classList.toggle("is-current", index === step - 1));
+    }
+
+    function renderCache(state) {
+      if (state === "empty") {
+        cacheBody.innerHTML = '<tr><td colspan="3" class="is-empty">no entries</td></tr>';
+        cacheState.textContent = "empty";
+        cacheState.className = "is-empty";
+      } else if (state === "pending") {
+        cacheBody.innerHTML = '<tr><td><code>192.0.2.1</code></td><td><code>?</code></td><td class="is-pending">pending</td></tr>';
+        cacheState.textContent = "1 pending";
+        cacheState.className = "is-pending";
+      } else {
+        cacheBody.innerHTML = '<tr><td><code>192.0.2.1</code></td><td><code>02:00:00:00:00:01</code></td><td class="is-resolved">resolved</td></tr>';
+        cacheState.textContent = "1 entry";
+        cacheState.className = "is-resolved";
+      }
+    }
+
+    function applyStep(index) {
+      const current = FLOW_STEPS[index - 1];
+      caption.innerHTML = current.caption;
+      noteA.textContent = current.notes.a;
+      noteB.textContent = current.notes.b;
+      noteC.textContent = current.notes.c;
+
+      Object.keys(tokens).forEach((name) => {
+        const el = tokens[name];
+        const position = current.tokens[name];
+        if (position) {
+          el.style.transform = `translate(${position[0]}px, ${position[1]}px)`;
+          el.classList.add("is-visible");
+        } else {
+          el.classList.remove("is-visible");
+          const home = TOKEN_HOME[name];
+          if (home) el.style.transform = `translate(${home[0]}px, ${home[1]}px)`;
+        }
+      });
+
+      Object.keys(nodes).forEach((name) => {
+        nodes[name].classList.toggle("is-active", current.active.includes(name));
+        nodes[name].classList.toggle("is-match", current.match.includes(name));
+        nodes[name].classList.toggle("is-ignored", current.ignored.includes(name));
+      });
+
+      Object.keys(links).forEach((name) => {
+        links[name].classList.toggle("is-active", current.links.includes(name));
+      });
+
+      renderCache(current.cache);
+      syncControls();
+    }
+
+    function pause() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      playing = false;
+      syncControls();
+    }
+
+    function tick() {
+      timer = setTimeout(() => {
+        timer = null;
+        if (!playing) return;
+        if (step >= FLOW_STEPS.length) { pause(); return; }
+        step += 1;
+        applyStep(step);
+        if (step >= FLOW_STEPS.length) pause();
+        else tick();
+      }, 1900);
+    }
+
+    playBtn.addEventListener("click", () => {
+      if (playing) { pause(); return; }
+      if (step >= FLOW_STEPS.length) { step = 1; applyStep(step); }
+      playing = true;
+      syncControls();
+      tick();
+    });
+
+    prevBtn.addEventListener("click", () => {
+      pause();
+      if (step > 1) { step -= 1; applyStep(step); }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      pause();
+      if (step < FLOW_STEPS.length) { step += 1; applyStep(step); }
+    });
+
+    resetBtn.addEventListener("click", () => {
+      pause();
+      step = 1;
+      applyStep(step);
+    });
+
+    applyStep(step);
+  }
+
   function init() {
     if (!document.getElementById("arp-diagram")) return;
     initDiagrams();
     initEncoder();
     initDecoder();
+    initFlow();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
