@@ -13,6 +13,53 @@
     groups: "https://www.rfc-editor.org/rfc/rfc8422"
   };
 
+  const TLS_STEPS = [
+    {
+      caption: "<b>ClientHello.</b> The client offers TLS 1.3, cipher suites, a key share and extensions. This is a plaintext Handshake record: a capture can read it.",
+      client: "ClientHello sent", server: "listening", record: "Handshake", keys: "plaintext", capture: "readable",
+      state: "plaintext", stateClass: "warn-text", active: ["client"], match: ["server"]
+    },
+    {
+      caption: "<b>ServerHello.</b> The server selects the version, cipher suite and key share. ServerHello is the last plaintext handshake message; after it, both sides derive handshake traffic keys.",
+      client: "ServerHello received", server: "keys derived", record: "Handshake", keys: "plaintext", capture: "readable",
+      state: "boundary", stateClass: "warn-text", active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>EncryptedExtensions.</b> The server sends the extensions that must stay hidden until keys exist, including ALPN. This message is already inside an Application Data record protected with handshake keys.",
+      client: "handshake keys", server: "extensions sent", record: "Application Data", keys: "handshake traffic keys", capture: "AEAD ciphertext",
+      state: "encrypted", stateClass: "good-text", active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>Certificate.</b> The server's certificate chain is encrypted with handshake keys. A capture without the keys shows ciphertext, not a parseable certificate; this page's decoder cannot decrypt it.",
+      client: "certificate", server: "certificate sent", record: "Application Data", keys: "handshake traffic keys", capture: "AEAD ciphertext",
+      state: "encrypted", stateClass: "good-text", active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>CertificateVerify.</b> The server signs the handshake transcript with the private key for its certificate. The signature is encrypted like the certificate.",
+      client: "signature verified", server: "signature sent", record: "Application Data", keys: "handshake traffic keys", capture: "AEAD ciphertext",
+      state: "encrypted", stateClass: "good-text", active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>Finished (server).</b> The server sends an HMAC over the transcript using the finished key. The client verifies it before trusting the handshake; the message is still encrypted with handshake keys.",
+      client: "server Finished verified", server: "Finished sent", record: "Application Data", keys: "handshake traffic keys", capture: "AEAD ciphertext",
+      state: "encrypted", stateClass: "good-text", active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>Finished (client).</b> The client sends its own Finished. After this, application traffic keys are installed and HTTP or another application protocol can flow inside Application Data records.",
+      client: "handshake complete", server: "application keys", record: "Application Data", keys: "handshake keys → app keys", capture: "AEAD ciphertext",
+      state: "complete", stateClass: "good-text", active: ["client"], match: ["server"]
+    }
+  ];
+
+  const TLS_TOKEN_HOME = {
+    1: [220, 125], 2: [500, 165], 3: [500, 205], 4: [500, 245],
+    5: [500, 285], 6: [500, 325], 7: [220, 365]
+  };
+  const TLS_TOKEN_TARGET = {
+    1: [500, 125], 2: [220, 165], 3: [220, 205], 4: [220, 245],
+    5: [220, 285], 6: [220, 325], 7: [500, 365]
+  };
+
   const lanes = {};
 
   function initDiagrams() {
@@ -679,11 +726,65 @@
     return false;
   }
 
+  function initSequence() {
+    const flow = document.getElementById("tls-flow");
+    if (!flow) return;
+
+    const caption = document.getElementById("tls-flow-caption");
+    const state = document.getElementById("tls-flow-state");
+    const table = document.getElementById("tls-flow-table");
+    const clientState = document.getElementById("tls-node-client-state");
+    const serverState = document.getElementById("tls-node-server-state");
+    const clientNode = flow.querySelector('[data-node="client"]');
+    const serverNode = flow.querySelector('[data-node="server"]');
+    const rows = Array.from(flow.querySelectorAll("[data-row]"));
+    const tokens = Array.from(flow.querySelectorAll("[data-token]"));
+
+    function applyStep(index) {
+      const step = TLS_STEPS[index - 1];
+      caption.innerHTML = step.caption;
+      clientState.textContent = step.client;
+      serverState.textContent = step.server;
+      state.textContent = step.state;
+      state.className = step.stateClass;
+      table.innerHTML =
+        `<tr><td>record</td><td>${step.record}</td></tr>` +
+        `<tr><td>protection</td><td>${step.keys}</td></tr>` +
+        `<tr><td>capture</td><td>${step.capture}</td></tr>`;
+      flow.classList.toggle("is-encrypted", index >= 2);
+
+      rows.forEach((row, i) => {
+        const number = i + 1;
+        row.classList.toggle("is-done", number < index);
+        row.classList.toggle("is-active", number === index);
+      });
+
+      clientNode.classList.toggle("is-active", step.active.includes("client"));
+      clientNode.classList.toggle("is-match", step.match.includes("client"));
+      serverNode.classList.toggle("is-active", step.active.includes("server"));
+      serverNode.classList.toggle("is-match", step.match.includes("server"));
+
+      tokens.forEach((token, i) => {
+        const number = i + 1;
+        if (number <= index) {
+          token.style.transform = `translate(${TLS_TOKEN_TARGET[number][0]}px, ${TLS_TOKEN_TARGET[number][1]}px)`;
+          token.classList.add("is-visible");
+        } else {
+          token.classList.remove("is-visible");
+          token.style.transform = `translate(${TLS_TOKEN_HOME[number][0]}px, ${TLS_TOKEN_HOME[number][1]}px)`;
+        }
+      });
+    }
+
+    PH.stepFlow({ root: flow, count: TLS_STEPS.length, onStep: applyStep });
+  }
+
   function init() {
     if (!document.getElementById("tls-record-lane")) return;
     initDiagrams();
     initEncoder();
     initDecoder();
+    initSequence();
     if (!restoreState()) buildFromForm(false);
   }
 

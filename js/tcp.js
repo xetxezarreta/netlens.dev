@@ -29,6 +29,78 @@
     { key: "fin", mask: 0x01, bit: 111, letter: "F", name: "FIN" }
   ];
 
+  const TCP_STEPS = [
+    {
+      caption: "<b>SYN.</b> The client picks an initial sequence number <code>x=1000</code> and sends SYN with no data. It moves to SYN-SENT; the server is still LISTEN.",
+      client: "SYN-SENT", server: "LISTEN", segment: "SYN · seq 1000",
+      state: "opening", stateClass: "warn-text",
+      active: ["client"], match: ["server"]
+    },
+    {
+      caption: "<b>SYN/ACK.</b> The server picks <code>y=5000</code> and replies with SYN+ACK: <code>seq 5000</code>, <code>ack 1001</code>. SYN consumes one sequence number, so the client's next byte is 1001. The server is SYN-RECEIVED.",
+      client: "SYN-SENT", server: "SYN-RECEIVED", segment: "SYN/ACK · seq 5000 · ack 1001",
+      state: "opening", stateClass: "warn-text",
+      active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>ACK.</b> The client acknowledges the server's SYN with <code>ack 5001</code>. Both sides are ESTABLISHED; no application data has been sent yet.",
+      client: "ESTABLISHED", server: "ESTABLISHED", segment: "ACK · ack 5001",
+      state: "established", stateClass: "good-text",
+      active: ["client"], match: ["server"]
+    },
+    {
+      caption: "<b>DATA is lost.</b> The client sends 100 bytes at <code>seq 1001</code> with ACK 5001. The segment never reaches the server, so no ACK comes back. The client keeps the bytes and starts a retransmission timer.",
+      client: "ESTABLISHED", server: "ESTABLISHED", segment: "DATA · seq 1001 · len 100",
+      state: "data lost", stateClass: "warn-text",
+      active: ["client"], match: []
+    },
+    {
+      caption: "<b>Retransmission.</b> The RTO expires and the client resends the same sequence range, <code>seq 1001</code>, length 100. TCP does not invent a new sequence number for a retransmission.",
+      client: "ESTABLISHED", server: "ESTABLISHED", segment: "DATA · seq 1001 · retransmit",
+      state: "retransmitting", stateClass: "warn-text",
+      active: ["client"], match: ["server"]
+    },
+    {
+      caption: "<b>ACK.</b> The server receives the retransmitted data and acknowledges the next expected byte, <code>ack 1101</code>. Both sides remain ESTABLISHED.",
+      client: "ESTABLISHED", server: "ESTABLISHED", segment: "ACK · ack 1101",
+      state: "established", stateClass: "good-text",
+      active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>FIN.</b> The client has nothing more to send. It sends FIN with <code>seq 1101</code> and <code>ack 5001</code>. FIN consumes one sequence number. The client enters FIN-WAIT-1; the server enters CLOSE-WAIT when the FIN arrives.",
+      client: "FIN-WAIT-1", server: "CLOSE-WAIT", segment: "FIN · seq 1101 · ack 5001",
+      state: "closing", stateClass: "warn-text",
+      active: ["client"], match: ["server"]
+    },
+    {
+      caption: "<b>ACK of FIN.</b> The server acknowledges the client's FIN with <code>ack 1102</code>. The client moves to FIN-WAIT-2 while the server may still send data in the other direction.",
+      client: "FIN-WAIT-2", server: "CLOSE-WAIT", segment: "ACK · ack 1102",
+      state: "closing", stateClass: "warn-text",
+      active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>FIN from the server.</b> The server closes its half with <code>seq 5001</code> and <code>ack 1102</code>. The client enters TIME-WAIT; the server enters LAST-ACK.",
+      client: "TIME-WAIT", server: "LAST-ACK", segment: "FIN · seq 5001 · ack 1102",
+      state: "closing", stateClass: "warn-text",
+      active: ["server"], match: ["client"]
+    },
+    {
+      caption: "<b>ACK.</b> The client acknowledges the server's FIN with <code>ack 5002</code>. The server is CLOSED. The client waits 2×MSL in TIME-WAIT so late duplicates cannot be mistaken for a new connection with the same port pair, then closes.",
+      client: "TIME-WAIT", server: "CLOSED", segment: "ACK · ack 5002",
+      state: "time-wait", stateClass: "good-text",
+      active: ["client"], match: ["server"]
+    }
+  ];
+
+  const TCP_TOKEN_HOME = {
+    1: [220, 125], 2: [500, 165], 3: [220, 205], 4: [220, 245], 5: [220, 285],
+    6: [500, 325], 7: [220, 365], 8: [500, 405], 9: [500, 445], 10: [220, 485]
+  };
+  const TCP_TOKEN_TARGET = {
+    1: [500, 125], 2: [220, 165], 3: [500, 205], 4: [435, 245], 5: [500, 285],
+    6: [220, 325], 7: [500, 365], 8: [220, 405], 9: [220, 445], 10: [500, 485]
+  };
+
   function optionName(kind) { return OPTION_NAMES[kind] || ("Kind " + kind); }
 
   function flagsToByte(obj) {
@@ -657,12 +729,71 @@
     });
   }
 
+  function initLifecycle() {
+    const flow = document.getElementById("tcp-flow");
+    if (!flow) return;
+
+    const caption = document.getElementById("tcp-flow-caption");
+    const state = document.getElementById("tcp-flow-state");
+    const table = document.getElementById("tcp-flow-table");
+    const clientState = document.getElementById("tcp-node-client-state");
+    const serverState = document.getElementById("tcp-node-server-state");
+    const clientNode = flow.querySelector('[data-node="client"]');
+    const serverNode = flow.querySelector('[data-node="server"]');
+    const rows = Array.from(flow.querySelectorAll("[data-row]"));
+    const tokens = Array.from(flow.querySelectorAll("[data-token]"));
+    const loss = flow.querySelector("[data-loss]");
+
+    function applyStep(index) {
+      const step = TCP_STEPS[index - 1];
+      caption.innerHTML = step.caption;
+      clientState.textContent = step.client;
+      serverState.textContent = step.server;
+      state.textContent = step.state;
+      state.className = step.stateClass;
+      table.innerHTML =
+        `<tr><td>client</td><td>${step.client}</td></tr>` +
+        `<tr><td>server</td><td>${step.server}</td></tr>` +
+        `<tr><td>segment</td><td>${step.segment}</td></tr>`;
+
+      rows.forEach((row, i) => {
+        const number = i + 1;
+        row.classList.toggle("is-done", number < index);
+        row.classList.toggle("is-active", number === index);
+      });
+
+      clientNode.classList.toggle("is-active", step.active.includes("client"));
+      clientNode.classList.toggle("is-match", step.match.includes("client"));
+      serverNode.classList.toggle("is-active", step.active.includes("server"));
+      serverNode.classList.toggle("is-match", step.match.includes("server"));
+
+      tokens.forEach((token, i) => {
+        const number = i + 1;
+        if (number <= index) {
+          token.style.transform = `translate(${TCP_TOKEN_TARGET[number][0]}px, ${TCP_TOKEN_TARGET[number][1]}px)`;
+          token.classList.add("is-visible");
+          if (number === 4) token.classList.toggle("is-lost", index >= 4);
+        } else {
+
+          token.classList.remove("is-visible");
+          token.classList.remove("is-lost");
+          token.style.transform = `translate(${TCP_TOKEN_HOME[number][0]}px, ${TCP_TOKEN_HOME[number][1]}px)`;
+        }
+      });
+
+      loss.classList.toggle("is-visible", index >= 4);
+    }
+
+    PH.stepFlow({ root: flow, count: TCP_STEPS.length, onStep: applyStep });
+  }
+
   function init() {
     if (!document.getElementById("tcp-diagram")) return;
     initDiagram();
     initFlags();
     initEncoder();
     initDecoder();
+    initLifecycle();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

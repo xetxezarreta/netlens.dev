@@ -11,6 +11,81 @@
     aaaa: "https://www.rfc-editor.org/rfc/rfc3596"
   };
 
+  const DNS_STEPS = [
+    {
+      caption: "<b>Cache miss.</b> The stub resolver has no cached answer and sends a recursive query with <code>RD=1</code> to its configured recursive resolver. It expects one final answer, not referrals.",
+      state: "miss", stateClass: "warn-text", mode: "",
+      active: ["stub"], match: ["resolver"], link: "stub-resolver",
+      stubNote: "cache miss", resolverNote: "cache miss",
+      answer: "—", ttl: "—", cache: "miss"
+    },
+    {
+      caption: "<b>Ask the root.</b> The resolver starts at a root server with an iterative query (<code>RD=0</code>) for <code>www.example.com A</code>.",
+      state: "iterating", stateClass: "warn-text", mode: "",
+      active: ["resolver"], match: ["root"], link: "resolver-root",
+      stubNote: "waiting", resolverNote: "asking root",
+      answer: "—", ttl: "—", cache: "miss"
+    },
+    {
+      caption: "<b>Root referral.</b> The root does not know the address. It returns the NS records for <code>.com</code>; the resolver caches the referral and follows it.",
+      state: "referral", stateClass: "warn-text", mode: "is-referral",
+      active: ["root"], match: ["resolver"], link: "resolver-root",
+      stubNote: "waiting", resolverNote: "referral cached",
+      answer: "—", ttl: "—", cache: ".com NS"
+    },
+    {
+      caption: "<b>Ask the .com TLD.</b> The resolver queries a <code>.com</code> name server for the same name.",
+      state: "iterating", stateClass: "warn-text", mode: "",
+      active: ["resolver"], match: ["tld"], link: "resolver-tld",
+      stubNote: "waiting", resolverNote: "asking .com",
+      answer: "—", ttl: "—", cache: ".com NS"
+    },
+    {
+      caption: "<b>TLD referral.</b> The TLD returns the NS records for <code>example.com</code>. The resolver caches those names and continues down the tree.",
+      state: "referral", stateClass: "warn-text", mode: "is-referral",
+      active: ["tld"], match: ["resolver"], link: "resolver-tld",
+      stubNote: "waiting", resolverNote: "referral cached",
+      answer: "—", ttl: "—", cache: ".com + example.com NS"
+    },
+    {
+      caption: "<b>Ask the authoritative server.</b> The resolver queries <code>example.com</code>'s authoritative name server.",
+      state: "iterating", stateClass: "warn-text", mode: "",
+      active: ["resolver"], match: ["auth"], link: "resolver-auth",
+      stubNote: "waiting", resolverNote: "asking auth",
+      answer: "—", ttl: "—", cache: ".com + example.com NS"
+    },
+    {
+      caption: "<b>Answer.</b> The authoritative server returns the A record <code>192.0.2.80</code> with TTL 300. This is authoritative data, not a cached guess.",
+      state: "answer", stateClass: "good-text", mode: "is-answer",
+      active: ["auth"], match: ["resolver"], link: "resolver-auth",
+      stubNote: "waiting", resolverNote: "answer received",
+      answer: "<code>192.0.2.80</code>", ttl: "300 s", cache: "answer received"
+    },
+    {
+      caption: "<b>Return the answer.</b> The resolver caches the record for 300 seconds and sends the final answer to the stub. The stub may cache it too.",
+      state: "cached", stateClass: "good-text", mode: "is-answer",
+      active: ["resolver"], match: ["stub"], link: "stub-resolver",
+      stubNote: "answer received", resolverNote: "cached",
+      answer: "<code>192.0.2.80</code>", ttl: "300 s", cache: "cached"
+    },
+    {
+      caption: "<b>Cache hit.</b> A second query for the same name is answered from the resolver cache. No root, TLD or authoritative traffic is needed until the TTL expires.",
+      state: "hit", stateClass: "good-text", mode: "is-cached",
+      active: ["resolver"], match: ["stub"], link: "stub-resolver",
+      stubNote: "cache hit", resolverNote: "cache hit",
+      answer: "<code>192.0.2.80</code>", ttl: "300 s", cache: "hit · 300 s"
+    }
+  ];
+
+  const DNS_TOKEN_HOME = {
+    1: [165, 155], 2: [445, 145], 3: [510, 65], 4: [445, 155], 5: [510, 155],
+    6: [445, 165], 7: [510, 245], 8: [235, 155], 9: [235, 155]
+  };
+  const DNS_TOKEN_TARGET = {
+    1: [235, 155], 2: [510, 65], 3: [445, 145], 4: [510, 155], 5: [445, 155],
+    6: [510, 245], 7: [445, 165], 8: [165, 155], 9: [165, 155]
+  };
+
   const headerFields = [
     {
       id: "id", name: "ID", bits: 16, range: "0–65535", rfc: "RFC 1035 §4.1.1", rfcUrl: RFC.base,
@@ -808,11 +883,66 @@
     return false;
   }
 
+  function initResolution() {
+    const flow = document.getElementById("dns-flow");
+    if (!flow) return;
+
+    const caption = document.getElementById("dns-flow-caption");
+    const state = document.getElementById("dns-flow-state");
+    const table = document.getElementById("dns-flow-table");
+    const stubNote = document.getElementById("dns-node-stub-note");
+    const resolverNote = document.getElementById("dns-node-resolver-note");
+    const nodes = {};
+    flow.querySelectorAll("[data-node]").forEach((node) => { nodes[node.dataset.node] = node; });
+    const links = {};
+    flow.querySelectorAll("[data-link]").forEach((link) => { links[link.dataset.link] = link; });
+    const tokens = Array.from(flow.querySelectorAll("[data-token]"));
+
+    function applyStep(index) {
+      const step = DNS_STEPS[index - 1];
+      caption.innerHTML = step.caption;
+      state.textContent = step.state;
+      state.className = step.stateClass;
+      stubNote.textContent = step.stubNote;
+      resolverNote.textContent = step.resolverNote;
+      table.innerHTML =
+        `<tr><td>answer</td><td>${step.answer}</td></tr>` +
+        `<tr><td>TTL</td><td>${step.ttl}</td></tr>` +
+        `<tr><td>cache</td><td>${step.cache}</td></tr>`;
+      flow.classList.toggle("is-referral", step.mode === "is-referral");
+      flow.classList.toggle("is-answer", step.mode === "is-answer");
+      flow.classList.toggle("is-cached", step.mode === "is-cached");
+
+      Object.keys(nodes).forEach((name) => {
+        nodes[name].classList.toggle("is-active", step.active.includes(name));
+        nodes[name].classList.toggle("is-match", step.match.includes(name));
+      });
+
+      Object.keys(links).forEach((name) => {
+        links[name].classList.toggle("is-active", name === step.link);
+      });
+
+      tokens.forEach((token, i) => {
+        const number = i + 1;
+        if (number === index) {
+          token.style.transform = `translate(${DNS_TOKEN_TARGET[number][0]}px, ${DNS_TOKEN_TARGET[number][1]}px)`;
+          token.classList.add("is-visible");
+        } else {
+          token.classList.remove("is-visible");
+          token.style.transform = `translate(${DNS_TOKEN_HOME[number][0]}px, ${DNS_TOKEN_HOME[number][1]}px)`;
+        }
+      });
+    }
+
+    PH.stepFlow({ root: flow, count: DNS_STEPS.length, onStep: applyStep });
+  }
+
   function init() {
     if (!document.getElementById("dns-diagram")) return;
     initDiagrams();
     initEncoder();
     initDecoder();
+    initResolution();
     if (!restoreState()) buildFromForm(false);
   }
 

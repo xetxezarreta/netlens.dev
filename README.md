@@ -31,7 +31,7 @@ option.
 - **13 protocol pages:** BGP, DNS, DHCP, HTTP, TLS, TCP, UDP, QUIC, IPv4, IPv6, ICMP, Ethernet, ARP
 - **Packet workbench:** open a pcap/pcapng capture locally, browse the packet list, filter by field, follow an unencrypted TCP stream and inspect conversations
 - **Interactive diagrams:** bit and byte layouts with offsets, ranges and RFC citations
-- **Animated exchange storyboards:** ARP address resolution and DHCP DORA, with play and step controls
+- **Animated exchange storyboards:** ARP resolution, DHCP DORA, TCP lifecycle, TLS 1.3 handshake, DNS resolution and ICMP traceroute, with play and step controls
 - **Encoders and decoders:** structural checks, checksums and copyable output
 - **Search:** protocols, fields, flags, RFCs and hex
 - **Shareable state:** permalinks and JSON export for page inputs and outputs

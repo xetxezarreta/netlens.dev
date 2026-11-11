@@ -20,6 +20,92 @@
   const SAMPLE_ECHO = "netlens.dev ping";
   const SAMPLE_TIMESTAMPS = "00 00 00 00 00 00 00 64 00 00 00 c8";
 
+  const ICMP_STEPS = [
+    {
+      caption: "<b>TTL 1 probe.</b> The source sends an Echo Request with TTL 1. R1 receives it, decrements the TTL to 0 and does not forward it.",
+      state: "probe 1", stateClass: "warn-text", mode: "",
+      active: ["source"], match: ["r1"], links: ["source-r1"],
+      sourceNote: "probing TTL 1", rows: []
+    },
+    {
+      caption: "<b>Time Exceeded from R1.</b> R1 returns ICMP Time Exceeded (type 11, code 0) with the original datagram quoted. The source learns the first hop.",
+      state: "time exceeded", stateClass: "warn-text", mode: "is-error",
+      active: ["r1"], match: ["source"], links: ["source-r1"],
+      sourceNote: "R1 · time exceeded",
+      rows: [["1", "192.0.2.1", "time exceeded", "is-pending"]]
+    },
+    {
+      caption: "<b>TTL 2 probe.</b> The source repeats the probe with TTL 2. R1 forwards it; R2 decrements the TTL to 0 and drops it.",
+      state: "probe 2", stateClass: "warn-text", mode: "",
+      active: ["source"], match: ["r2"], links: ["source-r1", "r1-r2"],
+      sourceNote: "probing TTL 2",
+      rows: [["1", "192.0.2.1", "time exceeded", "is-pending"]]
+    },
+    {
+      caption: "<b>Time Exceeded from R2.</b> R2 reports the second hop. The source now knows two routers on the path.",
+      state: "time exceeded", stateClass: "warn-text", mode: "is-error",
+      active: ["r2"], match: ["source"], links: ["source-r1", "r1-r2"],
+      sourceNote: "R2 · time exceeded",
+      rows: [
+        ["1", "192.0.2.1", "time exceeded", "is-pending"],
+        ["2", "198.51.100.1", "time exceeded", "is-pending"]
+      ]
+    },
+    {
+      caption: "<b>TTL 3 probe.</b> R1 and R2 forward the probe; R3 decrements the TTL to 0 and drops it.",
+      state: "probe 3", stateClass: "warn-text", mode: "",
+      active: ["source"], match: ["r3"], links: ["source-r1", "r1-r2", "r2-r3"],
+      sourceNote: "probing TTL 3",
+      rows: [
+        ["1", "192.0.2.1", "time exceeded", "is-pending"],
+        ["2", "198.51.100.1", "time exceeded", "is-pending"]
+      ]
+    },
+    {
+      caption: "<b>Time Exceeded from R3.</b> The third hop is revealed. The next probe gets a larger TTL so it can pass R3.",
+      state: "time exceeded", stateClass: "warn-text", mode: "is-error",
+      active: ["r3"], match: ["source"], links: ["source-r1", "r1-r2", "r2-r3"],
+      sourceNote: "R3 · time exceeded",
+      rows: [
+        ["1", "192.0.2.1", "time exceeded", "is-pending"],
+        ["2", "198.51.100.1", "time exceeded", "is-pending"],
+        ["3", "203.0.113.1", "time exceeded", "is-pending"]
+      ]
+    },
+    {
+      caption: "<b>TTL 4 probe.</b> The probe passes all three routers. The destination receives the Echo Request and prepares an Echo Reply.",
+      state: "probe 4", stateClass: "warn-text", mode: "",
+      active: ["source"], match: ["dest"], links: ["source-r1", "r1-r2", "r2-r3", "r3-dest"],
+      sourceNote: "probing TTL 4",
+      rows: [
+        ["1", "192.0.2.1", "time exceeded", "is-pending"],
+        ["2", "198.51.100.1", "time exceeded", "is-pending"],
+        ["3", "203.0.113.1", "time exceeded", "is-pending"]
+      ]
+    },
+    {
+      caption: "<b>Echo Reply.</b> The destination answers with type 0. The full path is known. Real traceroute sends several probes per TTL and may show timeouts where a router does not answer.",
+      state: "complete", stateClass: "good-text", mode: "is-reply",
+      active: ["dest"], match: ["source"], links: ["source-r1", "r1-r2", "r2-r3", "r3-dest"],
+      sourceNote: "echo reply received",
+      rows: [
+        ["1", "192.0.2.1", "time exceeded", "is-pending"],
+        ["2", "198.51.100.1", "time exceeded", "is-pending"],
+        ["3", "203.0.113.1", "time exceeded", "is-pending"],
+        ["4", "192.0.2.80", "echo reply", "is-resolved"]
+      ]
+    }
+  ];
+
+  const ICMP_TOKEN_HOME = {
+    1: [70, 105], 2: [210, 105], 3: [70, 105], 4: [355, 105],
+    5: [70, 105], 6: [500, 105], 7: [70, 105], 8: [645, 105]
+  };
+  const ICMP_TOKEN_TARGET = {
+    1: [210, 105], 2: [70, 105], 3: [355, 105], 4: [70, 105],
+    5: [500, 105], 6: [70, 105], 7: [645, 105], 8: [70, 105]
+  };
+
   const fields = [
     {
       id: "type", name: "Type", bits: 8, range: "0–255",
@@ -491,12 +577,68 @@
     });
   }
 
+  function initTraceroute() {
+    const flow = document.getElementById("icmp-flow");
+    if (!flow) return;
+
+    const caption = document.getElementById("icmp-flow-caption");
+    const state = document.getElementById("icmp-flow-state");
+    const route = document.getElementById("icmp-flow-route");
+    const sourceNote = document.getElementById("icmp-node-source-note");
+    const nodes = {};
+    flow.querySelectorAll("[data-node]").forEach((node) => { nodes[node.dataset.node] = node; });
+    const links = {};
+    flow.querySelectorAll("[data-link]").forEach((link) => { links[link.dataset.link] = link; });
+    const tokens = Array.from(flow.querySelectorAll("[data-token]"));
+
+    function applyStep(index) {
+      const step = ICMP_STEPS[index - 1];
+      caption.innerHTML = step.caption;
+      state.textContent = step.state;
+      state.className = step.stateClass;
+      sourceNote.textContent = step.sourceNote;
+      flow.classList.toggle("is-error", step.mode === "is-error");
+      flow.classList.toggle("is-reply", step.mode === "is-reply");
+
+      if (step.rows.length) {
+        route.innerHTML = step.rows.map(([ttl, address, reply, cls]) =>
+          `<tr><td>${ttl}</td><td>${address}</td><td class="${cls}">${reply}</td></tr>`
+        ).join("");
+      } else {
+        route.innerHTML = '<tr><td colspan="3" class="is-empty">no replies yet</td></tr>';
+      }
+
+      Object.keys(nodes).forEach((name) => {
+        nodes[name].classList.toggle("is-active", step.active.includes(name));
+        nodes[name].classList.toggle("is-match", step.match.includes(name));
+      });
+
+      Object.keys(links).forEach((name) => {
+        links[name].classList.toggle("is-active", step.links.includes(name));
+      });
+
+      tokens.forEach((token, i) => {
+        const number = i + 1;
+        if (number === index) {
+          token.style.transform = `translate(${ICMP_TOKEN_TARGET[number][0]}px, ${ICMP_TOKEN_TARGET[number][1]}px)`;
+          token.classList.add("is-visible");
+        } else {
+          token.classList.remove("is-visible");
+          token.style.transform = `translate(${ICMP_TOKEN_HOME[number][0]}px, ${ICMP_TOKEN_HOME[number][1]}px)`;
+        }
+      });
+    }
+
+    PH.stepFlow({ root: flow, count: ICMP_STEPS.length, onStep: applyStep });
+  }
+
   function init() {
     if (!document.getElementById("icmp-diagram")) return;
     initDiagrams();
     initTypeExplorer();
     initEncoder();
     initDecoder();
+    initTraceroute();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

@@ -1480,29 +1480,20 @@ table.data-table td .flag-tag {
 .flow__inner { min-width: 680px; }
 .flow__svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
 .flow__svg text { fill: var(--muted); }
-.arp-node rect,
-.dhcp-node rect {
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node) rect {
   fill: var(--panel-2);
   stroke: var(--line-strong);
   stroke-width: 1;
   transition: fill 0.35s, stroke 0.35s;
 }
-.arp-node .n-label,
-.dhcp-node .n-label { fill: var(--dim); font-size: 9px; letter-spacing: 0.08em; }
-.arp-node .n-ip,
-.dhcp-node .n-ip { fill: var(--fg); font-size: 17px; font-weight: 700; }
-.arp-node .n-mac,
-.dhcp-node .n-mac { fill: var(--muted); font-size: 10.5px; }
-.arp-node .n-note,
-.dhcp-node .n-note { fill: var(--dim); font-size: 9.5px; }
-.arp-node.is-active rect,
-.dhcp-node.is-active rect { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); }
-.arp-node.is-active .n-label,
-.dhcp-node.is-active .n-label { fill: var(--accent); }
-.arp-node.is-match rect,
-.dhcp-node.is-match rect { stroke: var(--good); fill: color-mix(in srgb, var(--good) 7%, var(--panel-2)); }
-.arp-node.is-match .n-note,
-.dhcp-node.is-match .n-note { fill: var(--good); }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node) .n-label { fill: var(--dim); font-size: 9px; letter-spacing: 0.08em; }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node) .n-ip { fill: var(--fg); font-size: 17px; font-weight: 700; }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node) .n-mac { fill: var(--muted); font-size: 10.5px; }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node) .n-note { fill: var(--dim); font-size: 9.5px; }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node).is-active rect { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node).is-active .n-label { fill: var(--accent); }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node).is-match rect { stroke: var(--good); fill: color-mix(in srgb, var(--good) 7%, var(--panel-2)); }
+:is(.arp-node, .dhcp-node, .tcp-node, .tls-node, .dns-node, .icmp-node).is-match .n-note { fill: var(--good); }
 .arp-node.is-ignored { opacity: 0.55; }
 .arp-node.is-ignored .n-note { fill: var(--warn); }
 .dhcp-node.is-bound rect { stroke: var(--good); fill: color-mix(in srgb, var(--good) 12%, var(--panel-2)); }
@@ -1522,24 +1513,92 @@ table.data-table td .flag-tag {
 .dhcp-flow.is-unicast .dhcp-node.is-active .n-label { fill: var(--accent-2); }
 .dhcp-flow.is-unicast .dhcp-node.is-match rect { stroke: var(--accent-2); fill: color-mix(in srgb, var(--accent-2) 7%, var(--panel-2)); }
 .dhcp-flow.is-unicast .dhcp-node.is-match .n-note { fill: var(--accent-2); }
-.arp-packet,
-.dhcp-token {
+:is(.arp-packet, .dhcp-token, .tcp-token, .tls-token, .dns-token, .icmp-token) {
   opacity: 0;
   transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
   pointer-events: none;
 }
-.arp-packet.is-visible,
-.dhcp-token.is-visible { opacity: 1; }
-.arp-packet rect,
-.dhcp-token rect { fill: var(--panel-3); stroke: var(--accent); stroke-width: 1.5; }
-.arp-packet .p-title,
-.dhcp-token .p-title { fill: var(--accent); font-size: 9.5px; font-weight: 700; }
-.arp-packet .p-sub,
-.dhcp-token .p-sub { fill: var(--muted); font-size: 9px; }
+:is(.arp-packet, .dhcp-token, .tcp-token, .tls-token, .dns-token, .icmp-token).is-visible { opacity: 1; }
+:is(.arp-packet, .dhcp-token, .tcp-token, .tls-token, .dns-token, .icmp-token) rect { fill: var(--panel-3); stroke: var(--accent); stroke-width: 1.5; }
+:is(.arp-packet, .dhcp-token, .tcp-token, .tls-token, .dns-token, .icmp-token) .p-title { fill: var(--accent); font-size: 9.5px; font-weight: 700; }
+:is(.arp-packet, .dhcp-token, .tcp-token, .tls-token, .dns-token, .icmp-token) .p-sub { fill: var(--muted); font-size: 9px; }
 .arp-packet--reply rect,
 .dhcp-token--unicast rect { stroke: var(--accent-2); }
 .arp-packet--reply .p-title,
 .dhcp-token--unicast .p-title { fill: var(--accent-2); }
+.tcp-lifeline,
+.tls-lifeline { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 5; }
+:is(.tcp-row, .tls-row) { opacity: 0.35; transition: opacity 0.3s; }
+:is(.tcp-row, .tls-row).is-active,
+:is(.tcp-row, .tls-row).is-done { opacity: 1; }
+:is(.tcp-row, .tls-row) line { stroke: var(--line); stroke-width: 1; transition: stroke 0.3s; }
+:is(.tcp-row, .tls-row) polygon { fill: var(--line); transition: fill 0.3s; }
+:is(.tcp-row, .tls-row).is-done line { stroke: var(--line-strong); }
+:is(.tcp-row, .tls-row).is-done polygon { fill: var(--line-strong); }
+:is(.tcp-row, .tls-row).is-active line { stroke: var(--accent); }
+:is(.tcp-row, .tls-row).is-active polygon { fill: var(--accent); }
+.tcp-row--data.is-active line { stroke: var(--accent-2); }
+.tcp-row--data.is-active polygon { fill: var(--accent-2); }
+.tcp-row--fin.is-active line { stroke: var(--warn); }
+.tcp-row--fin.is-active polygon { fill: var(--warn); }
+.tcp-loss { opacity: 0; transition: opacity 0.3s; }
+.tcp-loss.is-visible { opacity: 1; }
+.tcp-loss line { stroke: var(--bad); stroke-width: 1.5; }
+.tcp-loss text { fill: var(--bad); font-size: 9px; letter-spacing: 0.06em; }
+.tcp-token--handshake rect { stroke: var(--accent); }
+.tcp-token--handshake .p-title { fill: var(--accent); }
+.tcp-token--data rect { stroke: var(--accent-2); }
+.tcp-token--data .p-title { fill: var(--accent-2); }
+.tcp-token--fin rect { stroke: var(--warn); }
+.tcp-token--fin .p-title { fill: var(--warn); }
+.tcp-token.is-lost rect { stroke: var(--bad); }
+.tcp-token.is-lost .p-title { fill: var(--bad); }
+.tcp-flow .flow-table td:last-child { white-space: normal; }
+.tls-band {
+  fill: color-mix(in srgb, var(--accent-2) 5%, transparent);
+  opacity: 0.35;
+  transition: opacity 0.3s;
+}
+.tls-flow.is-encrypted .tls-band { opacity: 1; }
+.tls-boundary { stroke: var(--accent-2); stroke-width: 1; stroke-dasharray: 5 4; opacity: 0.7; }
+.tls-boundary-label { fill: var(--accent-2); font-size: 9px; letter-spacing: 0.06em; }
+.tls-row--encrypted.is-active line { stroke: var(--accent-2); }
+.tls-row--encrypted.is-active polygon { fill: var(--accent-2); }
+.tls-token--plain rect { stroke: var(--accent); }
+.tls-token--plain .p-title { fill: var(--accent); }
+.tls-token--encrypted rect { stroke: var(--accent-2); }
+.tls-token--encrypted .p-title { fill: var(--accent-2); }
+.tls-flow .flow-table td:last-child { white-space: normal; }
+:is(.dns-link, .icmp-link) line {
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+  transition: stroke 0.35s;
+}
+:is(.dns-link, .icmp-link).is-active line { stroke: var(--accent); stroke-dasharray: none; }
+.dns-flow.is-referral .dns-link.is-active line { stroke: var(--warn); }
+.dns-flow.is-answer .dns-link.is-active line { stroke: var(--accent-2); }
+.dns-flow.is-cached .dns-link.is-active line { stroke: var(--good); }
+.dns-token--query rect { stroke: var(--accent); }
+.dns-token--query .p-title { fill: var(--accent); }
+.dns-token--referral rect { stroke: var(--warn); }
+.dns-token--referral .p-title { fill: var(--warn); }
+.dns-token--answer rect { stroke: var(--accent-2); }
+.dns-token--answer .p-title { fill: var(--accent-2); }
+.dns-token--cached rect { stroke: var(--good); }
+.dns-token--cached .p-title { fill: var(--good); }
+.dns-flow .flow-table td:last-child { white-space: normal; }
+.icmp-node .n-ip { font-size: 12px; }
+.icmp-tick { stroke: var(--line-strong); stroke-width: 1; }
+.icmp-flow.is-error .icmp-link.is-active line { stroke: var(--warn); }
+.icmp-flow.is-reply .icmp-link.is-active line { stroke: var(--good); }
+.icmp-token--probe rect { stroke: var(--accent); }
+.icmp-token--probe .p-title { fill: var(--accent); }
+.icmp-token--error rect { stroke: var(--warn); }
+.icmp-token--error .p-title { fill: var(--warn); }
+.icmp-token--reply rect { stroke: var(--good); }
+.icmp-token--reply .p-title { fill: var(--good); }
+.icmp-flow .flow-table td:last-child { white-space: normal; }
 .flow__body {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(220px, 1fr);
