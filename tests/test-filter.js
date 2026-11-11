@@ -67,6 +67,17 @@ run("filter", (test, assert) => {
     assert.strictEqual(evaluate("http.method contains ET", tcpIndex), true);
   });
 
+  test("byte slices, frame contains and flow analysis fields", () => {
+    const withBytes = Object.assign({}, tcpIndex, {
+      frameBytes: Uint8Array.from([0x16, 0x03, 0x01, 0x00, 0x2f]),
+      flowFields: { "tcp.analysis.retransmission": true, "flow.app": "tls" }
+    });
+    assert.strictEqual(evaluate("frame[0:2] == 16:03", withBytes), true);
+    assert.strictEqual(evaluate('frame contains "16 03 01"', withBytes), true);
+    assert.strictEqual(evaluate("tcp.analysis.retransmission == 1", withBytes), true);
+    assert.strictEqual(evaluate("flow.app == tls", withBytes), true);
+  });
+
   test("precedence and parentheses", () => {
     assert.strictEqual(evaluate("udp or tcp and frame.len > 100", tcpIndex), true);
     assert.strictEqual(evaluate("(udp or tcp) and frame.len > 100", tcpIndex), true);

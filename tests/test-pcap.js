@@ -89,6 +89,20 @@ run("pcap-codec", (test, assert) => {
     assert.strictEqual(parsed.records[1].linkType, 101);
   });
 
+  test("pcapng reads multiple sections and decryption secrets", () => {
+    const capture = PCap.fromFrames([{ bytes: Uint8Array.from([1, 2, 3]), linkType: 1, ts: 1 }]);
+    capture.decryptionSecrets = [{ type: 0x544c534b, data: Uint8Array.from(Buffer.from("secret")) }];
+    const encoded = PCap.encodeNg(capture, capture.records);
+    const parsed = PCap.parse(encoded);
+    assert.strictEqual(parsed.decryptionSecrets.length, 1);
+    assert.strictEqual(Buffer.from(parsed.decryptionSecrets[0].data).toString(), "secret");
+    const combined = Buffer.concat([Buffer.from(encoded), Buffer.from(encoded)]);
+    const multi = PCap.parse(combined);
+    assert.strictEqual(multi.sections.length, 2);
+    assert.strictEqual(multi.records.length, 2);
+    assert.strictEqual(multi.interfaces.length, 2);
+  });
+
   test("truncated classic record becomes a warning, not a throw", () => {
     const capture = PCap.fromFrames([
       { bytes: Uint8Array.from([1, 2, 3, 4]), linkType: 1, ts: 1 },

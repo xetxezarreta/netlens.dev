@@ -6,9 +6,12 @@
   const PH = window.PH;
   const PCap = window.PCapCodec;
   const Dissector = window.Dissector;
-  const MAX_PACKETS = 20000;
-  const MAX_BYTES = 50 * 1024 * 1024;
+  const Flows = window.PHFlows;
+  const IndexBuilder = window.PHIndexBuilder;
+  const MAX_PACKETS = 250000;
+  const MAX_BYTES = 500 * 1024 * 1024;
   const PAGE = 300;
+  const ROW_OVERSCAN = 4;
 
   let view = null;
   let capture = null;
@@ -18,10 +21,24 @@
   let firstTs = 0;
   let visible = PAGE;
   let filterAst = null;
+  let filterFn = null;
   let loadToken = 0;
   let streamState = null;
   let streamDir = "aToB";
   let streamMode = "text";
+  let flowData = null;
+  let sortState = { key: "number", dir: 1 };
+  let timeMode = "relative";
+  let rowHeight = 29;
+  let scrollFrame = null;
+  let findState = { query: "", index: -1 };
+  let filterHistory = [];
+  let statsTimer = null;
+  let workerBroken = false;
+  let watchedFile = null;
+  let watchedSize = 0;
+  let watchTimer = null;
+  const recordByNumber = new Map();
 
   const $ = (id) => document.getElementById(id);
   const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -34,6 +51,49 @@
   function formatRelative(ts) {
     if (!ts || !firstTs) return "—";
     return (ts - firstTs).toFixed(6);
+  }
+
+  function formatTime(record, position) {
+    if (!record.ts) return "—";
+    if (timeMode === "absolute") return new Date(record.ts * 1000).toISOString().replace("T", " ").replace("Z", " UTC");
+    if (timeMode === "delta") {
+      const previous = position > 0 ? filtered[position - 1] : null;
+      if (!previous || !previous.ts) return "—";
+      return (record.ts - previous.ts).toFixed(6);
+    }
+    return formatRelative(record.ts);
+  }
+
+  function sortFiltered() {
+    if (sortState.key === "number" && sortState.dir === 1) return;
+    if (sortState.key === "number") {
+      filtered.sort((left, right) => (left.number - right.number) * sortState.dir);
+      return;
+    }
+    const decorated = filtered.map((record) => {
+      let key;
+      if (sortState.key === "time") key = record.ts || 0;
+      else if (sortState.key === "len") key = record.caplen;
+      else {
+        const index = record._index || {};
+        const ep = endpointsOf(index);
+        if (sortState.key === "src") key = (ep.src || "") + ":" + String(ep.sport || "").padStart(5, "0");
+        else if (sortState.key === "dst") key = (ep.dst || "") + ":" + String(ep.dport || "").padStart(5, "0");
+        else if (sortState.key === "proto") key = protoLabel(index);
+        else key = index.info || index.summary || "";
+      }
+      return { record, key };
+    });
+    decorated.sort((left, right) => {
+      const a = left.key;
+      const b = right.key;
+      let result = 0;
+      if (typeof a === "number" && typeof b === "number") result = a - b;
+      else result = String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+      if (!result) result = left.record.number - right.record.number;
+      return result * sortState.dir;
+    });
+    filtered = decorated.map((item) => item.record);
   }
 
   function formatDuration(seconds) {
@@ -58,6 +118,13 @@
   }
 
   function protoLabel(index) {
+    if (index.appKind === "h2") return "HTTP/2";
+    if (index.appKind === "http") return "HTTP";
+    if (index.appKind === "dns") return "DNS";
+    if (index.appKind === "tls") return "TLS";
+    if (index.appKind === "dhcp") return "DHCP";
+    if (index.appKind === "quic") return "QUIC";
+    if (index.appKind === "bgp") return "BGP";
     if (index.http) return index.http.kind === "h2" ? "HTTP/2" : "HTTP";
     if (index.dns) return "DNS";
     if (index.tls) return "TLS";
@@ -106,6 +173,8 @@
   }
 
   function packetInfo(index) {
+    if (IndexBuilder) return IndexBuilder.packetInfo(index);
+    if (index.appSummary) return index.appSummary;
     if (index.http && index.http.summary) return index.http.summary;
     if (index.dns && index.dns.summary) return index.dns.summary;
     if (index.tls && index.tls.summary) return index.tls.summary;
@@ -120,10 +189,16 @@
   }
 
   function makeIndex(record, bytes, result) {
+    if (IndexBuilder) return IndexBuilder.makeIndex(record, bytes, result);
+    return legacyMakeIndex(record, bytes, result);
+  }
+
+  function legacyMakeIndex(record, bytes, result) {
     const index = {
       number: record.number,
       ts: record.ts,
       len: record.caplen,
+      frameBytes: bytes,
       protos: [],
       frame: { number: record.number, time: record.ts, len: record.caplen },
       summary: result.summary || ""
@@ -150,7 +225,11 @@
     const ipv4 = find("ipv4");
     if (ipv4 && ipv4.meta && ipv4.meta.ip) {
       const value = ipv4.meta.ip;
-      index.ipv4 = { src: value.src, dst: value.dst, proto: value.protocol, ttl: value.ttl, len: value.totalLength };
+      index.ipv4 = {
+        src: value.src, dst: value.dst, proto: value.protocol, ttl: value.ttl,
+        len: value.totalLength, fragmentOffset: value.fragmentOffset, mf: value.mf,
+        checksumStatus: value.checksumOk ? "good" : "bad"
+      };
     }
     const ipv6 = find("ipv6");
     if (ipv6 && ipv6.meta && ipv6.meta.ip) {
@@ -246,7 +325,16 @@
     return index;
   }
 
+  function renderFilterSuggestions() {
+    const host = $("wb-filter-fields");
+    if (!host || !window.PHFilter) return;
+    const fields = window.PHFilter.fields().map((field) => field.name);
+    const values = fields.concat(filterHistory).filter((value, index, all) => all.indexOf(value) === index);
+    host.innerHTML = values.slice(0, 400).map((value) => '<option value="' + PH.esc(value) + '"></option>').join("");
+  }
+
   function renderFilterChips() {
+    renderFilterSuggestions();
     const host = $("wb-filter-chips");
     if (!host) return;
     host.innerHTML = "";
@@ -272,6 +360,7 @@
     const text = input ? input.value.trim() : "";
     if (!text) {
       filterAst = null;
+      filterFn = null;
       setFilterStatus("all packets", "");
       renderList(true);
       if (!selected && filtered.length) selectRecord(filtered[0]);
@@ -279,23 +368,34 @@
     }
     try {
       filterAst = window.PHFilter.parse(text);
+      filterFn = window.PHFilter.compile(filterAst);
+      input.removeAttribute("aria-invalid");
     } catch (err) {
+      input.setAttribute("aria-invalid", "true");
       setFilterStatus("filter error: " + err.message, "bad");
       return;
+    }
+    if (filterHistory[0] !== text) {
+      filterHistory.unshift(text);
+      filterHistory = filterHistory.slice(0, 20);
+      setTimeout(renderFilterSuggestions, 0);
     }
     renderList(true);
     setFilterStatus(filtered.length + " of " + records.length + " packet" + (records.length === 1 ? "" : "s"), filtered.length ? "ok" : "warn");
     if (!selected && filtered.length) selectRecord(filtered[0]);
   }
 
-  function rowHtml(record) {
+  function rowHtml(record, position) {
     const index = record._index || {};
     const endpoints = endpointsOf(index);
     const isSelected = selected && selected.index === record.index;
-    return `<div class="wb-packet${isSelected ? " is-selected" : ""}" role="option" id="wb-packet-${record.index}" data-record="${record.index}" ` +
-      `aria-selected="${isSelected ? "true" : "false"}" tabindex="-1">` +
-      `<span class="wb-col wb-col-num">${record.number}</span>` +
-      `<span class="wb-col wb-col-time" title="${PH.esc(formatAbsolute(record.ts))}">${PH.esc(formatRelative(record.ts))}</span>` +
+    const expert = index.expert === "bad" ? " is-bad" : index.expert === "warn" ? " is-warn" : "";
+    const marked = record._marked ? " is-marked" : "";
+    return `<div class="wb-packet${isSelected ? " is-selected" : ""}${expert}${marked}" role="option" id="wb-packet-${record.index}" data-record="${record.index}" ` +
+      `style="top:${position * rowHeight}px" aria-selected="${isSelected ? "true" : "false"}" ` +
+      `aria-posinset="${position + 1}" aria-setsize="${filtered.length}" tabindex="-1">` +
+      `<span class="wb-col wb-col-num">${record.number}${record._marked ? " *" : ""}</span>` +
+      `<span class="wb-col wb-col-time" title="${PH.esc(formatAbsolute(record.ts))}">${PH.esc(formatTime(record, position))}</span>` +
       `<span class="wb-col wb-col-src">${PH.esc(endpoints.src || "—")}</span>` +
       `<span class="wb-col wb-col-dst">${PH.esc(endpoints.dst || "—")}</span>` +
       `<span class="wb-col wb-col-proto"><b>${PH.esc(protoLabel(index))}</b></span>` +
@@ -317,15 +417,23 @@
   }
 
   function renderList(reset) {
-    if (reset) visible = PAGE;
-    filtered = records.filter((record) => !filterAst || window.PHFilter.evaluate(filterAst, record._index));
+    if (!filterFn) {
+      filtered = records.slice();
+    } else {
+      const next = [];
+      for (let i = 0; i < records.length; i += 1) {
+        const record = records[i];
+        if (filterFn(record._index)) next.push(record);
+      }
+      filtered = next;
+    }
+    sortFiltered();
     if (selected && filtered.indexOf(selected) === -1) {
       selected = null;
       view.clear("Select a packet in the list.");
     }
-    const shown = filtered.slice(0, visible);
     const list = $("wb-list");
-    if (list) list.innerHTML = shown.map(rowHtml).join("");
+    if (list && reset) list.scrollTop = 0;
     const empty = $("wb-empty");
     if (empty) {
       empty.hidden = filtered.length > 0;
@@ -334,9 +442,71 @@
     const count = $("wb-list-count");
     if (count) count.textContent = countText(filtered.length) + " of " + countText(records.length) + " packet" + (records.length === 1 ? "" : "s");
     const more = $("wb-more");
-    if (more) more.hidden = visible >= filtered.length;
+    if (more) more.hidden = true;
+    const spacer = $("wb-list-spacer");
+    if (spacer) spacer.style.height = (filtered.length * rowHeight) + "px";
+    renderWindow();
+    scheduleStats();
+  }
+
+  function renderWindow() {
+    const list = $("wb-list");
+    const spacer = $("wb-list-spacer");
+    if (!list || !spacer) return;
+    const height = list.clientHeight || 480;
+    const top = list.scrollTop || 0;
+    const start = Math.max(0, Math.floor(top / rowHeight) - ROW_OVERSCAN);
+    const end = Math.min(filtered.length, start + Math.ceil(height / rowHeight) + ROW_OVERSCAN * 2);
+    spacer.innerHTML = filtered.slice(start, end).map((record, index) => rowHtml(record, start + index)).join("");
     updateSelectionUi();
-    renderStats();
+  }
+
+  function updateRowHeight() {
+    const list = $("wb-list");
+    if (!list) return;
+    const cssHeight = parseFloat(getComputedStyle(list).getPropertyValue("--wb-row-h"));
+    rowHeight = cssHeight > 0 ? cssHeight : 30;
+    const spacer = $("wb-list-spacer");
+    if (spacer) spacer.style.height = (filtered.length * rowHeight) + "px";
+  }
+
+  function scrollToRecord(record) {
+    const list = $("wb-list");
+    if (!list || !record) return;
+    const position = filtered.indexOf(record);
+    if (position < 0) return;
+    const target = Math.max(0, position * rowHeight - Math.floor((list.clientHeight || 480) / 2));
+    if (Math.abs(list.scrollTop - target) > rowHeight * 2) list.scrollTop = target;
+    renderWindow();
+  }
+
+  function scapyForRecord(record) {
+    if (!capture || !record) return "";
+    const layer = record.linkType === 101 || record.linkType === 228 ? "IP"
+      : record.linkType === 229 ? "IPv6" : "Ether";
+    return layer + '(bytes.fromhex("' + PH.bytesToHex(PCap.recordBytes(capture, record)) + '"))';
+  }
+
+  function bpfForRecord(record) {
+    const index = record && record._index ? record._index : {};
+    if (index.arp) return "arp";
+    if (index.ipv6) {
+      const src = index.ipv6.src;
+      const dst = index.ipv6.dst;
+      if (index.tcp) return "ip6 and tcp and (host " + src + " and host " + dst + ")";
+      if (index.udp) return "ip6 and udp and (host " + src + " and host " + dst + ")";
+      return "ip6 and (host " + src + " and host " + dst + ")";
+    }
+    if (index.ipv4) {
+      const src = index.ipv4.src;
+      const dst = index.ipv4.dst;
+      if (index.tcp) return "ip and tcp and (host " + src + " and host " + dst + ")";
+      if (index.udp) return "ip and udp and (host " + src + " and host " + dst + ")";
+      if (index.icmp) return "icmp and (host " + src + " and host " + dst + ")";
+      return "ip and (host " + src + " and host " + dst + ")";
+    }
+    if (index.eth) return "ether host " + index.eth.src + " or ether host " + index.eth.dst;
+    return "";
   }
 
   function selectRecord(record) {
@@ -351,7 +521,41 @@
       result = Dissector.dissect(bytes, { kind: "raw", note: "decode failed: " + err.message });
       result.warnings.push("Workbench decode failed: " + err.message);
     }
+    const info = record._flowInfo;
+    if (info && info.layers && info.layers.length) {
+      info.layers.forEach((layer) => {
+        result.layers.push(Object.assign({}, layer, {
+          offset: 0, length: result.bytes.length, depth: 6,
+          meta: layer.meta || { stream: true }
+        }));
+      });
+      result.summary = result.layers.map((layer) => layer.name).join(" → ");
+      result.deepest = result.layers[result.layers.length - 1];
+      if (info.experts && info.experts.length) {
+        info.experts.forEach((expert) => {
+          if (result.warnings.indexOf(expert.message) === -1) result.warnings.push(expert.message);
+        });
+      }
+    }
     view.render(result);
+    renderDiagnosis(record);
+  }
+
+  function renderDiagnosis(record) {
+    const host = $("wb-diagnosis");
+    if (!host) return;
+    const info = record && record._flowInfo;
+    const items = info && info.diagnosis ? info.diagnosis : [];
+    if (!items.length) {
+      host.innerHTML = "";
+      return;
+    }
+    host.innerHTML = '<div class="callout callout--warn"><div class="callout__title">flow diagnosis · ' +
+      items.length + ' finding' + (items.length === 1 ? "" : "s") + '</div><ul class="dashed" style="margin:0">' +
+      items.map((item) => '<li><b class="' + (item.severity === "bad" ? "bad-text" : "") + '">' +
+        PH.esc(item.title) + '</b> — ' + PH.esc(item.detail) +
+        (item.packets && item.packets.length ? ' <span class="dim">(packets ' + item.packets.slice(0, 6).join(", ") + ')</span>' : "") +
+        '</li>').join("") + '</ul></div>';
   }
 
   function protoName(proto) {
@@ -376,9 +580,17 @@
       '</tbody></table></div>';
   }
 
+  function scheduleStats() {
+    if (statsTimer) clearTimeout(statsTimer);
+    statsTimer = setTimeout(() => {
+      statsTimer = null;
+      renderStats();
+    }, 180);
+  }
+
   function renderStats() {
     if (!records.length) {
-      ["wb-stats-conv", "wb-stats-protos", "wb-stats-endpoints"].forEach((id) => {
+      ["wb-stats-conv", "wb-stats-protos", "wb-stats-endpoints", "wb-stats-expert", "wb-stats-hierarchy", "wb-stats-timeline"].forEach((id) => {
         const host = $(id);
         if (host) host.innerHTML = '<p class="dim">Open a capture to see statistics.</p>';
       });
@@ -436,6 +648,83 @@
     renderTable($("wb-stats-endpoints"), ["endpoint", "packets", "bytes", "first", "last"],
       Array.from(endpoints.entries()).sort((a, b) => b[1].packets - a[1].packets).map(([address, entry]) =>
         [address, countText(entry.packets), countText(entry.bytes), formatAbsolute(entry.first), formatAbsolute(entry.last)]));
+
+    const expertHost = $("wb-stats-expert");
+    if (expertHost) {
+      const experts = flowData && flowData.experts ? flowData.experts : [];
+      const visibleExperts = experts.filter((entry) => !filterFn ||
+        entry.packets.some((number) => {
+          const record = recordByNumber.get(number);
+          return record && filterFn(record._index);
+        }));
+      renderTable(expertHost, ["severity", "finding", "packets", "flow"],
+        visibleExperts.slice(0, 500).map((entry) => [
+          entry.severity || "info", entry.message, entry.packets.slice(0, 12).join(", "), "#" + entry.flow
+        ]));
+    }
+
+    const hierarchyHost = $("wb-stats-hierarchy");
+    if (hierarchyHost) {
+      const hierarchy = new Map();
+      filtered.forEach((record) => {
+        (record._index.protos || []).forEach((proto) => {
+          const entry = hierarchy.get(proto) || { packets: 0, bytes: 0 };
+          entry.packets += 1;
+          entry.bytes += record.caplen;
+          hierarchy.set(proto, entry);
+        });
+      });
+      renderTable(hierarchyHost, ["protocol", "packets", "bytes", "packet share"],
+        Array.from(hierarchy.entries()).sort((a, b) => b[1].packets - a[1].packets).map(([proto, entry]) => [
+          protoName(proto), countText(entry.packets), countText(entry.bytes),
+          (filtered.length ? ((entry.packets / filtered.length) * 100).toFixed(1) : "0.0") + "%"
+        ]));
+    }
+
+    const timelineHost = $("wb-stats-timeline");
+    if (timelineHost) {
+      const times = filtered.map((record) => record.ts).filter((value) => value > 0);
+      if (!times.length) {
+        timelineHost.innerHTML = '<p class="dim">No timestamps in the current filter.</p>';
+      } else {
+        let min = Infinity;
+        let max = -Infinity;
+        times.forEach((value) => {
+          if (value < min) min = value;
+          if (value > max) max = value;
+        });
+        const buckets = 60;
+        const counts = new Array(buckets).fill(0);
+        const bytes = new Array(buckets).fill(0);
+        const span = Math.max(1e-9, max - min);
+        filtered.forEach((record) => {
+          if (!record.ts) return;
+          const index = Math.min(buckets - 1, Math.max(0, Math.floor(((record.ts - min) / span) * buckets)));
+          counts[index] += 1;
+          bytes[index] += record.caplen;
+        });
+        const peak = Math.max.apply(null, counts) || 1;
+        const width = 720;
+        const height = 150;
+        const bar = width / buckets;
+        const bars = counts.map((count, index) => {
+          const h = Math.max(0, (count / peak) * (height - 24));
+          const x = index * bar;
+          return '<rect x="' + x.toFixed(1) + '" y="' + (height - 20 - h).toFixed(1) + '" width="' +
+            Math.max(1, bar - 1).toFixed(1) + '" height="' + h.toFixed(1) + '" fill="var(--accent)">' +
+            '<title>' + count + " packet(s) · " + countText(bytes[index]) + ' B</title></rect>';
+        }).join("");
+        timelineHost.innerHTML = '<div class="table-wrap" style="padding:8px"><svg viewBox="0 0 ' + width + ' ' + height +
+          '" width="100%" role="img" aria-label="Packet timeline, ' + countText(filtered.length) + ' packets from ' +
+          PH.esc(formatAbsolute(min)) + ' to ' + PH.esc(formatAbsolute(max)) + '">' +
+          '<line x1="0" y1="' + (height - 20) + '" x2="' + width + '" y2="' + (height - 20) + '" stroke="var(--line-strong)"></line>' +
+          bars + '<text x="0" y="' + (height - 5) + '" fill="var(--dim)" font-size="9">' + PH.esc(formatAbsolute(min)) + '</text>' +
+          '<text x="' + width + '" y="' + (height - 5) + '" text-anchor="end" fill="var(--dim)" font-size="9">' +
+          PH.esc(formatAbsolute(max)) + '</text></svg></div>' +
+          '<p class="small dim" style="margin:8px 0 0">Peak ' + countText(peak) + ' packets per bucket · ' +
+          formatDuration(span) + ' total span · hover a bar for details.</p>';
+      }
+    }
   }
 
   function updateProgress(done, total) {
@@ -485,19 +774,23 @@
       capture.warnings.map((warning) => "<li>" + PH.esc(warning) + "</li>").join("") + "</ul></div>";
   }
 
-  async function indexRecords(token) {
+  async function indexRecordsMain(token) {
     const total = records.length;
+    recordByNumber.clear();
+    flowData = null;
     if (!total) { hideProgress(); return true; }
     updateProgress(0, total);
+    const engine = Flows ? Flows.create() : null;
     for (let i = 0; i < total; i += 1) {
       if (token !== loadToken) { hideProgress(); return false; }
       const record = records[i];
+      recordByNumber.set(record.number, record);
       const bytes = PCap.recordBytes(capture, record);
       let result;
       try {
-        result = Dissector.dissectLink(bytes, record.linkType);
+        result = Dissector.dissectLink(bytes, record.linkType, { headersOnly: true });
       } catch (err) {
-        result = Dissector.dissect(bytes, { kind: "raw", note: "decode failed: " + err.message });
+        result = Dissector.dissect(bytes, { kind: "raw", note: "decode failed: " + err.message, headersOnly: true });
         result.warnings.push("Workbench decode failed: " + err.message);
       }
       try {
@@ -505,17 +798,188 @@
       } catch (err) {
         record._index = {
           number: record.number, ts: record.ts, len: record.caplen, protos: ["raw"],
+          frameBytes: bytes,
           frame: { number: record.number, time: record.ts, len: record.caplen },
           summary: "Index failed: " + err.message, info: "Index failed: " + err.message
         };
       }
-      if (i % 200 === 0 || i === total - 1) {
+      if (engine) {
+        try {
+          engine.add(record, result);
+        } catch (err) {
+          result.warnings.push("Flow indexing failed: " + err.message);
+        }
+      }
+      if (i % 400 === 0 || i === total - 1) {
         updateProgress(i + 1, total);
         await tick();
       }
     }
+    if (engine) {
+      try {
+        flowData = engine.finish();
+      } catch (err) {
+        flowData = { flows: [], byNumber: new Map(), warnings: ["Flow analysis failed: " + err.message], stats: {}, experts: [], fieldCatalog: {} };
+      }
+      flowData.byNumber.forEach((info, number) => {
+        const record = recordByNumber.get(number);
+        if (!record) return;
+        record._flowInfo = info;
+        record._flow = info.flow || null;
+        const index = record._index || {};
+        if (info.appKind) {
+          index.appKind = info.appKind;
+          if (index.protos && index.protos.indexOf(info.appKind) === -1) index.protos.push(info.appKind);
+        }
+        if (info.flow && info.flow.proto && index.protos && index.protos.indexOf(info.flow.proto) === -1) {
+          index.protos.push(info.flow.proto);
+        }
+        if (info.summary) index.appSummary = info.summary;
+        if (info.fragmentOf) index.fragmentOf = info.fragmentOf;
+        if (info.flowFields) index.flowFields = info.flowFields;
+        if (info.experts) index.experts = info.experts;
+        if (info.expert) index.expert = info.expert;
+        if (info.diagnosis) index.diagnosis = info.diagnosis;
+        index.info = packetInfo(index);
+        record._index = index;
+      });
+      if (flowData.warnings && flowData.warnings.length) {
+        flowData.warnings.slice(0, 20).forEach((warning) => {
+          if (capture.warnings.indexOf(warning) === -1) capture.warnings.push(warning);
+        });
+      }
+      if (window.PHFilter && typeof window.PHFilter.registerFields === "function") {
+        window.PHFilter.registerFields(flowData.fieldCatalog || {});
+        renderFilterSuggestions();
+      }
+    }
     hideProgress();
     return true;
+  }
+
+  function mergeFlowInfo(record, info) {
+    if (!record || !info) return;
+    record._flowInfo = info;
+    record._flow = info.flow || null;
+    const index = record._index || {};
+    if (info.appKind) {
+      index.appKind = info.appKind;
+      if (index.protos && index.protos.indexOf(info.appKind) === -1) index.protos.push(info.appKind);
+    }
+    if (info.flow && info.flow.proto && index.protos && index.protos.indexOf(info.flow.proto) === -1) {
+      index.protos.push(info.flow.proto);
+    }
+    if (info.summary) index.appSummary = info.summary;
+    if (info.fragmentOf) index.fragmentOf = info.fragmentOf;
+    if (info.flowFields) index.flowFields = info.flowFields;
+    if (info.experts) index.experts = info.experts;
+    if (info.expert) index.expert = info.expert;
+    if (info.diagnosis) index.diagnosis = info.diagnosis;
+    index.info = packetInfo(index);
+    record._index = index;
+  }
+
+  function applyWorkerData(data) {
+    records.forEach((record, position) => {
+      const index = data.indexes[position];
+      if (!index) return;
+      index.frameBytes = PCap.recordBytes(capture, record);
+      record._index = index;
+    });
+    const byNumber = new Map(data.byNumber || []);
+    byNumber.forEach((info, number) => {
+      const record = recordByNumber.get(number);
+      if (record) mergeFlowInfo(record, info);
+    });
+    flowData = {
+      flows: data.flows || [],
+      byNumber,
+      warnings: data.warnings || [],
+      stats: data.stats || {},
+      experts: data.experts || [],
+      fieldCatalog: data.fieldCatalog || {}
+    };
+    (data.captureWarnings || []).forEach((warning) => {
+      if (capture.warnings.indexOf(warning) === -1) capture.warnings.push(warning);
+    });
+    (data.warnings || []).slice(0, 20).forEach((warning) => {
+      if (capture.warnings.indexOf(warning) === -1) capture.warnings.push(warning);
+    });
+    if (data.truncated) capture.warnings.push("This build shows the first " + countText(records.length) + " packets.");
+    if (window.PHFilter && typeof window.PHFilter.registerFields === "function") {
+      window.PHFilter.registerFields(flowData.fieldCatalog || {});
+      renderFilterSuggestions();
+    }
+    hideProgress();
+  }
+
+  function canUseWorker() {
+    return !workerBroken && typeof Worker !== "undefined" && location.protocol !== "file:" &&
+      capture && capture.bytes && capture.bytes.length <= 200 * 1024 * 1024;
+  }
+
+  function runWorkerParse(token) {
+    return new Promise((resolve, reject) => {
+      let worker;
+      try {
+        worker = new Worker("js/workbench-worker.js");
+      } catch (err) {
+        workerBroken = true;
+        reject(err);
+        return;
+      }
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        worker.terminate();
+        reject(new Error("parser worker timed out"));
+      }, 180000);
+      function finish(fn) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        worker.terminate();
+        fn();
+      }
+      worker.onmessage = (event) => {
+        const data = event.data || {};
+        if (data.type === "progress") {
+          updateProgress(data.done, data.total);
+          return;
+        }
+        if (token !== loadToken) { finish(() => resolve(null)); return; }
+        if (data.type === "done") finish(() => resolve(data));
+        else if (data.type === "error") finish(() => reject(new Error(data.message || "worker parse failed")));
+      };
+      worker.onerror = (event) => {
+        finish(() => reject(new Error(event.message || "parser worker failed to load")));
+      };
+      try {
+        worker.postMessage({ type: "parse", buffer: capture.bytes.slice().buffer, maxPackets: records.length });
+      } catch (err) {
+        finish(() => reject(err));
+      }
+    });
+  }
+
+  async function indexRecords(token) {
+    recordByNumber.clear();
+    flowData = null;
+    records.forEach((record) => recordByNumber.set(record.number, record));
+    if (canUseWorker() && records.length >= 1200) {
+      try {
+        const data = await runWorkerParse(token);
+        if (token !== loadToken) return false;
+        if (data) {
+          applyWorkerData(data);
+          return true;
+        }
+      } catch (err) {
+        capture.warnings.push("Parser worker unavailable (" + err.message + "); using the main thread.");
+      }
+    }
+    return indexRecordsMain(token);
   }
 
   async function loadCapture(next, label) {
@@ -524,6 +988,14 @@
     const openDialog = $("wb-stream-dialog");
     if (openDialog && openDialog.open) openDialog.close();
     capture = next;
+    const tlsSecret = (capture.decryptionSecrets || []).find((secret) => secret.type === 0x544c534b);
+    const keylogInput = $("wb-tls-keys");
+    if (tlsSecret && keylogInput && !keylogInput.value.trim() && tlsSecret.data && tlsSecret.data.length) {
+      try {
+        keylogInput.value = new TextDecoder("utf-8", { fatal: false }).decode(tlsSecret.data);
+        PH.setStatus($("wb-tls-status"), "Loaded TLS key log from pcapng Decryption Secrets Block", "ok");
+      } catch (_) { /* leave the field alone */ }
+    }
     records = capture.records.slice(0, MAX_PACKETS);
     if (capture.records.length > MAX_PACKETS) {
       const total = capture.records.length;
@@ -537,6 +1009,7 @@
     selected = null;
     visible = PAGE;
     filterAst = null;
+    filterFn = null;
     const filterInput = $("wb-filter");
     if (filterInput) filterInput.value = "";
     setFilterStatus("all packets", "");
@@ -547,9 +1020,12 @@
     if (status) PH.setStatus(status, "Indexing " + countText(records.length) + " packets…", "warn");
     await indexRecords(token);
     if (token !== loadToken) return;
+    renderCaptureSummary(label);
+    renderLoadWarnings();
     renderList(true);
     if (filterInput && filterInput.value.trim()) applyFilter();
-    if (records.length) selectRecord(records[0]);
+    if (filtered.length) selectRecord(filtered[0]);
+    else if (records.length) selectRecord(records[0]);
     if (status) {
       PH.setStatus(status,
         (label || "capture") + " · " + capture.format + " · " + countText(records.length) + " packet" + (records.length === 1 ? "" : "s") + " · " +
@@ -563,7 +1039,7 @@
   async function loadBuffer(buffer, label) {
     const status = $("wb-status");
     if (buffer && buffer.byteLength > MAX_BYTES) {
-      if (status) PH.setStatus(status, "capture is larger than 50 MB; this build refuses to load it", "bad");
+      if (status) PH.setStatus(status, "capture is larger than 500 MB; this build refuses to load it", "bad");
       return;
     }
     let parsed;
@@ -590,9 +1066,11 @@
     if (!file) return;
     const status = $("wb-status");
     if (file.size > MAX_BYTES) {
-      if (status) PH.setStatus(status, "file is larger than 50 MB; this build refuses to load it", "bad");
+      if (status) PH.setStatus(status, "file is larger than 500 MB; this build refuses to load it", "bad");
       return;
     }
+    watchedFile = file;
+    watchedSize = file.size;
     if (status) PH.setStatus(status, "Reading " + file.name + "…", "warn");
     try {
       const buffer = await readFile(file);
@@ -600,6 +1078,39 @@
     } catch (err) {
       if (status) PH.setStatus(status, "file read error: " + err.message, "bad");
     }
+  }
+
+  function stopWatch() {
+    if (watchTimer) clearInterval(watchTimer);
+    watchTimer = null;
+    const button = $("wb-watch");
+    if (button) button.textContent = "Watch file for growth";
+  }
+
+  function toggleWatch() {
+    const button = $("wb-watch");
+    if (watchTimer) {
+      stopWatch();
+      PH.toast("Stopped watching the capture file");
+      return;
+    }
+    if (!watchedFile) {
+      PH.toast("Open a capture file first");
+      return;
+    }
+    if (location.protocol === "file:") {
+      PH.toast("File watching needs a local HTTP server; reload the file manually");
+      return;
+    }
+    watchedSize = watchedFile.size;
+    watchTimer = setInterval(() => {
+      if (!watchedFile) return;
+      if (watchedFile.size === watchedSize) return;
+      watchedSize = watchedFile.size;
+      loadFile(watchedFile);
+    }, 2000);
+    if (button) button.textContent = "Stop watching file";
+    PH.toast("Watching " + watchedFile.name + " for appended records");
   }
 
   function tcpFrame(options) {
@@ -692,6 +1203,8 @@
 
   function clearCapture() {
     loadToken += 1;
+    stopWatch();
+    watchedFile = null;
     capture = null;
     records = [];
     filtered = [];
@@ -699,7 +1212,13 @@
     firstTs = 0;
     visible = PAGE;
     filterAst = null;
+    filterFn = null;
     streamState = null;
+    flowData = null;
+    recordByNumber.clear();
+    findState = { query: "", index: -1 };
+    const diagnosis = $("wb-diagnosis");
+    if (diagnosis) diagnosis.innerHTML = "";
     const openDialog = $("wb-stream-dialog");
     if (openDialog && openDialog.open) openDialog.close();
     const filterInput = $("wb-filter");
@@ -707,14 +1226,14 @@
     setFilterStatus("all packets", "");
     view.clear("Select a packet in the list.");
     const list = $("wb-list");
-    if (list) list.innerHTML = "";
+    if (list) list.innerHTML = '<div id="wb-list-spacer"></div>';
     const empty = $("wb-empty");
     if (empty) { empty.hidden = false; empty.textContent = "Open a capture to see packets here."; }
     const count = $("wb-list-count");
     if (count) count.textContent = "0 packets";
     const more = $("wb-more");
     if (more) more.hidden = true;
-    ["wb-stats-conv", "wb-stats-protos", "wb-stats-endpoints"].forEach((id) => {
+    ["wb-stats-conv", "wb-stats-protos", "wb-stats-endpoints", "wb-stats-expert", "wb-stats-hierarchy", "wb-stats-timeline"].forEach((id) => {
       const host = $(id);
       if (host) host.innerHTML = '<p class="dim">Open a capture to see statistics.</p>';
     });
@@ -816,12 +1335,27 @@
       PH.toast("Select a TCP packet first");
       return;
     }
-    const stream = window.PHStreams.build(
-      records,
-      selected,
-      (record) => PCap.recordBytes(capture, record),
-      (record) => record._index
-    );
+    const flow = selected._flowInfo && selected._flowInfo.flow;
+    let stream;
+    if (flow && flow.proto === "tcp" && flow.dirs) {
+      stream = {
+        key: flow.key, a: flow.a, b: flow.b,
+        directions: {
+          aToB: Object.assign({}, flow.dirs.aToB, { retransmits: flow.dirs.aToB.retransmissions }),
+          bToA: Object.assign({}, flow.dirs.bToA, { retransmits: flow.dirs.bToA.retransmissions })
+        },
+        app: flow.app ? flow.app.kind : "unknown",
+        packets: flow.packetCount, totalBytes: flow.bytes,
+        warnings: flow.warnings || []
+      };
+    } else {
+      stream = window.PHStreams.build(
+        records,
+        selected,
+        (record) => PCap.recordBytes(capture, record),
+        (record) => record._index
+      );
+    }
     if (stream.error) {
       PH.toast(stream.error);
       return;
@@ -872,16 +1406,186 @@
         linkTypes: capture.interfaces.map((iface) => iface.linkType),
         packets: records.length
       } : null,
+      flows: flowData ? flowData.flows.map((flow) => ({
+        index: flow.index, proto: flow.proto,
+        a: flow.a, b: flow.b,
+        app: flow.app ? flow.app.kind : "",
+        summary: flow.summary,
+        packets: flow.packetCount, bytes: flow.bytes,
+        expert: flow.expert, diagnosis: flow.diagnosis
+      })) : [],
+      experts: flowData ? flowData.experts : [],
       packets: filtered.map((record) => ({
         number: record.number,
         ts: record.ts,
         caplen: record.caplen,
         origlen: record.origlen,
         linkType: record.linkType,
-        index: record._index
+        index: record._index,
+        flow: record._flowInfo ? {
+          app: record._flowInfo.appKind,
+          summary: record._flowInfo.summary,
+          fields: record._flowInfo.flowFields,
+          experts: record._flowInfo.experts,
+          diagnosis: record._flowInfo.diagnosis
+        } : null
       }))
     };
     PH.downloadText("netlens-analysis.json", JSON.stringify(payload, null, 2), "application/json");
+  }
+
+  function headerPairs(headers) {
+    return (headers || []).map((header) => ({ name: header.name || header.lower || "", value: String(header.value == null ? "" : header.value) }));
+  }
+
+  function harUrl(flow, request) {
+    const headers = request.message.headers || [];
+    const host = httpHeader(headers, "host") || httpHeader(headers, ":authority") ||
+      (flow.app && flow.app.context && flow.app.context.sni) || flow.b.addr;
+    const port = flow.b.port;
+    const scheme = port === 443 || port === 8443 ? "https" : "http";
+    const target = request.message.target || "/";
+    return scheme + "://" + host + (port && port !== 80 && port !== 443 ? ":" + port : "") + (target.startsWith("/") ? target : "/" + target);
+  }
+
+  function httpHeader(headers, name) {
+    const lower = String(name).toLowerCase();
+    const found = (headers || []).find((header) => String(header.lower || header.name || "").toLowerCase() === lower);
+    return found ? found.value : "";
+  }
+
+  function bodyText(bytes) {
+    if (!bytes || !bytes.length) return "";
+    try { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
+    catch (_) { return PH.bytesToAscii(bytes); }
+  }
+
+  async function decodedBodyText(bytes, headers) {
+    if (!bytes || !bytes.length) return "";
+    const encoding = httpHeader(headers, "content-encoding").toLowerCase();
+    if (!encoding || encoding === "identity" || typeof DecompressionStream === "undefined") return bodyText(bytes);
+    const format = encoding.indexOf("gzip") !== -1 ? "gzip" : encoding.indexOf("deflate") !== -1 ? "deflate" : null;
+    if (!format) return bodyText(bytes);
+    try {
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream(format));
+      const buffer = await new Response(stream).arrayBuffer();
+      return bodyText(new Uint8Array(buffer));
+    } catch (_) {
+      return bodyText(bytes);
+    }
+  }
+
+  async function harEntry(flow, request, response) {
+    const requestMessage = request.message || {};
+    const responseMessage = response ? response.message : null;
+    const started = request.ts || flow.firstTs || 0;
+    const time = response && response.ts && started ? Math.max(0, (response.ts - started) * 1000) : 0;
+    const url = harUrl(flow, request);
+    const entry = {
+      startedDateTime: new Date(started * 1000).toISOString(),
+      time: Math.round(time * 1000) / 1000,
+      request: {
+        method: requestMessage.method || "GET",
+        url: url,
+        httpVersion: requestMessage.version || "HTTP/1.1",
+        cookies: [],
+        headers: headerPairs(requestMessage.headers),
+        queryString: [],
+        headersSize: -1,
+        bodySize: requestMessage.body ? requestMessage.body.length : 0
+      },
+      response: {
+        status: responseMessage && responseMessage.status != null ? responseMessage.status : 0,
+        statusText: responseMessage ? (responseMessage.reason || "") : "",
+        httpVersion: responseMessage ? (responseMessage.version || "HTTP/1.1") : "HTTP/1.1",
+        cookies: [],
+        headers: responseMessage ? headerPairs(responseMessage.headers) : [],
+        content: {
+          size: responseMessage && responseMessage.body ? responseMessage.body.length : 0,
+          mimeType: responseMessage ? (httpHeader(responseMessage.headers, "content-type") || "application/octet-stream") : "application/octet-stream",
+          text: responseMessage ? await decodedBodyText(responseMessage.body, responseMessage.headers) : ""
+        },
+        redirectURL: responseMessage ? httpHeader(responseMessage.headers, "location") : "",
+        headersSize: -1,
+        bodySize: responseMessage && responseMessage.body ? responseMessage.body.length : 0
+      },
+      cache: {},
+      timings: { send: 0, wait: Math.max(0, Math.round(time * 1000) / 1000), receive: 0 },
+      serverIPAddress: flow.b.addr,
+      connection: String(flow.index)
+    };
+    if (requestMessage.body && requestMessage.body.length) {
+      entry.request.postData = {
+        mimeType: httpHeader(requestMessage.headers, "content-type") || "application/octet-stream",
+        text: await decodedBodyText(requestMessage.body, requestMessage.headers)
+      };
+    }
+    return entry;
+  }
+
+  async function exportHar() {
+    if (!flowData || !flowData.flows) { PH.toast("No capture loaded"); return; }
+    const entries = [];
+    for (const flow of flowData.flows) {
+      if (!flow.app) continue;
+      if (flow.app.kind === "http" && flow.app.messages) {
+        const requests = flow.app.messages.filter((entry) => entry.message && entry.message.messageKind === "request");
+        const responses = flow.app.messages.filter((entry) => entry.message && entry.message.messageKind === "response");
+        for (let index = 0; index < requests.length; index += 1) {
+          entries.push(await harEntry(flow, requests[index], responses[index] || null));
+        }
+      } else if (flow.app.kind === "h2" && flow.app.messages) {
+        for (const stream of flow.app.messages) {
+          if (!stream.method) continue;
+          const request = { message: { method: stream.method, target: stream.path || "/", version: "HTTP/2", headers: stream.headers || [], body: new Uint8Array(0) }, ts: flow.firstTs };
+          const response = stream.status != null ? { message: { status: stream.status, reason: "", version: "HTTP/2", headers: stream.headers || [], body: stream.body || new Uint8Array(0) }, ts: flow.lastTs } : null;
+          entries.push(await harEntry(flow, request, response));
+        }
+      }
+    }
+    if (!entries.length) { PH.toast("No HTTP flows to export"); return; }
+    const har = {
+      log: {
+        version: "1.2",
+        creator: { name: "netlens.dev packet workbench", version: "1.0" },
+        pages: [],
+        entries: entries
+      }
+    };
+    PH.downloadText("netlens-http.har", JSON.stringify(har, null, 2), "application/json");
+  }
+
+  async function exportReport() {
+    if (!capture) { PH.toast("Load a capture first"); return; }
+    let hash = "";
+    try {
+      if (window.crypto && window.crypto.subtle && capture.bytes) {
+        const digest = await window.crypto.subtle.digest("SHA-256", capture.bytes);
+        hash = Array.from(new Uint8Array(digest)).map((value) => ("0" + value.toString(16)).slice(-2)).join("");
+      }
+    } catch (_) { hash = "unavailable"; }
+    const flows = flowData && flowData.flows ? flowData.flows.slice(0, 500) : [];
+    const experts = flowData && flowData.experts ? flowData.experts : [];
+    const rows = flows.map((flow) => '<tr><td>' + flow.index + '</td><td>' + PH.esc(flow.summary) +
+      '</td><td>' + flow.packetCount + '</td><td>' + flow.bytes + '</td><td>' +
+      PH.esc((flow.expert || []).map((item) => item.message).join("; ")) + '</td></tr>').join("");
+    const expertRows = experts.slice(0, 200).map((item) => '<li><b>' + PH.esc(item.severity) + '</b> ' +
+      PH.esc(item.message) + ' <span class="dim">flow #' + item.flow + '</span></li>').join("");
+    const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>netlens capture report</title>' +
+      '<style>body{font-family:ui-monospace,monospace;background:#0b0e14;color:#c0caf5;margin:2rem;line-height:1.5}' +
+      'h1,h2{color:#9ece6a}table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #2a2f3a;padding:4px 6px;text-align:left;vertical-align:top}' +
+      'th{color:#7aa2f7}.dim{color:#565f89}code{color:#e0af68}</style></head><body>' +
+      '<h1>netlens.dev capture report</h1>' +
+      '<p>Generated ' + PH.esc(new Date().toISOString()) + '</p>' +
+      '<p>Capture: <code>' + PH.esc(capture.format) + '</code> · ' + countText(records.length) + ' packets · ' +
+      PH.esc(capture.interfaces.map((iface) => PCap.linkTypeName(iface.linkType)).filter((name, index, all) => all.indexOf(name) === index).join(", ")) + '</p>' +
+      '<p>SHA-256: <code>' + PH.esc(hash) + '</code></p>' +
+      '<h2>Flows</h2><table><thead><tr><th>#</th><th>summary</th><th>packets</th><th>bytes</th><th>expert</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="5" class="dim">No flows</td></tr>') + '</tbody></table>' +
+      '<h2>Expert information</h2><ul>' + (expertRows || '<li class="dim">No expert findings</li>') + '</ul>' +
+      '<p class="dim">This report is generated locally from the capture. It contains packet-derived text; review it before sharing.</p>' +
+      '</body></html>';
+    PH.downloadText("netlens-report.html", html, "text/html");
   }
 
   function exportPcap() {
@@ -916,6 +1620,89 @@
     }, "packet link copied");
   }
 
+  async function decryptTlsFlows() {
+    const status = $("wb-tls-status");
+    const output = $("wb-tls-output");
+    if (!window.PHTLSKeys) {
+      if (status) PH.setStatus(status, "TLS key support is not loaded", "bad");
+      return;
+    }
+    const parsed = window.PHTLSKeys.parse($("wb-tls-keys") ? $("wb-tls-keys").value : "");
+    if (!parsed.count) {
+      if (status) PH.setStatus(status, "No usable SSLKEYLOGFILE lines found", "bad");
+      if (output) output.innerHTML = "";
+      return;
+    }
+    const tlsFlows = flowData && flowData.flows ? flowData.flows.filter((flow) => flow.app && flow.app.kind === "tls") : [];
+    if (!tlsFlows.length) {
+      if (status) PH.setStatus(status, "No TLS flows in this capture", "warn");
+      return;
+    }
+    if (status) PH.setStatus(status, "Deriving TLS 1.3 keys and decrypting " + tlsFlows.length + " flow(s)…", "warn");
+    let html = "";
+    let ok = 0;
+    let failed = 0;
+    for (const flow of tlsFlows) {
+      const result = await window.PHTLSKeys.decryptFlow(flow, parsed);
+      if (result.error) {
+        failed += 1;
+        html += '<div class="callout callout--warn"><div class="callout__title">TLS flow ' + flow.index + ' · not decrypted</div><p>' + PH.esc(result.error) + '</p></div>';
+        continue;
+      }
+      ok += 1;
+      const clientApp = window.PHTLSKeys.applicationBytes(result, "aToB");
+      const serverApp = window.PHTLSKeys.applicationBytes(result, "bToA");
+      const clientHs = window.PHTLSKeys.handshakeBytes(result, "aToB");
+      const serverHs = window.PHTLSKeys.handshakeBytes(result, "bToA");
+      let appSummary = "";
+      if (clientApp.length || serverApp.length) {
+        try {
+          const h2c = clientApp.length ? window.HTTPCodec.decodeHttp2(clientApp) : null;
+          const h2s = serverApp.length ? window.HTTPCodec.decodeHttp2(serverApp) : null;
+          if (h2c || h2s) {
+            appSummary = "HTTP/2 after decryption · " +
+              (h2c ? h2c.frames.length + " client frame(s)" : "no client frames") + " · " +
+              (h2s ? h2s.frames.length + " server frame(s)" : "no server frames");
+          }
+        } catch (_) {
+          try {
+            const h1 = window.HTTPCodec.decodeHttp1(serverApp.length ? serverApp : clientApp);
+            appSummary = "HTTP/1.1 after decryption · " + h1.summary;
+          } catch (_) {
+            appSummary = "Decrypted application bytes · " + clientApp.length + " B client · " + serverApp.length + " B server";
+          }
+        }
+      }
+      let hsSummary = "";
+      if (clientHs.length || serverHs.length) {
+        try {
+          const record = window.TLSCodec.buildRecord(22, PH.concatBytes(clientHs, serverHs), 0x0303);
+          const decoded = window.TLSCodec.decodeTls(record);
+          const names = decoded.handshakes.map((message) => message.typeName).join(" → ");
+          const certs = decoded.handshakes.find((message) => message.type === 11 && message.certs);
+          hsSummary = "Decrypted handshake · " + names +
+            (certs ? " · " + certs.certs.length + " certificate(s)" : "");
+        } catch (_) {
+          hsSummary = "Decrypted handshake bytes · " + clientHs.length + " B client · " + serverHs.length + " B server";
+        }
+      }
+      const previewSource = clientApp.length ? clientApp : serverApp;
+      const preview = previewSource.length
+        ? PH.esc(PH.bytesToAscii(previewSource.subarray(0, Math.min(512, previewSource.length))).replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "·"))
+        : "(no decrypted application data)";
+      html += '<div class="callout"><div class="callout__title">TLS flow ' + flow.index + ' · ' +
+        PH.esc(flow.app.context && flow.app.context.sni ? flow.app.context.sni : "no SNI") + '</div>' +
+        '<p class="small dim">client_random ' + PH.esc(result.clientRandom) + ' · ' + PH.esc(result.cipher.name) + '</p>' +
+        '<p class="small">' + PH.esc(hsSummary || "No decrypted handshake bytes") + '</p>' +
+        '<p class="small">' + PH.esc(appSummary || "No decrypted application records") + '</p>' +
+        '<div class="output" style="margin-top:8px"><div class="output__label">decrypted preview · ' + previewSource.length + ' B</div><pre>' + preview + '</pre></div></div>';
+    }
+    if (output) output.innerHTML = html;
+    if (status) {
+      PH.setStatus(status, ok + " TLS flow(s) decrypted" + (failed ? " · " + failed + " not decrypted" : ""), failed ? "warn" : "ok");
+    }
+  }
+
   function bindEvents() {
     const file = $("wb-file");
     if (file) {
@@ -947,9 +1734,11 @@
     }
 
     const example = $("wb-example");
-    if (example) example.addEventListener("click", () => loadExampleCapture());
+    if (example) example.addEventListener("click", () => { stopWatch(); watchedFile = null; loadExampleCapture(); });
     const clear = $("wb-clear");
-    if (clear) clear.addEventListener("click", clearCapture);
+    if (clear) clear.addEventListener("click", () => { stopWatch(); watchedFile = null; clearCapture(); });
+    const watch = $("wb-watch");
+    if (watch) watch.addEventListener("click", toggleWatch);
 
     const hexLoad = $("wb-hex-load");
     if (hexLoad) {
@@ -997,10 +1786,130 @@
       applyFilter();
     });
 
+    const timeSelect = $("wb-time-mode");
+    if (timeSelect) {
+      timeSelect.value = timeMode;
+      timeSelect.addEventListener("change", () => {
+        timeMode = timeSelect.value;
+        renderWindow();
+      });
+    }
+
+    function findNext() {
+      const input = $("wb-find");
+      if (!input) return;
+      const query = input.value.trim().toLowerCase();
+      if (!query) return;
+      if (findState.query !== query) {
+        findState = { query, index: -1 };
+      }
+      let start = findState.index + 1;
+      if (start >= filtered.length) start = 0;
+      for (let step = 0; step < filtered.length; step += 1) {
+        const position = (start + step) % filtered.length;
+        const record = filtered[position];
+        const index = record._index || {};
+        const ep = endpointsOf(index);
+        const haystack = [
+          String(record.number), ep.src, ep.dst, protoLabel(index),
+          index.info || "", index.summary || "", index.appKind || ""
+        ].join(" ").toLowerCase();
+        if (haystack.indexOf(query) !== -1) {
+          findState.index = position;
+          selectRecord(record);
+          scrollToRecord(record);
+          PH.setStatus($("wb-filter-status"), "found packet " + record.number, "ok");
+          return;
+        }
+      }
+      PH.setStatus($("wb-filter-status"), "no packet matched '" + input.value.trim() + "'", "warn");
+    }
+    const findButton = $("wb-find-next");
+    if (findButton) findButton.addEventListener("click", findNext);
+    const findInput = $("wb-find");
+    if (findInput) findInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); findNext(); }
+    });
+
+    const gotoButton = $("wb-goto-run");
+    if (gotoButton) gotoButton.addEventListener("click", () => {
+      const input = $("wb-goto");
+      const number = input ? Number(input.value) : 0;
+      if (!number) return;
+      const record = recordByNumber.get(number);
+      if (!record) { PH.toast("No packet #" + number + " in this capture"); return; }
+      selectRecord(record);
+      scrollToRecord(record);
+    });
+
+    const markButton = $("wb-mark");
+    if (markButton) markButton.addEventListener("click", () => {
+      if (!selected) { PH.toast("Select a packet first"); return; }
+      selected._marked = !selected._marked;
+      selected._index.marked = Boolean(selected._marked);
+      renderWindow();
+      PH.toast(selected._marked ? "packet #" + selected.number + " marked" : "mark removed");
+    });
+
+    ["wb-tab-conv", "wb-tab-protos", "wb-tab-endpoints", "wb-tab-expert", "wb-tab-hierarchy", "wb-tab-timeline"].forEach((id) => {
+      const button = $(id);
+      if (button) button.addEventListener("click", () => setTimeout(renderStats, 0));
+    });
+
+    const diagnoseButton = $("wb-diagnose");
+    if (diagnoseButton) diagnoseButton.addEventListener("click", () => {
+      if (!selected) { PH.toast("Select a packet first"); return; }
+      renderDiagnosis(selected);
+      const host = $("wb-diagnosis");
+      if (host && host.scrollIntoView) host.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+
+    const tlsDecrypt = $("wb-tls-decrypt");
+    if (tlsDecrypt) tlsDecrypt.addEventListener("click", decryptTlsFlows);
+    document.querySelectorAll(".wb-sort").forEach((button) => {
+      const key = button.dataset.sort;
+      const syncSortButton = () => {
+        document.querySelectorAll(".wb-sort").forEach((item) => {
+          const active = item.dataset.sort === sortState.key;
+          item.setAttribute("aria-pressed", active ? "true" : "false");
+          if (active) item.dataset.dir = sortState.dir === 1 ? "asc" : "desc";
+          else item.removeAttribute("data-dir");
+        });
+      };
+      syncSortButton();
+      button.addEventListener("click", () => {
+        if (sortState.key === key) sortState.dir *= -1;
+        else { sortState.key = key; sortState.dir = 1; }
+        syncSortButton();
+        renderList(false);
+      });
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        const find = $("wb-find");
+        if (find) find.focus();
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        const goto = $("wb-goto");
+        if (goto) goto.focus();
+      }
+    });
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        updateRowHeight();
+        renderWindow();
+      }, 120);
+    });
+
     const more = $("wb-more");
     if (more) more.addEventListener("click", () => {
-      visible += PAGE;
-      renderList(false);
+      renderWindow();
     });
 
     const list = $("wb-list");
@@ -1008,9 +1917,16 @@
       list.addEventListener("click", (event) => {
         const row = event.target.closest("[data-record]");
         if (!row) return;
-        const record = records.find((item) => item.index === Number(row.dataset.record));
+        const record = records[Number(row.dataset.record)];
         if (record) selectRecord(record);
       });
+      list.addEventListener("scroll", () => {
+        if (scrollFrame) return;
+        scrollFrame = requestAnimationFrame(() => {
+          scrollFrame = null;
+          renderWindow();
+        });
+      }, { passive: true });
       list.addEventListener("focus", () => {
         if (!selected && filtered.length) selectRecord(filtered[0]);
       });
@@ -1034,20 +1950,22 @@
         }
         event.preventDefault();
         if (next < 0) next = 0;
-        if (next >= visible) {
-          visible = Math.min(filtered.length, Math.ceil((next + 1) / PAGE) * PAGE);
-          renderList(false);
-        }
         selectRecord(filtered[next]);
-        const row = $("wb-packet-" + filtered[next].index);
-        if (row) row.scrollIntoView({ block: "nearest" });
+        scrollToRecord(filtered[next]);
       });
     }
 
     const detail = $("wb-detail");
     if (detail) {
       detail.addEventListener("click", (event) => {
-        if (event.target.closest("[data-follow-stream]")) openStream();
+        if (event.target.closest("[data-follow-stream]")) { openStream(); return; }
+        if (event.target.closest("[data-copy-scapy]")) {
+          if (selected) PH.copyText(scapyForRecord(selected), "Scapy snippet copied");
+          return;
+        }
+        if (event.target.closest("[data-copy-bpf]")) {
+          if (selected) PH.copyText(bpfForRecord(selected), "BPF filter copied");
+        }
       });
     }
 
@@ -1057,6 +1975,10 @@
     if (csv) csv.addEventListener("click", exportCsv);
     const json = $("wb-export-json");
     if (json) json.addEventListener("click", exportJson);
+    const har = $("wb-export-har");
+    if (har) har.addEventListener("click", exportHar);
+    const report = $("wb-export-report");
+    if (report) report.addEventListener("click", exportReport);
     const pcap = $("wb-export-pcap");
     if (pcap) pcap.addEventListener("click", exportPcap);
 
@@ -1118,12 +2040,19 @@
       status: "wb-detail-status",
       detailActions: (layer, result) => {
         const tcp = result && result.layers.find((item) => item.proto === "tcp" && item.meta && item.meta.parsed && item.meta.parsed.payload.length);
-        if (tcp) return '<button class="btn btn--ghost" type="button" data-follow-stream>Follow TCP stream</button>';
-        return "";
+        const flowTcp = selected && selected._flowInfo && selected._flowInfo.flow && selected._flowInfo.flow.proto === "tcp";
+        const actions = [];
+        if (tcp || flowTcp) actions.push('<button class="btn btn--ghost" type="button" data-follow-stream>Follow TCP stream</button>');
+        if (selected) {
+          actions.push('<button class="btn btn--ghost" type="button" data-copy-scapy>Copy as Scapy</button>');
+          actions.push('<button class="btn btn--ghost" type="button" data-copy-bpf>Copy BPF</button>');
+        }
+        return actions.join("");
       }
     });
     view.clear("Select a packet in the list.");
     bindEvents();
+    updateRowHeight();
     renderFilterChips();
     if (!restoreState()) loadExampleCapture();
   }

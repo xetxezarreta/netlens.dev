@@ -10,7 +10,7 @@
   const PROTOCOLS = [
     "eth", "ethernet", "vlan", "arp", "ip", "ipv4", "ipv6", "tcp", "udp",
     "icmp", "icmpv6", "icmp6", "dns", "dhcp", "http", "tls", "bgp", "quic",
-    "fcs"
+    "fcs", "mpls", "pppoe", "vxlan", "geneve", "sctp", "wifi", "radiotap", "ipv6-ext"
   ];
 
   const PROTOCOL_ALIASES = {
@@ -83,6 +83,114 @@
     "dhcp.type": { type: "string", get: (i) => i.dhcp && i.dhcp.type },
     "bgp.type": { type: "number", get: (i) => i.bgp && i.bgp.type }
   };
+
+  const ALIASES = {
+    "http.method": "http.request.method",
+    "dns.qname": "dns.qry.name",
+    "tls.sni": "tls.handshake.extensions_server_name"
+  };
+
+  function flowField(name, type) {
+    return {
+      type,
+      get: (i) => {
+        if (!i) return undefined;
+        if (i.flowFields && i.flowFields[name] != null) return i.flowFields[name];
+        return undefined;
+      }
+    };
+  }
+
+  function flowOr(name, type, fallback) {
+    return {
+      type,
+      get: (i) => {
+        if (!i) return undefined;
+        if (i.flowFields && i.flowFields[name] != null) return i.flowFields[name];
+        return fallback(i);
+      }
+    };
+  }
+
+  Object.assign(FIELDS, {
+    "frame": { type: "bytes", get: (i) => i && i.frameBytes },
+    "frame.marked": { type: "bool", get: (i) => i && i.marked },
+    "frame.expert": { type: "string", get: (i) => i && i.expert },
+    "tcp.stream": { type: "number", get: (i) => i && i.flowFields && i.flowFields["tcp.stream"] },
+    "tcp.window": { type: "number", get: (i) => i && i.tcp && i.tcp.window },
+    "tcp.options.mss": flowField("tcp.options.mss", "number"),
+    "tcp.options.wscale": flowField("tcp.options.wscale", "number"),
+    "tcp.options.sack_perm": flowField("tcp.options.sack_perm", "bool"),
+    "tcp.options.timestamp": flowField("tcp.options.timestamp", "bool"),
+    "tcp.analysis.retransmission": flowField("tcp.analysis.retransmission", "bool"),
+    "tcp.analysis.out_of_order": flowField("tcp.analysis.out_of_order", "bool"),
+    "tcp.analysis.fast_retransmission": flowField("tcp.analysis.fast_retransmission", "bool"),
+    "tcp.analysis.duplicate_ack": flowField("tcp.analysis.duplicate_ack", "bool"),
+    "tcp.analysis.zero_window": flowField("tcp.analysis.zero_window", "bool"),
+    "tcp.analysis.keepalive": flowField("tcp.analysis.keepalive", "bool"),
+    "tcp.analysis.rst": flowField("tcp.analysis.rst", "bool"),
+    "tcp.analysis.rtt": flowField("tcp.analysis.rtt", "number"),
+    "ip.checksum.status": { type: "string", get: (i) => i && i.ipv4 && i.ipv4.checksumStatus },
+    "ip.fragmented": { type: "bool", get: (i) => i && i.ipv4 && (i.ipv4.fragmentOffset > 0 || i.ipv4.mf) },
+    "ip.reassembled": { type: "bool", get: (i) => i && i.fragmentOf != null },
+    "tls.record.type": flowField("tls.record.type", "string"),
+    "tls.record.version": flowField("tls.record.version", "string"),
+    "tls.handshake.extensions_server_name": flowOr("tls.handshake.extensions_server_name", "string", (i) => i.tls && i.tls.sni),
+    "tls.alpn": flowField("tls.alpn", "string"),
+    "tls.cipher": flowField("tls.cipher", "string"),
+    "tls.alert": flowField("tls.alert", "string"),
+    "tls.handshake.length": flowField("tls.handshake.length", "number"),
+    "http.request.method": flowOr("http.request.method", "string", (i) => i.http && i.http.method),
+    "http.request.uri": flowOr("http.request.uri", "string", (i) => i.http && i.http.target),
+    "http.host": flowOr("http.host", "string", (i) => i.http && i.http.host),
+    "http.response.status": flowOr("http.response.status", "number", (i) => i.http && i.http.status),
+    "http.user_agent": flowField("http.user_agent", "string"),
+    "http.content_type": flowField("http.content_type", "string"),
+    "http.content_length": flowField("http.content_length", "number"),
+    "http2.stream": flowField("http2.stream", "number"),
+    "http2.type": flowField("http2.type", "string"),
+    "dns.qry.name": flowOr("dns.qry.name", "string", (i) => i.dns && i.dns.qname),
+    "dns.qry.type": flowField("dns.qry.type", "string"),
+    "dns.flags.response": flowOr("dns.flags.response", "bool", (i) => i.dns && i.dns.response),
+    "dns.flags.rcode": flowField("dns.flags.rcode", "string"),
+    "dns.count.answers": flowField("dns.count.answers", "number"),
+    "dns.answer": flowField("dns.answer", "string"),
+    "dns.id": flowOr("dns.id", "number", (i) => i.dns && i.dns.id),
+    "bgp.type": flowOr("bgp.type", "string", (i) => i.bgp && i.bgp.type),
+    "bgp.length": flowField("bgp.length", "number"),
+    "bgp.notification": flowField("bgp.notification", "string"),
+    "quic.long": flowField("quic.long", "bool"),
+    "quic.version": flowField("quic.version", "string"),
+    "dhcp.type": flowOr("dhcp.type", "string", (i) => i.dhcp && i.dhcp.type),
+    "dhcp.xid": flowOr("dhcp.xid", "number", (i) => i.dhcp && i.dhcp.xid),
+    "dhcp.yiaddr": flowField("dhcp.yiaddr", "string"),
+    "flow.proto": flowField("flow.proto", "string"),
+    "flow.app": flowField("flow.app", "string"),
+    "flow.src": flowField("flow.src", "string"),
+    "flow.dst": flowField("flow.dst", "string"),
+    "flow.packets": flowField("flow.packets", "number"),
+    "flow.bytes": flowField("flow.bytes", "number"),
+    "flow.index": flowField("flow.index", "number")
+  });
+
+  Object.assign(FIELDS, {
+    "arp.src": { type: "string", get: (i) => i.arp && i.arp.senderMac },
+    "arp.dst": { type: "string", get: (i) => i.arp && i.arp.targetMac },
+    "arp.src.hw_mac": { type: "string", get: (i) => i.arp && i.arp.senderMac },
+    "arp.dst.hw_mac": { type: "string", get: (i) => i.arp && i.arp.targetMac },
+    "arp.src.proto_ipv4": { type: "ip", get: (i) => i.arp && i.arp.senderIp },
+    "arp.dst.proto_ipv4": { type: "ip", get: (i) => i.arp && i.arp.targetIp }
+  });
+
+  let extraFields = {};
+
+  function registerFields(fields) {
+    Object.keys(fields || {}).forEach((name) => {
+      if (FIELDS[name]) return;
+      extraFields[name] = flowField(name, fields[name] || "string");
+      FIELDS[name] = extraFields[name];
+    });
+  }
 
   const EXAMPLES = [
     "tcp",
@@ -211,7 +319,17 @@
       if (proto && (!peek() || peek().type !== "op")) {
         return { type: "proto", name: proto };
       }
-      const lower = word.toLowerCase();
+      let lower = word.toLowerCase();
+      const sliceMatch = lower.match(/^frame\[(\d+)(?::(\d+))?\]$/);
+      if (sliceMatch) {
+        const start = Number(sliceMatch[1]);
+        const length = sliceMatch[2] == null ? 1 : Number(sliceMatch[2]);
+        FIELDS[lower] = {
+          type: "bytes",
+          get: (i) => i && i.frameBytes ? i.frameBytes.subarray(start, start + length) : undefined
+        };
+      }
+      if (ALIASES[lower]) lower = ALIASES[lower];
       const field = FIELDS[lower];
       if (!field) {
         if (proto) {
@@ -338,8 +456,47 @@
     return true;
   }
 
+  function toBytes(value) {
+    if (value instanceof Uint8Array) return value;
+    const text = String(value == null ? "" : value);
+    const cleaned = text.replace(/[^0-9a-fA-F]/g, "");
+    if (cleaned.length >= 2 && cleaned.length % 2 === 0 && /^[0-9a-fA-F:\s]+$/.test(text) && /[0-9a-fA-F]/.test(text)) {
+      const out = new Uint8Array(cleaned.length / 2);
+      for (let i = 0; i < out.length; i += 1) out[i] = parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
+      return out;
+    }
+    const out = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i += 1) out[i] = text.charCodeAt(i) & 255;
+    return out;
+  }
+
+  function bytesEqual(actual, expected) {
+    if (!actual || actual.length !== expected.length) return false;
+    for (let i = 0; i < actual.length; i += 1) if (actual[i] !== expected[i]) return false;
+    return true;
+  }
+
+  function bytesContains(actual, expected) {
+    if (!actual || !expected || expected.length === 0 || actual.length < expected.length) return false;
+    for (let i = 0; i <= actual.length - expected.length; i += 1) {
+      let hit = true;
+      for (let j = 0; j < expected.length; j += 1) {
+        if (actual[i + j] !== expected[j]) { hit = false; break; }
+      }
+      if (hit) return true;
+    }
+    return false;
+  }
+
   function compare(actual, op, expected, fieldType) {
     if (actual == null) return false;
+    if (fieldType === "bytes") {
+      const right = toBytes(expected);
+      if (op === "contains" || op === "~=") return bytesContains(actual, right);
+      if (op === "==") return bytesEqual(actual, right);
+      if (op === "!=") return !bytesEqual(actual, right);
+      return false;
+    }
     if (fieldType === "ip" && typeof expected === "string" && expected.indexOf("/") !== -1) {
       const hit = cidrMatch(actual, expected);
       return op === "!=" ? !hit : op === "==" ? hit : false;
@@ -369,29 +526,131 @@
     return false;
   }
 
-  function evaluate(ast, index) {
-    if (!ast || ast.type === "all") return true;
-    if (ast.type === "and") return evaluate(ast.left, index) && evaluate(ast.right, index);
-    if (ast.type === "or") return evaluate(ast.left, index) || evaluate(ast.right, index);
-    if (ast.type === "not") return !evaluate(ast.expr, index);
+  function numberCompare(left, op, right) {
+    if (!Number.isFinite(left) || !Number.isFinite(right)) return op === "!=";
+    if (op === "==") return left === right;
+    if (op === "!=") return left !== right;
+    if (op === ">") return left > right;
+    if (op === ">=") return left >= right;
+    if (op === "<") return left < right;
+    if (op === "<=") return left <= right;
+    return false;
+  }
+
+  function compile(ast) {
+    if (!ast || ast.type === "all") return () => true;
+    if (ast.type === "and") {
+      const left = compile(ast.left);
+      const right = compile(ast.right);
+      return (index) => left(index) && right(index);
+    }
+    if (ast.type === "or") {
+      const left = compile(ast.left);
+      const right = compile(ast.right);
+      return (index) => left(index) || right(index);
+    }
+    if (ast.type === "not") {
+      const inner = compile(ast.expr);
+      return (index) => !inner(index);
+    }
     if (ast.type === "proto") {
-      const protos = (index && index.protos) || [];
-      if (ast.name === "ip") return protos.indexOf("ipv4") !== -1;
-      if (ast.name === "eth") return protos.indexOf("ethernet") !== -1;
-      return protos.indexOf(ast.name) !== -1;
+      const name = ast.name;
+      const target = name === "ip" ? "ipv4" : name === "eth" ? "ethernet" : name;
+      return (index) => {
+        const protos = (index && index.protos) || [];
+        return protos.indexOf(target) !== -1;
+      };
     }
     if (ast.type === "compare") {
       const field = FIELDS[ast.field];
-      if (!field) return false;
-      let actual = field.get(index);
-      if (field.many) {
-        if (!Array.isArray(actual) || !actual.length) return false;
-        if (ast.op === "!=") return actual.every((value) => compare(value, "!=", ast.value.value, field.type));
-        return actual.some((value) => compare(value, ast.op, ast.value.value, field.type));
+      if (!field) return () => false;
+      const get = field.get;
+      const fieldType = field.type;
+      const many = field.many;
+      const op = ast.op;
+      const expected = ast.value.value;
+      if (ast.field === "tcp.port" || ast.field === "udp.port") {
+        const layerName = ast.field === "tcp.port" ? "tcp" : "udp";
+        const right = Number(expected);
+        return (index) => {
+          const layer = index && index[layerName];
+          if (!layer) return false;
+          const first = layer.sport;
+          const second = layer.dport;
+          if (op === "==") return first === right || second === right;
+          if (op === "!=") return first !== right && second !== right;
+          if (op === ">") return first > right || second > right;
+          if (op === ">=") return first >= right || second >= right;
+          if (op === "<") return first < right || second < right;
+          if (op === "<=") return first <= right || second <= right;
+          return false;
+        };
       }
-      return compare(actual, ast.op, ast.value.value, field.type);
+      if (ast.field === "ip.addr" || ast.field === "ipv6.addr" || ast.field === "net.addr") {
+        return (index) => {
+          const values = [];
+          if (index && index.ipv4) values.push(index.ipv4.src, index.ipv4.dst);
+          if (index && index.ipv6) values.push(index.ipv6.src, index.ipv6.dst);
+          if (!values.length) return false;
+          if (op === "!=") return values.every((value) => compare(value, "!=", expected, "ip"));
+          return values.some((value) => compare(value, op, expected, "ip"));
+        };
+      }
+      if (many) {
+        return (index) => {
+          const actual = get(index);
+          if (!Array.isArray(actual) || !actual.length) return false;
+          if (op === "!=") return actual.every((value) => compare(value, "!=", expected, fieldType));
+          return actual.some((value) => compare(value, op, expected, fieldType));
+        };
+      }
+      if (fieldType === "bytes") {
+        const right = toBytes(expected);
+        if (op === "contains" || op === "~=") return (index) => bytesContains(get(index), right);
+        if (op === "==") return (index) => bytesEqual(get(index), right);
+        if (op === "!=") return (index) => !bytesEqual(get(index), right);
+      }
+      if (fieldType === "number") {
+        const right = Number(expected);
+        return (index) => {
+          const actual = get(index);
+          if (actual == null) return false;
+          const left = Number(actual);
+          if (!Number.isFinite(left) || !Number.isFinite(right)) return op === "!=";
+          if (op === "==") return left === right;
+          if (op === "!=") return left !== right;
+          if (op === ">") return left > right;
+          if (op === ">=") return left >= right;
+          if (op === "<") return left < right;
+          if (op === "<=") return left <= right;
+          return false;
+        };
+      }
+      if (fieldType === "bool") {
+        const right = expected === true || expected === 1 || expected === "1" || String(expected).toLowerCase() === "true";
+        return (index) => {
+          const actual = get(index);
+          if (actual == null) return false;
+          const left = Boolean(actual);
+          return op === "!=" ? left !== right : left === right;
+        };
+      }
+      const rightLower = String(expected).toLowerCase();
+      return (index) => {
+        const actual = get(index);
+        if (actual == null) return false;
+        const left = String(actual).toLowerCase();
+        if (op === "contains") return left.indexOf(rightLower) !== -1;
+        if (op === "==") return left === rightLower;
+        if (op === "!=") return left !== rightLower;
+        return compare(actual, op, expected, fieldType);
+      };
     }
-    return false;
+    return () => false;
+  }
+
+  function evaluate(ast, index) {
+    return compile(ast)(index);
   }
 
   function fields() {
@@ -409,9 +668,12 @@
   global.PHFilter = {
     parse,
     evaluate,
+    compile,
     tokenize,
     fields,
     describe,
+    registerFields,
+    toBytes,
     examples: EXAMPLES.slice(),
     FilterError,
     parseIPv4,

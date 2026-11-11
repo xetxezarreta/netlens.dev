@@ -34,8 +34,19 @@
     }, spec);
   }
 
-  function field(name, value, note) {
-    return { name, value: value == null ? "—" : String(value), note: note || "" };
+  function field(name, value, note, meta) {
+    const out = { name, value: value == null ? "—" : String(value), note: note || "" };
+    if (meta) {
+      if (meta.abbrev) out.abbrev = meta.abbrev;
+      if (meta.offset != null) out.offset = meta.offset;
+      if (meta.length != null) out.length = meta.length;
+      if (meta.type) out.type = meta.type;
+      if (meta.raw !== undefined) out.raw = meta.raw;
+      if (meta.display) out.display = meta.display;
+      if (meta.rfc) out.rfc = meta.rfc;
+      if (meta.severity) out.severity = meta.severity;
+    }
+    return out;
   }
 
   function mac(bytes) {
@@ -379,15 +390,18 @@
     const parsed = global.TCPCodec.decodeSegment(bytes, checksumContext);
     parsed.warnings.forEach((warning) => pushWarning(state, "TCP: " + warning));
     const fields = [
-      field("Source port", parsed.sport + " · " + serviceLabel(parsed.sport)),
-      field("Destination port", parsed.dport + " · " + serviceLabel(parsed.dport)),
-      field("Sequence", parsed.seq),
-      field("Acknowledgment", parsed.ack),
-      field("Flags", parsed.notation + " · " + parsed.flagNames.join(" ")),
-      field("Window", parsed.window),
-      field("Checksum", "0x" + PH.hex(parsed.checksum, 4) + " · " + parsed.checksumStatus),
-      field("Data offset", parsed.headerLen + " B"),
-      field("Options", parsed.optionsBytes + " B")
+      field("Source port", parsed.sport + " · " + serviceLabel(parsed.sport), "", { abbrev: "tcp.srcport", offset, length: 2, type: "uint16", raw: parsed.sport }),
+      field("Destination port", parsed.dport + " · " + serviceLabel(parsed.dport), "", { abbrev: "tcp.dstport", offset: offset + 2, length: 2, type: "uint16", raw: parsed.dport }),
+      field("Sequence", parsed.seq, "", { abbrev: "tcp.seq", offset: offset + 4, length: 4, type: "uint32", raw: parsed.seq }),
+      field("Acknowledgment", parsed.ack, "", { abbrev: "tcp.ack", offset: offset + 8, length: 4, type: "uint32", raw: parsed.ack }),
+      field("Flags", parsed.notation + " · " + parsed.flagNames.join(" "), "", { abbrev: "tcp.flags", offset: offset + 13, length: 1, type: "uint8", raw: parsed.flags }),
+      field("Window", parsed.window, "", { abbrev: "tcp.window", offset: offset + 14, length: 2, type: "uint16", raw: parsed.window }),
+      field("Checksum", "0x" + PH.hex(parsed.checksum, 4) + " · " + parsed.checksumStatus, "", {
+        abbrev: "tcp.checksum", offset: offset + 16, length: 2, type: "uint16", raw: parsed.checksum,
+        severity: parsed.checksumStatus === "invalid" ? "warn" : ""
+      }),
+      field("Data offset", parsed.headerLen + " B", "", { abbrev: "tcp.hdr_len", offset: offset + 12, length: 1, type: "uint8" }),
+      field("Options", parsed.optionsBytes + " B", "", { abbrev: "tcp.options", offset: offset + 20, length: parsed.optionsBytes, type: "bytes" })
     ];
     const result = [layer({
       proto: "tcp", name: "TCP", offset, length: parsed.headerLen,
@@ -395,6 +409,7 @@
         " · seq " + parsed.seq + " · " + parsed.payload.length + " B payload",
       fields, warnings: parsed.warnings.slice(), depth, href: "tcp.html", meta: { parsed }
     })];
+    if (state.headersOnly) return result;
     const payloadOffset = offset + parsed.headerLen;
     let payload = parsed.payload;
     if (payload.length && (parsed.sport === 53 || parsed.dport === 53)) {
@@ -427,16 +442,26 @@
     const parsed = global.UDPCodec.decodeUdp(bytes, context || {});
     parsed.warnings.forEach((warning) => pushWarning(state, "UDP: " + warning));
     const fields = [
-      field("Source port", parsed.srcPort + " · " + serviceLabel(parsed.srcPort)),
-      field("Destination port", parsed.dstPort + " · " + serviceLabel(parsed.dstPort)),
-      field("Length", parsed.length + " B · " + parsed.payloadLength + " B payload"),
-      field("Checksum", "0x" + PH.hex(parsed.checksum, 4) + " · " + parsed.checksumState)
+      field("Source port", parsed.srcPort + " · " + serviceLabel(parsed.srcPort), "", { abbrev: "udp.srcport", offset, length: 2, type: "uint16", raw: parsed.srcPort }),
+      field("Destination port", parsed.dstPort + " · " + serviceLabel(parsed.dstPort), "", { abbrev: "udp.dstport", offset: offset + 2, length: 2, type: "uint16", raw: parsed.dstPort }),
+      field("Length", parsed.length + " B · " + parsed.payloadLength + " B payload", "", { abbrev: "udp.length", offset: offset + 4, length: 2, type: "uint16", raw: parsed.length }),
+      field("Checksum", "0x" + PH.hex(parsed.checksum, 4) + " · " + parsed.checksumState, "", {
+        abbrev: "udp.checksum", offset: offset + 6, length: 2, type: "uint16", raw: parsed.checksum,
+        severity: parsed.checksumState === "invalid" ? "warn" : ""
+      })
     ];
     const result = [layer({
       proto: "udp", name: "UDP", offset, length: Math.min(parsed.length || 8, parsed.bytes.length),
       summary: parsed.srcPort + " → " + parsed.dstPort + " · " + parsed.length + " B · checksum " + parsed.checksumState,
       fields, warnings: parsed.warnings.slice(), depth, href: "udp.html", meta: { parsed }
     })];
+    const vxlan = parsed.dstPort === 4789 || parsed.srcPort === 4789 || parsed.dstPort === 8472 || parsed.srcPort === 8472;
+    const geneve = parsed.dstPort === 6081 || parsed.srcPort === 6081;
+    if (vxlan || geneve) {
+      const tunnel = decodeVxlan(parsed.payload, offset + 8, state, depth + 1, geneve);
+      if (tunnel) return result.concat(tunnel);
+    }
+    if (state.headersOnly) return result;
     const app = applicationLayer(parsed.payload, offset + 8, state, depth + 1, {
       dhcp: parsed.srcPort === 67 || parsed.dstPort === 67 || parsed.srcPort === 68 || parsed.dstPort === 68,
       dns: parsed.srcPort === 53 || parsed.dstPort === 53 || parsed.srcPort === 5353 || parsed.dstPort === 5353,
@@ -514,6 +539,9 @@
         warnings: [], depth
       })];
     }
+    if (nextHeader === 132) {
+      return decodeSctp(bytes, offset, state, depth);
+    }
     if (nextHeader === 47) {
       return [layer({
         proto: "gre", name: "GRE", offset, length: bytes.length,
@@ -535,18 +563,21 @@
     const totalLength = ip.totalLength || (ip.headerLen + ip.payloadBytes.length);
     const layerLength = Math.min(totalLength, bytes.length - offset);
     const fields = [
-      field("Version / IHL", ip.version + " / " + ip.ihl + " · " + ip.headerLen + " B header"),
-      field("DSCP / ECN", ip.dscp + " · " + ip.dscpLabel + " / " + ip.ecn + " · " + ip.ecnLabel),
-      field("Total length", ip.totalLength + " B"),
-      field("Identification", "0x" + PH.hex(ip.id, 4)),
-      field("Flags", (ip.reserved ? "R " : "") + (ip.df ? "DF " : "") + (ip.mf ? "MF" : "") + " · offset " + ip.fragmentOffset),
-      field("TTL", ip.ttl),
-      field("Protocol", ip.protocol + " · " + ip.protocolLabel),
-      field("Header checksum", "0x" + PH.hex(ip.checksum, 4) + (ip.checksumOk ? " · valid" : " · invalid")),
-      field("Source", ip.src),
-      field("Destination", ip.dst)
+      field("Version / IHL", ip.version + " / " + ip.ihl + " · " + ip.headerLen + " B header", "", { abbrev: "ip.version", offset, length: 1, type: "uint8", raw: ip.version, severity: ip.version !== 4 ? "bad" : "" }),
+      field("DSCP / ECN", ip.dscp + " · " + ip.dscpLabel + " / " + ip.ecn + " · " + ip.ecnLabel, "", { abbrev: "ip.dsfield", offset: offset + 1, length: 1, type: "uint8" }),
+      field("Total length", ip.totalLength + " B", "", { abbrev: "ip.len", offset: offset + 2, length: 2, type: "uint16", raw: ip.totalLength }),
+      field("Identification", "0x" + PH.hex(ip.id, 4), "", { abbrev: "ip.id", offset: offset + 4, length: 2, type: "uint16", raw: ip.id }),
+      field("Flags", (ip.reserved ? "R " : "") + (ip.df ? "DF " : "") + (ip.mf ? "MF" : "") + " · offset " + ip.fragmentOffset, "", { abbrev: "ip.flags", offset: offset + 6, length: 2, type: "uint16" }),
+      field("TTL", ip.ttl, "", { abbrev: "ip.ttl", offset: offset + 8, length: 1, type: "uint8", raw: ip.ttl }),
+      field("Protocol", ip.protocol + " · " + ip.protocolLabel, "", { abbrev: "ip.proto", offset: offset + 9, length: 1, type: "uint8", raw: ip.protocol }),
+      field("Header checksum", "0x" + PH.hex(ip.checksum, 4) + (ip.checksumOk ? " · valid" : " · invalid"), "", {
+        abbrev: "ip.checksum", offset: offset + 10, length: 2, type: "uint16", raw: ip.checksum,
+        severity: ip.checksumOk ? "" : "warn"
+      }),
+      field("Source", ip.src, "", { abbrev: "ip.src", offset: offset + 12, length: 4, type: "ipv4" }),
+      field("Destination", ip.dst, "", { abbrev: "ip.dst", offset: offset + 16, length: 4, type: "ipv4" })
     ];
-    if (ip.options.length) fields.push(field("Options", ip.options.length + " · " + ip.optionsBytes + " B"));
+    if (ip.options.length) fields.push(field("Options", ip.options.length + " · " + ip.optionsBytes + " B", "", { abbrev: "ip.options", offset: offset + 20, length: ip.optionsBytes, type: "bytes" }));
     const layers = [layer({
       proto: "ipv4", name: "IPv4", offset, length: layerLength,
       summary: ip.src + " → " + ip.dst + " · " + ip.protocolLabel + " · TTL " + ip.ttl + " · " + layerLength + " B",
@@ -589,13 +620,13 @@
       ? chain.jumboPayloadLength : ip.payloadLength;
     const layerLength = Math.min(40 + payloadLength, bytes.length - offset);
     const fields = [
-      field("Version / Traffic Class", ip.version + " / 0x" + PH.hex(ip.trafficClass, 2)),
-      field("Flow label", "0x" + PH.hex(ip.flowLabel, 5)),
-      field("Payload length", ip.payloadLength + (ip.payloadLengthZero ? " · jumbogram or empty" : "")),
-      field("Next header", ip.nextHeader + " · " + ip.nextHeaderName),
-      field("Hop limit", ip.hopLimit),
-      field("Source", ip.src),
-      field("Destination", ip.dst)
+      field("Version / Traffic Class", ip.version + " / 0x" + PH.hex(ip.trafficClass, 2), "", { abbrev: "ipv6.version", offset, length: 1, type: "uint8", raw: ip.version }),
+      field("Flow label", "0x" + PH.hex(ip.flowLabel, 5), "", { abbrev: "ipv6.flow", offset: offset + 1, length: 3, type: "uint32", raw: ip.flowLabel }),
+      field("Payload length", ip.payloadLength + (ip.payloadLengthZero ? " · jumbogram or empty" : ""), "", { abbrev: "ipv6.plen", offset: offset + 4, length: 2, type: "uint16", raw: ip.payloadLength }),
+      field("Next header", ip.nextHeader + " · " + ip.nextHeaderName, "", { abbrev: "ipv6.nxt", offset: offset + 6, length: 1, type: "uint8", raw: ip.nextHeader }),
+      field("Hop limit", ip.hopLimit, "", { abbrev: "ipv6.hlim", offset: offset + 7, length: 1, type: "uint8", raw: ip.hopLimit }),
+      field("Source", ip.src, "", { abbrev: "ipv6.src", offset: offset + 8, length: 16, type: "ipv6" }),
+      field("Destination", ip.dst, "", { abbrev: "ipv6.dst", offset: offset + 24, length: 16, type: "ipv6" })
     ];
     const layers = [layer({
       proto: "ipv6", name: "IPv6", offset, length: Math.min(40, bytes.length - offset),
@@ -627,6 +658,196 @@
     return layers.concat(transport);
   }
 
+  /* ---------- tunnels and alternative link layers ---------- */
+
+  function decodeMpls(eth, frameBytes, state) {
+    const payload = eth.payload;
+    const labels = [];
+    let pos = 0;
+    while (pos + 4 <= payload.length && labels.length < 16) {
+      const word = PH.u32be(payload, pos);
+      labels.push({ label: word >>> 12, tc: (word >>> 9) & 7, s: (word >>> 8) & 1, ttl: word & 255 });
+      pos += 4;
+      if (labels[labels.length - 1].s) break;
+    }
+    if (!labels.length) return [unknownPayload(payload, eth.offset + eth.headerLen, state, 1, "MPLS label stack")];
+    const innerOffset = eth.offset + eth.headerLen + pos;
+    const version = frameBytes[innerOffset] >> 4;
+    let inner;
+    if (version === 4) inner = decodeIpv4(frameBytes, innerOffset, state, 4);
+    else if (version === 6) inner = decodeIpv6(frameBytes, innerOffset, state);
+    else inner = [unknownPayload(frameBytes.subarray(innerOffset), innerOffset, state, 1, "MPLS payload")];
+    const mpls = layer({
+      proto: "mpls", name: "MPLS", offset: eth.offset + eth.headerLen, length: pos,
+      summary: labels.map((item) => "label " + item.label + " · TTL " + item.ttl).join(" → "),
+      fields: labels.map((item, index) => field("Label " + (index + 1),
+        item.label + " · TC " + item.tc + " · S " + item.s + " · TTL " + item.ttl)),
+      warnings: labels.length > 1 && !labels[labels.length - 1].s ? ["Label stack has no bottom-of-stack bit"] : [],
+      depth: 1, href: ""
+    });
+    return [mpls].concat(inner);
+  }
+
+  function decodePppoe(eth, frameBytes, state) {
+    const payload = eth.payload;
+    if (payload.length < 6) return [unknownPayload(payload, eth.offset + eth.headerLen, state, 1, "truncated PPPoE header")];
+    const code = payload[1];
+    const session = PH.u16be(payload, 2);
+    const length = PH.u16be(payload, 4);
+    const discovery = eth.etherType === 0x8863;
+    const pppoe = layer({
+      proto: "pppoe", name: discovery ? "PPPoE Discovery" : "PPPoE Session",
+      offset: eth.offset + eth.headerLen, length: Math.min(payload.length, 6),
+      summary: (discovery ? "discovery" : "session") + " · code 0x" + PH.hex(code, 2) +
+        " · session 0x" + PH.hex(session, 4) + " · " + length + " B PPP payload",
+      fields: [
+        field("Version / type", "0x" + PH.hex(payload[0], 2)),
+        field("Code", "0x" + PH.hex(code, 2)),
+        field("Session ID", "0x" + PH.hex(session, 4)),
+        field("Length", length + " B")
+      ],
+      warnings: length > payload.length - 6 ? ["PPPoE Length exceeds the captured bytes"] : [],
+      depth: 1, href: ""
+    });
+    if (discovery || payload.length < 8) return [pppoe];
+    const protocol = PH.u16be(payload, 6);
+    const innerOffset = eth.offset + eth.headerLen + 8;
+    let inner = null;
+    if (protocol === 0x0021) inner = decodeIpv4(frameBytes, innerOffset, state, 4);
+    else if (protocol === 0x0057) inner = decodeIpv6(frameBytes, innerOffset, state);
+    pppoe.fields.push(field("PPP protocol", "0x" + PH.hex(protocol, 4)));
+    if (!inner) return [pppoe, unknownPayload(payload.subarray(8), innerOffset, state, 2, "PPP protocol 0x" + PH.hex(protocol, 4))];
+    return [pppoe].concat(inner);
+  }
+
+  function decodeVxlan(udpPayload, offset, state, depth, geneve) {
+    if (!udpPayload || udpPayload.length < 8) return null;
+    let innerOffset = offset;
+    let vni = 0;
+    let headerLength = 8;
+    if (geneve) {
+      if (udpPayload.length < 8) return null;
+      const optLength = (udpPayload[0] & 0x3f) * 4;
+      headerLength = 8 + optLength;
+      vni = (udpPayload[4] << 16) | (udpPayload[5] << 8) | udpPayload[6];
+      const protocol = PH.u16be(udpPayload, 2);
+      innerOffset = offset + headerLength;
+      if (protocol !== 0x6558) {
+        return [layer({
+          proto: "geneve", name: "Geneve", offset, length: headerLength,
+          summary: "VNI " + vni + " · protocol 0x" + PH.hex(protocol, 4),
+          fields: [field("VNI", vni), field("Protocol", "0x" + PH.hex(protocol, 4)), field("Options", optLength + " B")],
+          warnings: [], depth, href: ""
+        })];
+      }
+    } else {
+      vni = (udpPayload[4] << 16) | (udpPayload[5] << 8) | udpPayload[6];
+      innerOffset = offset + 8;
+    }
+    const innerBytes = udpPayload.subarray(headerLength);
+    const inner = decodeEthernet(innerBytes, state);
+    inner.forEach((item) => { item.offset += innerOffset; });
+    const tunnel = layer({
+      proto: geneve ? "geneve" : "vxlan", name: geneve ? "Geneve" : "VXLAN",
+      offset, length: headerLength,
+      summary: "VNI " + vni + " · inner Ethernet · " + innerBytes.length + " B",
+      fields: [field("VNI", vni), field("Header", headerLength + " B")],
+      warnings: [], depth, href: ""
+    });
+    return [tunnel].concat(inner);
+  }
+
+  function decodeSctp(bytes, offset, state, depth) {
+    if (bytes.length < 12) return [layer({ proto: "sctp", name: "SCTP", offset, length: bytes.length, summary: "SCTP · truncated", fields: [], warnings: ["SCTP needs at least 12 bytes"], depth, href: "" })];
+    const src = PH.u16be(bytes, 0);
+    const dst = PH.u16be(bytes, 2);
+    const tag = PH.u32be(bytes, 4);
+    const checksum = PH.u32be(bytes, 8);
+    const chunks = [];
+    let pos = 12;
+    let guard = 0;
+    while (pos + 4 <= bytes.length && guard++ < 64) {
+      const type = bytes[pos];
+      const flags = bytes[pos + 1];
+      const length = PH.u16be(bytes, pos + 2);
+      if (length < 4 || pos + length > bytes.length) break;
+      chunks.push({ type, flags, length });
+      pos += (length + 3) & ~3;
+    }
+    return [layer({
+      proto: "sctp", name: "SCTP", offset, length: bytes.length,
+      summary: src + " → " + dst + " · tag 0x" + PH.hex(tag, 8) + " · " + chunks.length + " chunk(s)",
+      fields: [
+        field("Source port", src), field("Destination port", dst),
+        field("Verification tag", "0x" + PH.hex(tag, 8)),
+        field("Checksum", "0x" + PH.hex(checksum, 8)),
+        field("Chunks", chunks.length + " · " + chunks.map((chunk) => "type " + chunk.type).join(", "))
+      ],
+      warnings: [], depth, href: ""
+    })];
+  }
+
+  function decodeWifi(bytes, state) {
+    if (bytes.length < 10) return dissect(bytes, { kind: "raw", note: "truncated IEEE 802.11 frame" });
+    const frameControl = PH.u16le(bytes, 0);
+    const type = (frameControl >> 2) & 3;
+    const subtype = (frameControl >> 4) & 15;
+    const flags = frameControl >> 8;
+    const toDs = Boolean(flags & 1);
+    const fromDs = Boolean(flags & 2);
+    const protectedFrame = Boolean(flags & 0x40);
+    let headerLength = 24;
+    if (toDs && fromDs) headerLength += 6;
+    if (type === 2 && subtype >= 8) headerLength += 2;
+    if (bytes.length < headerLength) return dissect(bytes, { kind: "raw", note: "truncated IEEE 802.11 data header" });
+    const addr1 = mac(bytes.subarray(4, 10));
+    const addr2 = mac(bytes.subarray(10, 16));
+    const addr3 = mac(bytes.subarray(16, 22));
+    const wifi = layer({
+      proto: "wifi", name: "IEEE 802.11", offset: 0, length: headerLength,
+      summary: (type === 0 ? "management" : type === 1 ? "control" : "data") + " · subtype " + subtype +
+        " · " + addr2 + " → " + addr1 + (protectedFrame ? " · protected" : ""),
+      fields: [
+        field("Frame control", "0x" + PH.hex(frameControl, 4)),
+        field("Type / subtype", type + " / " + subtype),
+        field("Flags", "ToDS " + Number(toDs) + " · FromDS " + Number(fromDs) + " · protected " + Number(protectedFrame)),
+        field("Address 1", addr1), field("Address 2", addr2), field("Address 3", addr3)
+      ],
+      warnings: protectedFrame ? ["Protected 802.11 frame; payload is encrypted"] : [],
+      depth: 0, href: ""
+    });
+    if (type !== 2 || protectedFrame || bytes.length <= headerLength) {
+      return { bytes, layers: [wifi], warnings: wifi.warnings.slice(), detectedAs: "IEEE 802.11", summary: "IEEE 802.11", totalBytes: bytes.length, deepest: wifi };
+    }
+    let llcOffset = headerLength;
+    if (bytes.length < llcOffset + 8) {
+      return { bytes, layers: [wifi], warnings: [], detectedAs: "IEEE 802.11", summary: "IEEE 802.11", totalBytes: bytes.length, deepest: wifi };
+    }
+    const isSnap = bytes[llcOffset] === 0xaa && bytes[llcOffset + 1] === 0xaa && bytes[llcOffset + 2] === 0x03;
+    if (!isSnap) {
+      const payload = unknownPayload(bytes.subarray(llcOffset), llcOffset, state, 1, "802.11 LLC payload");
+      return { bytes, layers: [wifi].concat(payload ? [payload] : []), warnings: [], detectedAs: "IEEE 802.11", summary: "IEEE 802.11", totalBytes: bytes.length, deepest: wifi };
+    }
+    const etherType = PH.u16be(bytes, llcOffset + 6);
+    const innerOffset = llcOffset + 8;
+    let inner = null;
+    if (etherType === 0x0800) inner = decodeIpv4(bytes, innerOffset, state, 4);
+    else if (etherType === 0x86dd) inner = decodeIpv6(bytes, innerOffset, state);
+    else if (etherType === 0x0806 && global.ARPCodec) {
+      try {
+        const arp = global.ARPCodec.decodeArp(bytes.subarray(innerOffset));
+        inner = [layer({
+          proto: "arp", name: "ARP", offset: innerOffset, length: arp.messageLength,
+          summary: arp.opcodeName + " · " + arp.senderIp + " → " + arp.targetIp,
+          fields: [field("Opcode", arp.opcode + " · " + arp.opcodeName), field("Sender IP", arp.senderIp), field("Target IP", arp.targetIp)],
+          warnings: arp.warnings.slice(), depth: 1, href: "arp.html", meta: { arp }
+        })];
+      } catch (_) { inner = null; }
+    }
+    const layers = [wifi].concat(inner || [unknownPayload(bytes.subarray(innerOffset), innerOffset, state, 1, "802.11 payload") || layer({ proto: "payload", name: "Payload", offset: innerOffset, length: bytes.length - innerOffset, summary: "no decoder", fields: [], warnings: [], depth: 1 })]);
+    return { bytes, layers, warnings: [], detectedAs: "IEEE 802.11", summary: layers.map((item) => item.name).join(" → "), totalBytes: bytes.length, deepest: layers[layers.length - 1] };
+  }
+
   /* ---------- link layer ---------- */
 
   function looksLikeEthernet(bytes) {
@@ -651,11 +872,14 @@
     const eth = global.EthernetCodec.decodeFrame(bytes, { fcs: "auto" });
     eth.warnings.forEach((warning) => pushWarning(state, "Ethernet: " + warning));
     const fields = [
-      field("Destination", eth.dstMac + (eth.dstFlags ? " · " + eth.dstFlags.label + " · " + eth.dstFlags.admin : "")),
-      field("Source", eth.srcMac + (eth.srcFlags ? " · " + eth.srcFlags.label + " · " + eth.srcFlags.admin : "")),
-      field("EtherType", "0x" + PH.hex(eth.etherType, 4) + " · " + eth.etherTypeName),
-      field("Header", eth.headerLen + " B"),
-      field("FCS", eth.fcsPresent ? (eth.fcsOk ? "present · valid" : "present · invalid") : "not captured")
+      field("Destination", eth.dstMac + (eth.dstFlags ? " · " + eth.dstFlags.label + " · " + eth.dstFlags.admin : ""), "", { abbrev: "eth.dst", offset: eth.offset, length: 6, type: "mac" }),
+      field("Source", eth.srcMac + (eth.srcFlags ? " · " + eth.srcFlags.label + " · " + eth.srcFlags.admin : ""), "", { abbrev: "eth.src", offset: eth.offset + 6, length: 6, type: "mac" }),
+      field("EtherType", "0x" + PH.hex(eth.etherType, 4) + " · " + eth.etherTypeName, "", { abbrev: "eth.type", offset: eth.offset + 12, length: 2, type: "uint16", raw: eth.etherType }),
+      field("Header", eth.headerLen + " B", "", { abbrev: "eth.header", offset: eth.offset, length: eth.headerLen, type: "bytes" }),
+      field("FCS", eth.fcsPresent ? (eth.fcsOk ? "present · valid" : "present · invalid") : "not captured", "", {
+        abbrev: "eth.fcs", offset: eth.offset + Math.max(0, eth.frameLength - 4), length: 4, type: "bytes",
+        severity: eth.fcsPresent && !eth.fcsOk ? "warn" : ""
+      })
     ];
     if (eth.vlanTags.length) {
       fields.push(field("VLAN tags", eth.vlanTags.map((tag) => "VID " + tag.vid + " · PCP " + tag.pcp).join(" → ")));
@@ -696,15 +920,23 @@
         next = [layer({
           proto: "arp", name: "ARP", offset: payloadOffset, length: arp.messageLength,
           summary: arp.opcodeName + " · " + arp.senderIp + " (" + arp.senderMac + ") → " + arp.targetIp + " (" + arp.targetMac + ")",
-          fields: [field("Hardware", arp.htype + " · " + arp.hardwareName), field("Protocol", "0x" + PH.hex(arp.ptype, 4) + " · " + arp.protocolName),
-            field("Opcode", arp.opcode + " · " + arp.opcodeName), field("Sender MAC", arp.senderMac),
-            field("Sender IP", arp.senderIp), field("Target MAC", arp.targetMac), field("Target IP", arp.targetIp),
+          fields: [field("Hardware", arp.htype + " · " + arp.hardwareName, "", { abbrev: "arp.hw.type", offset: payloadOffset, length: 2, type: "uint16", raw: arp.htype }),
+            field("Protocol", "0x" + PH.hex(arp.ptype, 4) + " · " + arp.protocolName, "", { abbrev: "arp.proto.type", offset: payloadOffset + 2, length: 2, type: "uint16", raw: arp.ptype }),
+            field("Opcode", arp.opcode + " · " + arp.opcodeName, "", { abbrev: "arp.opcode", offset: payloadOffset + 6, length: 2, type: "uint16", raw: arp.opcode }),
+            field("Sender MAC", arp.senderMac, "", { abbrev: "arp.src.hw_mac", offset: payloadOffset + 8, length: 6, type: "mac" }),
+            field("Sender IP", arp.senderIp, "", { abbrev: "arp.src.proto_ipv4", offset: payloadOffset + 14, length: 4, type: "ipv4" }),
+            field("Target MAC", arp.targetMac, "", { abbrev: "arp.dst.hw_mac", offset: payloadOffset + 18, length: 6, type: "mac" }),
+            field("Target IP", arp.targetIp, "", { abbrev: "arp.dst.proto_ipv4", offset: payloadOffset + 24, length: 4, type: "ipv4" }),
             field("Padding", arp.paddingLength + " B")],
           warnings: arp.warnings.slice(), depth: 1, href: "arp.html", meta: { arp }
         })];
       } catch (err) {
         next = [layer({ proto: "arp", name: "ARP", offset: payloadOffset, length: eth.payload.length, summary: "ARP decode failed", fields: [], warnings: [err.message], depth: 1, href: "arp.html", error: err.message })];
       }
+    } else if (eth.etherType === 0x8847 || eth.etherType === 0x8848) {
+      next = decodeMpls(eth, frameBytes, state);
+    } else if (eth.etherType === 0x8863 || eth.etherType === 0x8864) {
+      next = decodePppoe(eth, frameBytes, state);
     } else {
       const payload = unknownPayload(eth.payload, payloadOffset, state, 1, eth.etherTypeName);
       next = payload ? [payload] : [];
@@ -765,18 +997,20 @@
     return ["host", "broadcast", "multicast", "other host", "outgoing"][value] || ("type " + value);
   }
 
-  function dissectLink(input, linkType) {
+  function dissectLink(input, linkType, opts) {
     const bytes = input instanceof Uint8Array ? input : Uint8Array.from(input || []);
+    const options = opts || {};
     const type = Number(linkType);
-    if (type === 1) return dissect(bytes, { kind: "ethernet" });
-    if (type === 228) return dissect(bytes, { kind: "ipv4" });
-    if (type === 229) return dissect(bytes, { kind: "ipv6" });
+    const walk = (value, spec) => dissect(value, Object.assign({}, options, spec));
+    if (type === 1) return walk(bytes, { kind: "ethernet" });
+    if (type === 228) return walk(bytes, { kind: "ipv4" });
+    if (type === 229) return walk(bytes, { kind: "ipv6" });
     if (type === 101) {
       const version = bytes.length ? (bytes[0] >> 4) : 0;
-      return dissect(bytes, { kind: version === 6 ? "ipv6" : "ipv4" });
+      return walk(bytes, { kind: version === 6 ? "ipv6" : "ipv4" });
     }
     if (type === 0) {
-      if (bytes.length < 4) return dissect(bytes, { kind: "raw", note: "truncated null/loopback header" });
+      if (bytes.length < 4) return walk(bytes, { kind: "raw", note: "truncated null/loopback header" });
       const le = PH.u32le(bytes, 0);
       const be = PH.u32be(bytes, 0);
       let family = null;
@@ -787,9 +1021,9 @@
         else if (value === 10 || value === 24 || value === 28 || value === 30) { family = value; kind = "ipv6"; }
       });
       if (!kind) {
-        return dissect(bytes, { kind: "raw", note: "unknown null/loopback address family" });
+        return walk(bytes, { kind: "raw", note: "unknown null/loopback address family" });
       }
-      const inner = dissect(bytes.subarray(4), { kind });
+      const inner = walk(bytes.subarray(4), { kind });
       return linkLayerResult(inner, bytes, 4, {
         proto: "link", name: "Null / loopback",
         summary: "address family " + family + " · " + (kind === "ipv4" ? "IPv4" : "IPv6"),
@@ -797,7 +1031,7 @@
       });
     }
     if (type === 113) {
-      if (bytes.length < 16) return dissect(bytes, { kind: "raw", note: "truncated Linux SLL header" });
+      if (bytes.length < 16) return walk(bytes, { kind: "raw", note: "truncated Linux SLL header" });
       const packetType = PH.u16be(bytes, 0);
       const arphrd = PH.u16be(bytes, 2);
       const addrLen = Math.min(PH.u16be(bytes, 4), 8);
@@ -811,16 +1045,16 @@
           field("Address", mac(address)), field("Protocol", "0x" + PH.hex(protocol, 4))]
       };
       if (protocol === 0x0800 || protocol === 0x86dd) {
-        return linkLayerResult(dissect(bytes.subarray(16), { kind: protocol === 0x0800 ? "ipv4" : "ipv6" }), bytes, 16, link);
+        return linkLayerResult(walk(bytes.subarray(16), { kind: protocol === 0x0800 ? "ipv4" : "ipv6" }), bytes, 16, link);
       }
       if (protocol === 0x0806 && global.ARPCodec) {
         try { return linkLayerResult(arpOnly(bytes.subarray(16)), bytes, 16, link); }
-        catch (err) { return dissect(bytes, { kind: "raw", note: "SLL ARP decode failed: " + err.message }); }
+        catch (err) { return walk(bytes, { kind: "raw", note: "SLL ARP decode failed: " + err.message }); }
       }
-      return linkLayerResult(dissect(bytes.subarray(16), { kind: "raw", note: "SLL payload" }), bytes, 16, link);
+      return linkLayerResult(walk(bytes.subarray(16), { kind: "raw", note: "SLL payload" }), bytes, 16, link);
     }
     if (type === 276) {
-      if (bytes.length < 20) return dissect(bytes, { kind: "raw", note: "truncated Linux SLL2 header" });
+      if (bytes.length < 20) return walk(bytes, { kind: "raw", note: "truncated Linux SLL2 header" });
       const protocol = PH.u16be(bytes, 0);
       const ifIndex = PH.u32be(bytes, 4);
       const arphrd = PH.u16be(bytes, 8);
@@ -836,16 +1070,43 @@
           field("Address length", addrLen), field("Address", mac(address))]
       };
       if (protocol === 0x0800 || protocol === 0x86dd) {
-        return linkLayerResult(dissect(bytes.subarray(20), { kind: protocol === 0x0800 ? "ipv4" : "ipv6" }), bytes, 20, link);
+        return linkLayerResult(walk(bytes.subarray(20), { kind: protocol === 0x0800 ? "ipv4" : "ipv6" }), bytes, 20, link);
       }
       if (protocol === 0x0806 && global.ARPCodec) {
         try { return linkLayerResult(arpOnly(bytes.subarray(20)), bytes, 20, link); }
-        catch (err) { return dissect(bytes, { kind: "raw", note: "SLL2 ARP decode failed: " + err.message }); }
+        catch (err) { return walk(bytes, { kind: "raw", note: "SLL2 ARP decode failed: " + err.message }); }
       }
-      return linkLayerResult(dissect(bytes.subarray(20), { kind: "raw", note: "SLL2 payload" }), bytes, 20, link);
+      return linkLayerResult(walk(bytes.subarray(20), { kind: "raw", note: "SLL2 payload" }), bytes, 20, link);
+    }
+    if (type === 127) {
+      if (bytes.length < 8) return walk(bytes, { kind: "raw", note: "truncated radiotap header" });
+      const radiotapLength = PH.u16le(bytes, 2);
+      if (radiotapLength < 8 || radiotapLength > bytes.length) return walk(bytes, { kind: "raw", note: "invalid radiotap length" });
+      const state = { warnings: [], headersOnly: Boolean(options.headersOnly) };
+      const inner = decodeWifi(bytes.subarray(radiotapLength), state);
+      inner.layers.forEach((item) => { item.offset += radiotapLength; });
+      inner.layers.unshift(layer({
+        proto: "radiotap", name: "Radiotap", offset: 0, length: radiotapLength,
+        summary: "version " + bytes[0] + " · " + radiotapLength + " B header",
+        fields: [field("Version", bytes[0]), field("Header length", radiotapLength + " B"),
+          field("Present flags", "0x" + PH.hex(PH.u32le(bytes, 4), 8))],
+        warnings: [], depth: 0
+      }));
+      inner.bytes = bytes;
+      inner.totalBytes = bytes.length;
+      inner.warnings = state.warnings.concat(inner.warnings || []);
+      inner.summary = inner.layers.map((item) => item.name).join(" → ");
+      inner.deepest = inner.layers[inner.layers.length - 1];
+      return inner;
+    }
+    if (type === 105) {
+      const state = { warnings: [], headersOnly: Boolean(options.headersOnly) };
+      const inner = decodeWifi(bytes, state);
+      inner.warnings = state.warnings.concat(inner.warnings || []);
+      return inner;
     }
     const name = global.PCapCodec ? global.PCapCodec.linkTypeName(type) : ("link type " + type);
-    const result = dissect(bytes, { kind: "raw", note: "link type " + type + " (" + name + ") is not decoded" });
+    const result = walk(bytes, { kind: "raw", note: "link type " + type + " (" + name + ") is not decoded" });
     result.warnings.push("Link type " + type + " (" + name + ") is not decoded; showing raw bytes.");
     return result;
   }
@@ -853,7 +1114,7 @@
   function dissect(input, opts) {
     let bytes = input instanceof Uint8Array ? input : Uint8Array.from(input || []);
     const options = opts || {};
-    const state = { warnings: [] };
+    const state = { warnings: [], headersOnly: Boolean(options.headersOnly) };
     let layers;
     try {
       if (options.kind === "raw") {

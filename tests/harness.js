@@ -47,6 +47,7 @@ function createRuntime() {
     DataView,
     TextEncoder,
     TextDecoder,
+    crypto: require("crypto").webcrypto,
     Date,
     Math,
     Number,

@@ -22,6 +22,19 @@ function ipv4TcpFrame() {
   return { ethernet, ip: PH.concatBytes(ip, tcp) };
 }
 
+function wifiFrame(ipBytes) {
+  const header = new Uint8Array(24);
+  header[0] = 0x08; // data frame, subtype 0
+  header[4] = 0x02; header[5] = 0x00; header[6] = 0x00;
+  header[7] = 0x00; header[8] = 0x00; header[9] = 0x01;
+  header[10] = 0x02; header[11] = 0x00; header[12] = 0x00;
+  header[13] = 0x00; header[14] = 0x00; header[15] = 0x02;
+  header[16] = 0x02; header[17] = 0x00; header[18] = 0x00;
+  header[19] = 0x00; header[20] = 0x00; header[21] = 0x03;
+  const llc = Uint8Array.from([0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x08, 0x00]);
+  return PH.concatBytes(header, llc, ipBytes);
+}
+
 function sllFrame(ipBytes, protocol) {
   const bytes = new Uint8Array(16 + ipBytes.length);
   bytes[1] = 0; // packet type 0
@@ -109,8 +122,21 @@ run("dissectLink", (test, assert) => {
     assert.strictEqual(arpLayer.name, "ARP");
   });
 
+  test("IEEE 802.11 and radiotap data frames reach IPv4", () => {
+    const wifi = wifiFrame(ip);
+    const direct = Dissector.dissectLink(wifi, 105);
+    assert.strictEqual(direct.layers[0].proto, "wifi");
+    const directIp = direct.layers.find((layer) => layer.proto === "ipv4");
+    assert.strictEqual(directIp.offset, 32);
+    const radiotap = PH.concatBytes(Uint8Array.from([0, 0, 8, 0, 0, 0, 0, 0]), wifi);
+    const wrapped = Dissector.dissectLink(radiotap, 127);
+    assert.strictEqual(wrapped.layers[0].proto, "radiotap");
+    const wrappedIp = wrapped.layers.find((layer) => layer.proto === "ipv4");
+    assert.strictEqual(wrappedIp.offset, 40);
+  });
+
   test("unknown link types fall back to raw bytes with a warning", () => {
-    const result = Dissector.dissectLink(ethernet, 105);
+    const result = Dissector.dissectLink(ethernet, 999);
     assert.strictEqual(result.layers[0].proto, "raw");
     assert.ok(result.warnings.some((warning) => /not decoded/.test(warning)));
   });

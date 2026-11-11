@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Packet workbench — open a capture, follow the stack · netlens.dev</title>
-<meta name="description" content="Open a pcap or pcapng capture in your browser: packet list, display filters, conversations, follow TCP stream and field-level dissection. Parsed locally, never uploaded.">
+<meta name="description" content="Open a pcap or pcapng capture in your browser: virtualized packet list, display filters, IP/TCP reassembly, expert info, TLS 1.3 key-log decryption, HAR/report export and field-level dissection. Parsed locally, never uploaded.">
 <meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/styles.css">
@@ -62,7 +62,7 @@
         <span><b>input</b> pcap / pcapng / pasted hex</span>
         <span><b>walk</b> link → network → transport → app</span>
         <span><b>output</b> packet list, fields, streams</span>
-        <span><b>limits</b> no decryption or IP reassembly</span>
+        <span><b>limits</b> no live capture or TLS 1.2 decryption</span>
       </div>
       <div class="stackbar" data-stack="workbench"></div>
       <ul class="toc">
@@ -93,8 +93,22 @@
           <div class="wb-load-row">
             <button class="btn btn--ghost" type="button" id="wb-example">Load example capture</button>
             <button class="btn btn--ghost" type="button" id="wb-clear">Clear capture</button>
-            <span class="wb-load-note">20,000 packets / 50 MB per capture in this build.</span>
+            <button class="btn btn--ghost" type="button" id="wb-watch">Watch file for growth</button>
+            <span class="wb-load-note">250,000 packets / 500 MB per capture in this build.</span>
           </div>
+
+          <details class="wb-hex-details" id="wb-tls-keys-panel">
+            <summary>Decrypt TLS 1.3 with an SSLKEYLOGFILE</summary>
+            <div class="form-field" style="margin-top:10px">
+              <label for="wb-tls-keys">key log <span class="units">CLIENT_HANDSHAKE_TRAFFIC_SECRET / SERVER_TRAFFIC_SECRET_0 lines</span></label>
+              <textarea id="wb-tls-keys" class="hex-input" rows="4" spellcheck="false" placeholder="CLIENT_HANDSHAKE_TRAFFIC_SECRET &lt;client_random&gt; &lt;secret&gt;&#10;SERVER_HANDSHAKE_TRAFFIC_SECRET &lt;client_random&gt; &lt;secret&gt;"></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn" type="button" id="wb-tls-decrypt">Decrypt TLS flows</button>
+            </div>
+            <div class="codec-status" id="wb-tls-status" role="status" aria-live="polite">No key log loaded.</div>
+            <div id="wb-tls-output"></div>
+          </details>
 
           <details class="wb-hex-details">
             <summary>Paste one frame as hex instead</summary>
@@ -127,24 +141,49 @@
       <div class="wb-toolbar">
         <div class="wb-filter-row">
           <label for="wb-filter">display filter</label>
-          <input type="search" id="wb-filter" placeholder="tcp and tcp.flags.syn == 1" autocomplete="off" spellcheck="false" aria-describedby="wb-filter-status">
+          <input type="search" id="wb-filter" placeholder="tcp and tcp.flags.syn == 1" autocomplete="off" spellcheck="false" aria-describedby="wb-filter-status" list="wb-filter-fields">
+          <datalist id="wb-filter-fields"></datalist>
           <button class="btn" type="button" id="wb-filter-apply">Apply</button>
           <button class="btn btn--ghost" type="button" id="wb-filter-clear">Clear</button>
           <span class="wb-filter-status" id="wb-filter-status" role="status" aria-live="polite">all packets</span>
         </div>
+        <div class="wb-filter-row wb-filter-row--tools">
+          <label for="wb-time-mode">time</label>
+          <select id="wb-time-mode">
+            <option value="relative" selected>relative</option>
+            <option value="delta">delta</option>
+            <option value="absolute">absolute UTC</option>
+          </select>
+          <label for="wb-find">find</label>
+          <input type="search" id="wb-find" placeholder="packet info, host, port" autocomplete="off" spellcheck="false">
+          <button class="btn btn--ghost" type="button" id="wb-find-next">Next</button>
+          <label for="wb-goto">go to</label>
+          <input type="number" id="wb-goto" min="1" step="1" placeholder="#">
+          <button class="btn btn--ghost" type="button" id="wb-goto-run">Go</button>
+          <button class="btn btn--ghost" type="button" id="wb-mark">Mark packet</button>
+          <button class="btn btn--ghost" type="button" id="wb-diagnose">Diagnose flow</button>
+        </div>
         <div class="wb-chips" id="wb-filter-chips" aria-label="Filter examples"></div>
         <p class="small dim wb-filter-help">
-          Supported: protocols, <code>ip.addr</code>, <code>ipv6.addr</code>, <code>net.addr</code>,
-          <code>tcp.port</code>, <code>udp.port</code>, <code>tcp.flags.syn</code>, <code>frame.len</code>,
-          <code>dns.qname</code>, <code>tls.sni</code>, <code>http.method</code> and <code>and</code>/<code>or</code>/<code>not</code>.
+          Supported: protocols, addresses, ports, TCP flags and analysis, <code>frame.len</code>,
+          <code>frame[0:4]</code>, <code>frame contains "text"</code>, DNS/HTTP/TLS/BGP fields and
+          <code>and</code>/<code>or</code>/<code>not</code>. Unknown fields fail with a message.
         </p>
       </div>
 
       <div class="wb-list-wrap">
-        <div class="wb-list-head" aria-hidden="true">
-          <span>#</span><span>time</span><span>source</span><span>destination</span><span>proto</span><span>len</span><span>info</span>
+        <div class="wb-list-head" aria-label="Sort packets">
+          <button type="button" class="wb-sort" data-sort="number">#</button>
+          <button type="button" class="wb-sort" data-sort="time">time</button>
+          <button type="button" class="wb-sort" data-sort="src">source</button>
+          <button type="button" class="wb-sort" data-sort="dst">destination</button>
+          <button type="button" class="wb-sort" data-sort="proto">proto</button>
+          <button type="button" class="wb-sort" data-sort="len">len</button>
+          <button type="button" class="wb-sort" data-sort="info">info</button>
         </div>
-        <div class="wb-list" id="wb-list" role="listbox" aria-label="Packets" tabindex="0"></div>
+        <div class="wb-list" id="wb-list" role="listbox" aria-label="Packets" tabindex="0">
+          <div id="wb-list-spacer"></div>
+        </div>
         <div class="wb-empty" id="wb-empty">Open a capture to see packets here.</div>
       </div>
       <div class="wb-list-foot">
@@ -156,6 +195,8 @@
         <button class="btn btn--ghost" type="button" id="wb-permalink">Copy link to selected packet</button>
         <button class="btn btn--ghost" type="button" id="wb-export-csv">Download filtered CSV</button>
         <button class="btn btn--ghost" type="button" id="wb-export-json">Download analysis JSON</button>
+        <button class="btn btn--ghost" type="button" id="wb-export-har">Download HTTP HAR</button>
+        <button class="btn btn--ghost" type="button" id="wb-export-report">Download report</button>
         <button class="btn btn--ghost" type="button" id="wb-export-pcap">Download filtered pcap</button>
       </div>
     </section>
@@ -183,6 +224,7 @@
             </div>
           </div>
 
+          <div id="wb-diagnosis"></div>
           <div id="wb-warnings"></div>
         </div>
       </div>
@@ -198,6 +240,9 @@
         <button class="tab" type="button" role="tab" id="wb-tab-conv" aria-controls="wb-panel-conv" aria-selected="true">conversations</button>
         <button class="tab" type="button" role="tab" id="wb-tab-protos" aria-controls="wb-panel-protos" aria-selected="false">protocols</button>
         <button class="tab" type="button" role="tab" id="wb-tab-endpoints" aria-controls="wb-panel-endpoints" aria-selected="false">endpoints</button>
+        <button class="tab" type="button" role="tab" id="wb-tab-expert" aria-controls="wb-panel-expert" aria-selected="false">expert info</button>
+        <button class="tab" type="button" role="tab" id="wb-tab-hierarchy" aria-controls="wb-panel-hierarchy" aria-selected="false">hierarchy</button>
+        <button class="tab" type="button" role="tab" id="wb-tab-timeline" aria-controls="wb-panel-timeline" aria-selected="false">timeline</button>
       </div>
       <div class="tab-panel" id="wb-panel-conv" role="tabpanel" aria-labelledby="wb-tab-conv">
         <div id="wb-stats-conv" class="wb-stats"></div>
@@ -207,6 +252,15 @@
       </div>
       <div class="tab-panel" id="wb-panel-endpoints" role="tabpanel" aria-labelledby="wb-tab-endpoints" hidden>
         <div id="wb-stats-endpoints" class="wb-stats"></div>
+      </div>
+      <div class="tab-panel" id="wb-panel-expert" role="tabpanel" aria-labelledby="wb-tab-expert" hidden>
+        <div id="wb-stats-expert" class="wb-stats"></div>
+      </div>
+      <div class="tab-panel" id="wb-panel-hierarchy" role="tabpanel" aria-labelledby="wb-tab-hierarchy" hidden>
+        <div id="wb-stats-hierarchy" class="wb-stats"></div>
+      </div>
+      <div class="tab-panel" id="wb-panel-timeline" role="tabpanel" aria-labelledby="wb-tab-timeline" hidden>
+        <div id="wb-stats-timeline" class="wb-stats"></div>
       </div>
     </section>
 
@@ -228,19 +282,19 @@
           <thead><tr><th>Input</th><th>Support</th><th>Notes</th></tr></thead>
           <tbody>
             <tr><td><b>Classic pcap</b></td><td>microsecond and nanosecond, both byte orders</td><td>Global header, record headers, snaplen checks.</td></tr>
-            <tr><td><b>pcapng</b></td><td>SHB, IDB, EPB, SPB; multiple interfaces</td><td>Honours <code>if_tsresol</code>. One section per file.</td></tr>
-            <tr><td><b>Link types</b></td><td>Ethernet, raw IP, IPv4, IPv6, Linux SLL/SLL2, null/loopback</td><td>Other link types are shown as raw bytes with a warning.</td></tr>
+            <tr><td><b>pcapng</b></td><td>SHB, IDB, EPB, SPB; multiple sections and interfaces</td><td>Honours <code>if_tsresol</code>; parses DSB, NRB and ISB blocks.</td></tr>
+            <tr><td><b>Link types</b></td><td>Ethernet, raw IP, IPv4, IPv6, Linux SLL/SLL2, null/loopback, Radiotap/802.11, PPPoE, MPLS, VXLAN/Geneve, SCTP</td><td>Other link types are shown as raw bytes with a warning.</td></tr>
             <tr><td><b>Timestamps</b></td><td>absolute UTC and relative to packet 1</td><td>Simple Packet Blocks have no timestamp and show “—”.</td></tr>
           </tbody>
         </table>
       </div>
 
       <ul class="dashed">
-        <li><strong>No decryption.</strong> TLS application data, QUIC protected packets, ESP and encrypted BGP sessions remain opaque.</li>
-        <li><strong>No IP reassembly.</strong> Non-initial IPv4/IPv6 fragments have no transport header. The walk marks fragment data and stops.</li>
-        <li><strong>No full TCP state machine.</strong> Follow-stream orders payload by sequence, drops exact retransmissions and shows gaps; it does not invent missing bytes.</li>
-        <li><strong>Filters are a subset.</strong> This is not Wireshark display-filter syntax. Unknown fields fail with a message instead of silently matching nothing.</li>
-        <li><strong>Bounded input.</strong> This build caps a capture at 20,000 packets / 50 MB and a frame at 256 KB.</li>
+        <li><strong>TLS 1.3 decryption needs a key log.</strong> Paste an <code>SSLKEYLOGFILE</code> or import pcapng decryption secrets. Without keys, application data, QUIC protected packets and ESP remain opaque. TLS 1.2 key-log decryption is not implemented.</li>
+        <li><strong>IPv4 and IPv6 fragments are reassembled.</strong> Overlaps use first-fragment-wins and incomplete sets are reported. A reassembled datagram is attributed to the frame that completed it.</li>
+        <li><strong>TCP state is best-effort.</strong> Sequence tracking, retransmission/out-of-order/zero-window/RST detection and stream reassembly are implemented. Missing bytes are marked as gaps, never invented.</li>
+        <li><strong>Filters are a documented subset.</strong> This is not Wireshark display-filter syntax. It supports byte slices (<code>frame[0:4]</code>), <code>contains</code>, flow fields and <code>tcp.analysis.*</code>; unknown fields fail with a message.</li>
+        <li><strong>Bounded input.</strong> This build caps a capture at 250,000 packets / 500 MB and a frame at 256 KB.</li>
         <li><strong>No upload.</strong> The File API reads the capture into this tab. There is no <code>fetch()</code>, no backend and no account.</li>
       </ul>
 
@@ -280,6 +334,9 @@
 <script src="js/pcap-codec.js"></script>
 <script src="js/filter.js"></script>
 <script src="js/streams.js"></script>
+<script src="js/flows.js"></script>
+<script src="js/index-builder.js"></script>
+<script src="js/tls-keys.js"></script>
 <script src="js/workbench.js"></script>
 </body>
 </html>

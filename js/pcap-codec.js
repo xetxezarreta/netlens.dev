@@ -179,13 +179,20 @@
   const NG_IDB = 0x00000001;
   const NG_PB = 0x00000002;
   const NG_SPB = 0x00000003;
+  const NG_NRB = 0x00000004;
+  const NG_ISB = 0x00000005;
   const NG_EPB = 0x00000006;
+  const NG_DSB = 0x0000000a;
+
+  function ngEndianAt(bytes, offset) {
+    if (offset + 12 > bytes.length) return null;
+    if (u32(bytes, offset + 8, true) === 0x1a2b3c4d) return true;
+    if (u32(bytes, offset + 8, false) === 0x1a2b3c4d) return false;
+    return null;
+  }
 
   function ngEndian(bytes) {
-    if (bytes.length < 12) return null;
-    if (u32(bytes, 8, true) === 0x1a2b3c4d) return true;
-    if (u32(bytes, 8, false) === 0x1a2b3c4d) return false;
-    return null;
+    return ngEndianAt(bytes, 0);
   }
 
   function parseOptions(bytes, start, end, little) {
@@ -217,8 +224,22 @@
     return { value: Math.pow(10, -raw), label: "10^-" + raw + " s" };
   }
 
+  function nrbMac(value) {
+    if (typeof global.EthernetCodec !== "undefined" && global.EthernetCodec.macString) return global.EthernetCodec.macString(value);
+    return Array.from(value).map((byte) => ("0" + byte.toString(16)).slice(-2)).join(":");
+  }
+
+  function nrbIPv4(value) {
+    return Array.from(value).join(".");
+  }
+
+  function nrbIPv6(value) {
+    if (typeof global.IPv6Codec !== "undefined" && global.IPv6Codec.formatIPv6) return global.IPv6Codec.formatIPv6(value);
+    return Array.from(value).map((byte) => ("0" + byte.toString(16)).slice(-2)).join("");
+  }
+
   function parseNg(bytes) {
-    const little = ngEndian(bytes);
+    let little = ngEndian(bytes);
     if (little == null) throw new Error("Not a pcapng file (bad byte-order magic)");
     const capture = {
       format: "pcapng",
@@ -232,14 +253,28 @@
       interfaces: [],
       records: [],
       warnings: [],
+      sections: [],
+      decryptionSecrets: [],
+      nameResolution: [],
+      interfaceStats: [],
       unsupported: false
     };
     let offset = 0;
-    let sectionSeen = false;
+    let sectionIndex = -1;
     let blockCount = 0;
+    let sectionIfaces = [];
     while (offset + 12 <= bytes.length) {
-      const type = u32(bytes, offset, little);
-      const total = u32(bytes, offset + 4, little);
+      let type = u32(bytes, offset, little);
+      let total = u32(bytes, offset + 4, little);
+      if (type === NG_SHB) {
+        const detected = ngEndianAt(bytes, offset);
+        if (detected == null) {
+          pushWarning(capture, "pcapng section header at " + offset + " has no byte-order magic; stopping");
+          break;
+        }
+        little = detected;
+        total = u32(bytes, offset + 4, little);
+      }
       if (total < 12 || total % 4 !== 0) {
         pushWarning(capture, "pcapng block at " + offset + " has invalid length " + total + "; stopping");
         break;
@@ -256,50 +291,58 @@
       const bodyEnd = offset + total - 4;
 
       if (type === NG_SHB) {
-        if (sectionSeen) {
-          pushWarning(capture, "multiple pcapng sections are not supported; stopping at the second section header");
-          break;
-        }
-        sectionSeen = true;
+        sectionIndex += 1;
+        sectionIfaces = [];
         const major = u16(bytes, body + 4, little);
         const minor = u16(bytes, body + 6, little);
-        capture.version = major + "." + minor;
-        if (major !== 1) pushWarning(capture, "pcapng version " + capture.version + " is not 1.x; parsing anyway");
+        const version = major + "." + minor;
+        capture.version = capture.version || version;
+        capture.sections.push({ index: sectionIndex, littleEndian: little, version });
+        if (sectionIndex === 0) capture.littleEndian = little;
+        if (major !== 1) pushWarning(capture, "pcapng section " + sectionIndex + " version " + version + " is not 1.x; parsing anyway");
       } else if (type === NG_IDB) {
-        const linkType = u16(bytes, body, little);
-        const snaplen = u32(bytes, body + 4, little);
-        const options = parseOptions(bytes, body + 8, bodyEnd, little);
-        const res = tsResolution(options.tsresolRaw);
-        const id = capture.interfaces.length;
-        capture.interfaces.push({
-          id,
-          linkType,
-          snaplen,
-          resolution: res.value,
-          resolutionLabel: res.label,
-          name: options.name || ("interface " + id),
-          tsoffset: options.tsoffset || 0
-        });
-        if (capture.interfaces.length === 1) {
-          capture.linkType = linkType;
-          capture.snaplen = snaplen;
-          capture.resolution = res.value;
-          capture.resolutionLabel = res.label;
+        if (sectionIndex < 0) {
+          pushWarning(capture, "pcapng interface block appears before a section header; skipping");
+        } else {
+          const linkType = u16(bytes, body, little);
+          const snaplen = u32(bytes, body + 4, little);
+          const options = parseOptions(bytes, body + 8, bodyEnd, little);
+          const res = tsResolution(options.tsresolRaw);
+          const localId = sectionIfaces.length;
+          const iface = {
+            id: capture.interfaces.length,
+            localId,
+            section: sectionIndex,
+            linkType,
+            snaplen,
+            resolution: res.value,
+            resolutionLabel: res.label,
+            name: options.name || ("interface " + capture.interfaces.length),
+            tsoffset: options.tsoffset || 0
+          };
+          sectionIfaces.push(iface);
+          capture.interfaces.push(iface);
+          if (capture.interfaces.length === 1) {
+            capture.linkType = linkType;
+            capture.snaplen = snaplen;
+            capture.resolution = res.value;
+            capture.resolutionLabel = res.label;
+          }
         }
       } else if (type === NG_EPB || type === NG_PB) {
         const isPb = type === NG_PB;
-        if (!capture.interfaces.length) {
+        if (!sectionIfaces.length) {
           pushWarning(capture, "pcapng packet block appears before any interface description; skipping");
         } else {
           const ifaceId = isPb ? u16(bytes, body, little) : u32(bytes, body, little);
-          const tsHigh = u32(bytes, body + (isPb ? 4 : 4), little);
-          const tsLow = u32(bytes, body + (isPb ? 8 : 8), little);
-          const caplen = u32(bytes, body + (isPb ? 12 : 12), little);
-          const origlen = u32(bytes, body + (isPb ? 16 : 16), little);
-          const dataOffset = body + (isPb ? 20 : 20);
-          const iface = capture.interfaces[ifaceId];
+          const tsHigh = u32(bytes, body + 4, little);
+          const tsLow = u32(bytes, body + 8, little);
+          const caplen = u32(bytes, body + 12, little);
+          const origlen = u32(bytes, body + 16, little);
+          const dataOffset = body + 20;
+          const iface = sectionIfaces[ifaceId];
           if (!iface) {
-            pushWarning(capture, "pcapng packet references unknown interface " + ifaceId + "; skipping");
+            pushWarning(capture, "pcapng packet references unknown interface " + ifaceId + " in section " + sectionIndex + "; skipping");
           } else if (caplen > MAX_FRAME) {
             pushWarning(capture, "pcapng packet has caplen " + caplen + "; skipping an oversized frame");
           } else if (dataOffset + caplen > bodyEnd) {
@@ -315,16 +358,16 @@
               origlen,
               offset: dataOffset,
               linkType: iface.linkType,
-              interfaceId: ifaceId
+              interfaceId: iface.id
             });
           }
         }
       } else if (type === NG_SPB) {
-        if (!capture.interfaces.length) {
+        if (!sectionIfaces.length) {
           pushWarning(capture, "pcapng simple packet block appears before any interface description; skipping");
         } else {
           const origlen = u32(bytes, body, little);
-          const iface = capture.interfaces[0];
+          const iface = sectionIfaces[0];
           const available = Math.max(0, bodyEnd - (body + 4));
           const caplen = Math.min(origlen, available, iface.snaplen || MAX_FRAME, MAX_FRAME);
           makeRecord(capture, {
@@ -335,10 +378,56 @@
             origlen,
             offset: body + 4,
             linkType: iface.linkType,
-            interfaceId: 0,
+            interfaceId: iface.id,
             noTimestamp: true
           });
         }
+      } else if (type === NG_DSB) {
+        const secretType = u32(bytes, body, little);
+        const length = u32(bytes, body + 4, little);
+        if (body + 8 + length > bodyEnd) {
+          pushWarning(capture, "pcapng decryption secrets block is truncated");
+        } else {
+          capture.decryptionSecrets.push({
+            type: secretType,
+            label: secretType === 0x544c534b ? "TLS Key Log" : "type 0x" + hex4(secretType),
+            data: bytes.subarray(body + 8, body + 8 + length)
+          });
+        }
+      } else if (type === NG_NRB) {
+        let pos = body;
+        while (pos + 4 <= bodyEnd) {
+          const recordType = u16(bytes, pos, little);
+          const length = u16(bytes, pos + 2, little);
+          pos += 4;
+          if (recordType === 0) break;
+          if (pos + length > bodyEnd) {
+            pushWarning(capture, "pcapng name resolution record is truncated");
+            break;
+          }
+          const value = bytes.subarray(pos, pos + length);
+          const entry = { type: recordType, length, raw: value };
+          if (recordType === 1 && length >= 4) entry.address = nrbIPv4(value.subarray(0, 4));
+          else if (recordType === 2 && length >= 16) entry.address = nrbIPv6(value.subarray(0, 16));
+          else if (recordType === 3 && length >= 6) entry.address = nrbMac(value.subarray(0, 6));
+          else if (recordType === 4 && length >= 8) entry.address = nrbMac(value.subarray(0, 8));
+          const text = Array.from(value).map((byte) => byte >= 32 && byte < 127 ? String.fromCharCode(byte) : "").join("").trim();
+          if (text) entry.name = text;
+          capture.nameResolution.push(entry);
+          pos += (length + 3) & ~3;
+        }
+      } else if (type === NG_ISB) {
+        const ifaceId = u32(bytes, body, little);
+        const tsHigh = u32(bytes, body + 4, little);
+        const tsLow = u32(bytes, body + 8, little);
+        const iface = sectionIfaces[ifaceId];
+        const rawTs = (tsHigh * 4294967296) + tsLow;
+        capture.interfaceStats.push({
+          interfaceId: iface ? iface.id : ifaceId,
+          section: sectionIndex,
+          ts: iface ? rawTs * iface.resolution + (iface.tsoffset || 0) : rawTs,
+          options: parseOptions(bytes, body + 12, bodyEnd, little)
+        });
       }
 
       offset += total;
@@ -513,6 +602,17 @@
       writer.u32(NG_IDB, true).u32(20, true);
       writer.u16(linkType, true).u16(0, true).u32(Math.max(capture.snaplen || 0, 65535), true);
       writer.u32(20, true);
+    });
+    // Decryption Secrets Blocks (TLS key logs and other secrets)
+    (capture.decryptionSecrets || []).forEach((secret) => {
+      const data = toBytes(secret.data);
+      const padded = (data.length + 3) & ~3;
+      const total = 8 + 8 + padded + 4;
+      writer.u32(NG_DSB, true).u32(total, true);
+      writer.u32(secret.type || 0, true).u32(data.length, true);
+      writer.raw(data);
+      writer.pad4(data.length);
+      writer.u32(total, true);
     });
     // Enhanced Packet Blocks
     list.forEach((record) => {

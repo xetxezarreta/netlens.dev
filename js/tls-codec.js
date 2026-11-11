@@ -1075,7 +1075,7 @@
     const warnings = [];
     const recordInfo = decodeRecords(bytes);
     const records = recordInfo.records;
-    const ctx = {};
+    const ctx = options.context || {};
     let handshakes = [];
     let alerts = [];
     let changeCipherSpecs = [];

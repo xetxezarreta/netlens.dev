@@ -66,7 +66,11 @@
           their output, and the DNS, DHCP and UDP links also re-run their decoders. Every
           protocol and tool page can download a JSON snapshot of its fields and outputs; the
           workbench can also copy a BPF filter or a Scapy snippet for the selected frame.
-          The workbench permalink carries the selected frame and filter, not the whole capture.
+          The workbench reassembles IPv4/IPv6 fragments and TCP streams, tracks retransmissions
+          and zero windows, and can decrypt TLS 1.3 records when you paste an
+          <code>SSLKEYLOGFILE</code> or import pcapng decryption secrets. Decryption happens
+          locally with WebCrypto; without keys the records stay opaque. The workbench permalink
+          carries the selected frame and filter, not the whole capture.
           Nothing is uploaded: the URL is the entire state, and a capture stays in memory until
           you clear it or close the tab.
         </p>

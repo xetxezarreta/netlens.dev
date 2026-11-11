@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>netlens.dev — Interactive packet field guide</title>
-<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP, plus a local pcap/pcapng packet workbench, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
+<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP, plus a local pcap/pcapng packet workbench with flow reassembly, expert info and optional TLS 1.3 key-log decryption, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
 <meta name="theme-color" content="#0b0e14">
 <meta property="og:type" content="website">
 <meta property="og:title" content="netlens.dev — Interactive packet field guide">
@@ -283,7 +283,7 @@
         <a class="protocol-card" href="workbench.html" data-layer="tools">
           <div class="protocol-card__top"><span class="protocol-card__num">+</span><span class="protocol-card__rfc">PCAP · PCAPNG</span></div>
           <h3>Packet workbench</h3>
-          <p>Open a capture in the browser: packet list, display filters, conversations, follow TCP stream and field-level detail. Parsed locally, never uploaded.</p>
+          <p>Open a capture in the browser: virtualized packet list, filters, IP/TCP reassembly, expert findings, TLS 1.3 key-log decryption, HAR/report export and field-level detail. Parsed locally, never uploaded.</p>
           <div class="protocol-card__bits" aria-hidden="true">
             <i style="--span:12;--tone:var(--tone-a)"></i><i style="--span:20;--tone:var(--tone-b)"></i>
             <i style="--span:24;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i>

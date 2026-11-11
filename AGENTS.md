@@ -37,9 +37,13 @@ css/styles.css          design system and all layout rules
 js/core.js              shared PH utilities, diagram engines, search, theme, chrome
 js/protocol-meta.js     PH_PROTOCOLS taxonomy + PH_STACK four-layer model
 js/search-index.js      static search index (every entry must resolve)
-js/pcap-codec.js        classic pcap + minimal pcapng reader/writer
-js/filter.js            workbench display-filter parser/evaluator
-js/streams.js           best-effort TCP stream assembly
+js/pcap-codec.js        classic pcap + pcapng reader/writer (sections, DSB, NRB, ISB)
+js/filter.js            workbench display-filter parser/evaluator/compiler
+js/streams.js           best-effort TCP stream assembly (fallback view)
+js/flows.js             5-tuple flows, IP reassembly, TCP state, stream/app reassembly
+js/index-builder.js     shared per-packet index builder (main thread + worker)
+js/tls-keys.js          TLS 1.3 key-log decryption with WebCrypto
+js/workbench-worker.js  optional parser worker (HTTP only; file:// falls back)
 js/dissect-codec.js     cross-layer dissection engine + link-type wrapper
 js/dissect-view.js      shared layer tree, hexdump and field-detail renderer
 js/*-codec.js           pure-ish codecs, exported on window for tests and other pages
@@ -190,29 +194,19 @@ Start the test server on port 8123 (the Playwright scripts expect it):
 python3 -m http.server 8123
 ```
 
-Codec tests (all should exit 0; `test-wg.js` is obsolete):
+Codec tests (all should exit 0):
 
 ```
-test-udp.js  test-ipv6.js  test-icmp.js  test-icmp-vlan.js  test-l2.js
-test-ipv4.js test-tcp.js   test-quic.js  test-bgp.js        test-dns.js
-test-tls.js  test-http.js  test-dissect.js test-dissect2.js  test-arp-vlan.js
-test-pcap.js test-filter.js test-streams.js test-dissect-link.js
+tests/test-pcap.js tests/test-filter.js tests/test-streams.js
+tests/test-dissect-link.js tests/test-flows.js tests/test-tunnels.js
+tests/test-tls-keys.js
 ```
 
-Browser checks:
+`tests/bench-filter.js` is a manual 100,000-packet filter benchmark (it prints a pass/note
+instead of failing CI on slow machines).
 
-```
-all16.js       all pages load, search smoke test, homepage filter
-axe16.js       Axe desktop + mobile, including active codec states
-overflow16.js  no horizontal overflow from 320px to 1440px
-file17.js      file:// loading and codec interaction
-network17.js   zero external requests and no 4xx responses
-perm2.js       TLS/HTTP permalink and JSON export round trips
-deeppages.js   TLS/HTTP packet envelopes and workbench examples
-```
-
-Some older harness files (`all17.js`, `axe17.js`, `overflow17.js`) still list the removed
-`tools.html` and `wireguard.html`. Prefer the current page list:
+The Playwright browser checks referenced by older notes are not committed in this repository.
+If they are restored, prefer the current page list:
 
 ```
 index.html ipv4.html icmp.html ipv6.html tcp.html udp.html dns.html dhcp.html
@@ -268,11 +262,20 @@ part of the public surface; do not leave a stale `#anchor`.
   is set. Simple Packet Blocks carry no timestamp.
 - **Record offsets, not copies.** `pcap-codec.js` stores `{offset, caplen}` into the original
   buffer. Keep `capture.bytes` alive while a capture is open; never slice frames during parsing.
-- **Link-type offsets.** `Dissector.dissectLink` shifts inner layer offsets for SLL/SLL2 and
-  null/loopback. If you add a link type, keep offsets absolute to the frame or hex highlighting
-  will point at the wrong byte.
-- **Follow-stream is best-effort.** It orders by sequence, drops exact retransmissions and marks
-  gaps. It is not a TCP state machine and must not claim to reconstruct missing bytes.
+- **Link-type offsets.** `Dissector.dissectLink` shifts inner layer offsets for SLL/SLL2,
+  null/loopback, Radiotap and VXLAN. PPPoE/MPLS decoders also pass absolute frame offsets. If
+  you add a link type, keep offsets absolute to the frame or hex highlighting will point at the
+  wrong byte.
+- **Flows are best-effort.** `flows.js` tracks 5-tuples, reassembles IPv4/IPv6 fragments, tracks
+  TCP sequence state and rebuilds streams. Missing bytes stay gaps; never invent them. The
+  `streams.js` path remains as a fallback view for worker-compacted flows.
+- **Worker/file://.** `workbench-worker.js` is an HTTP-only optimisation. It stubs the DOM with
+  `readyState: "loading"` so codec page wiring never runs. It must fall back to the main thread
+  on `file://`, construction failure or timeout. Do not move capture bytes into the worker
+  without keeping a main-thread copy for packet detail and export.
+- **TLS key logs are optional.** `tls-keys.js` decrypts only TLS 1.3 AES-GCM records with
+  user-supplied secrets. It must never guess keys, claim TLS 1.2 decryption, or upload secrets.
+  Unsupported cipher suites are reported, not silently skipped.
 - **No capture persistence.** The workbench reads with the File API and keeps the capture in
   memory. Do not add uploads, `fetch()`, IndexedDB or localStorage for capture bytes.
 - **HPACK pseudo-headers.** `parseHeaderText` accepts `:method`/`:path` only with

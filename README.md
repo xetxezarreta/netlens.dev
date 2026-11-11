@@ -29,7 +29,7 @@ option.
 ## What is inside
 
 - **13 protocol pages:** BGP, DNS, DHCP, HTTP, TLS, TCP, UDP, QUIC, IPv4, IPv6, ICMP, Ethernet, ARP
-- **Packet workbench:** open a pcap/pcapng capture locally, browse the packet list, filter by field, follow an unencrypted TCP stream and inspect conversations
+- **Packet workbench:** open a pcap/pcapng capture locally, browse a virtualized packet list, filter by field or byte slice, reassemble IP fragments and TCP streams, follow a stream, inspect conversations, expert findings and a timeline, decrypt TLS 1.3 with a key log, and export pcap/CSV/JSON/HAR/report
 - **Interactive diagrams:** bit and byte layouts with offsets, ranges and RFC citations
 - **Animated exchange storyboards:** ARP resolution, DHCP DORA, TCP lifecycle, TLS 1.3 handshake, DNS resolution and ICMP traceroute, with play and step controls
 - **Encoders and decoders:** structural checks, checksums and copyable output
@@ -59,6 +59,10 @@ js/filter.js            workbench display-filter parser and evaluator
 js/streams.js           best-effort TCP stream reassembly
 js/dissect-codec.js     cross-layer dissection engine
 js/dissect-view.js      shared layer tree, hexdump and field-detail renderer
+js/flows.js             5-tuple flows, IP reassembly, TCP state and app reassembly
+js/index-builder.js     shared per-packet index builder (main thread + worker)
+js/tls-keys.js          TLS 1.3 key-log decryption with WebCrypto
+js/workbench-worker.js  optional parser worker (HTTP only; file:// falls back)
 js/*-codec.js           shared protocol codecs
 js/*.js                 page wiring and page-local codecs
 fonts/                  JetBrains Mono (SIL OFL) + license
@@ -69,8 +73,10 @@ fonts/                  JetBrains Mono (SIL OFL) + license
 - Bit 0 is the MSB of the first octet; offsets start at the first byte of the described structure.
 - Network byte order is big-endian. HTTP/1.1 is text; HTTP/2 and TLS use big-endian integers.
 - URLs stay flat (`icmp.html`, not `/icmp`). Clean URLs require server rewrites.
-- The workbench reads classic pcap and pcapng (SHB/IDB/EPB/SPB) and supports Ethernet, raw IP,
-  IPv4, IPv6, Linux SLL/SLL2 and null/loopback link types. Captures are never uploaded or stored.
+- The workbench reads classic pcap and pcapng (SHB/IDB/EPB/SPB, multiple sections, DSB/NRB/ISB)
+  and supports Ethernet, raw IP, IPv4, IPv6, Linux SLL/SLL2, null/loopback, Radiotap/802.11,
+  PPPoE, MPLS, VXLAN/Geneve and SCTP. Captures are never uploaded or stored. The optional
+  parser worker is skipped on `file://` and falls back to the main thread.
 - Serve `404.html` with a 404 status for missing paths. For nginx:
   `error_page 404 /404.html;`
 - RFCs are the source of truth. Verify against the current RFC, errata and your implementation

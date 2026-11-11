@@ -24,6 +24,7 @@
     };
     let result = null;
     let selected = 0;
+    let fieldRange = null;
 
     function layerNode(item, index) {
       const depth = Math.min(item.depth || 0, 6);
@@ -53,8 +54,8 @@
       if (!result) { hosts.hex.innerHTML = ""; return; }
       const item = result.layers[selected];
       if (!item) { hosts.hex.innerHTML = PH.hexdump(result.bytes); return; }
-      const start = Math.max(0, Math.min(item.offset, result.bytes.length));
-      const end = Math.max(start, Math.min(item.offset + item.length, result.bytes.length));
+      const start = Math.max(0, Math.min(fieldRange ? fieldRange.start : item.offset, result.bytes.length));
+      const end = Math.max(start, Math.min(fieldRange ? fieldRange.end : item.offset + item.length, result.bytes.length));
       hosts.hex.innerHTML = '<div class="hexdump-wrap"><div class="hexdump-head"><span>frame bytes</span><span>' +
         result.bytes.length + " B · highlight +" + start + "…+" + end + "</span></div>" +
         PH.hexdump(result.bytes, { highlight: [{ start, end }] }) + "</div>";
@@ -70,7 +71,17 @@
       const actions = typeof opts.detailActions === "function" ? (opts.detailActions(item, result) || "") : "";
       const fields = item.fields && item.fields.length
         ? '<div class="table-wrap"><table class="data-table"><thead><tr><th>Field</th><th>Value</th><th>Note</th></tr></thead><tbody>' +
-          item.fields.map((field) => `<tr><td><b>${PH.esc(field.name)}</b></td><td><code>${PH.esc(field.value)}</code></td><td class="small">${PH.esc(field.note || "")}</td></tr>`).join("") +
+          item.fields.map((field) => {
+            const hasRange = field.offset != null && field.length != null;
+            const attrs = hasRange
+              ? ` class="field-row" data-field-offset="${field.offset}" data-field-length="${field.length}" tabindex="0"`
+              : "";
+            const abbrev = field.abbrev ? `<span class="field-abbrev">${PH.esc(field.abbrev)}</span> ` : "";
+            const severity = field.severity ? ` field-value--${field.severity}` : "";
+            return `<tr${attrs}><td><b>${PH.esc(field.name)}</b>${abbrev ? "<br>" + abbrev : ""}</td>` +
+              `<td><code class="${severity.trim()}">${PH.esc(field.value)}</code></td>` +
+              `<td class="small">${PH.esc(field.note || "")}${field.rfc ? " · " + PH.esc(field.rfc) : ""}</td></tr>`;
+          }).join("") +
           "</tbody></table></div>"
         : '<p class="dim">No field breakdown for this layer.</p>';
       const warnings = item.warnings && item.warnings.length
@@ -86,6 +97,26 @@
         `<p class="dim">offset +${item.offset} · length ${item.length} B · depth ${item.depth}${item.error ? " · decode error" : ""}</p></div>` +
         `<div class="dissect-detail__actions">${actions}${link}</div></div>` +
         fields + warnings + preview;
+      hosts.detail.querySelectorAll(".field-row").forEach((row) => {
+        const start = Number(row.dataset.fieldOffset);
+        const length = Number(row.dataset.fieldLength);
+        if (!Number.isFinite(start) || !Number.isFinite(length)) return;
+        const show = () => {
+          fieldRange = { start, end: start + length };
+          renderHexdump();
+          row.classList.add("is-hot");
+        };
+        const hide = () => {
+          fieldRange = null;
+          renderHexdump();
+          row.classList.remove("is-hot");
+        };
+        row.addEventListener("mouseenter", show);
+        row.addEventListener("mouseleave", hide);
+        row.addEventListener("focus", show);
+        row.addEventListener("blur", hide);
+        row.addEventListener("click", show);
+      });
     }
 
     function renderWarnings() {
@@ -117,6 +148,7 @@
     function select(index) {
       if (!result) return;
       selected = Math.max(0, Math.min(Number(index) || 0, result.layers.length - 1));
+      fieldRange = null;
       renderTree();
       renderHexdump();
       renderDetail();

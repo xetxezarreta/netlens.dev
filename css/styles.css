@@ -2565,16 +2565,52 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   z-index: 1;
 }
 .wb-list {
-  max-height: 480px;
+  --wb-row-h: 30px;
+  position: relative;
+  max-height: 560px;
   overflow: auto;
   min-width: 0;
 }
+#wb-list-spacer {
+  position: relative;
+  width: 100%;
+}
+.wb-sort {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7em;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+.wb-sort:hover,
+.wb-sort:focus-visible { color: var(--fg); }
+.wb-sort[data-dir="asc"]::after { content: " ↑"; color: var(--accent); }
+.wb-sort[data-dir="desc"]::after { content: " ↓"; color: var(--accent); }
+.wb-filter-row--tools {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wb-filter-row--tools label { flex: 0 0 auto; }
+.wb-filter-row--tools input[type="number"] { width: 6em; }
+.wb-filter-row--tools input[type="search"] { flex: 1 1 12em; }
 .wb-list:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 .wb-packet {
+  position: absolute;
+  left: 0;
+  right: 0;
   width: 100%;
+  height: var(--wb-row-h);
   padding: 6px 10px;
   border-bottom: 1px dashed var(--line);
   color: var(--muted);
@@ -2582,6 +2618,9 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   cursor: pointer;
 }
 .wb-packet:hover { background: var(--row-hl); }
+.wb-packet.is-warn { box-shadow: inset 2px 0 0 var(--warn); }
+.wb-packet.is-bad { box-shadow: inset 2px 0 0 var(--bad); }
+.wb-packet.is-marked .wb-col-num { color: var(--accent-2); }
 .wb-packet.is-selected {
   background: var(--accent-soft);
   box-shadow: inset 2px 0 0 var(--accent);
@@ -2595,6 +2634,7 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
 }
 .wb-col-num { color: var(--dim); text-align: right; }
 .wb-col-time { color: var(--dim); font-variant-numeric: tabular-nums; }
+.wb-packet.is-selected .wb-col-time { color: var(--muted); }
 .wb-col-proto b { color: var(--accent); font-weight: 500; }
 .wb-col-len { text-align: right; font-variant-numeric: tabular-nums; }
 .wb-col-info { color: var(--muted); }
@@ -2657,6 +2697,17 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   white-space: pre-wrap;
   word-break: break-word;
 }
+.field-row { cursor: crosshair; }
+.field-row.is-hot td { background: var(--accent-soft); }
+.field-abbrev {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--dim);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+}
+.field-value--warn { color: var(--warn); }
+.field-value--bad { color: var(--bad); }
 .dissect-detail__actions {
   display: flex;
   flex-wrap: wrap;
@@ -2672,6 +2723,7 @@ ul.dashed li::before { content: "-"; position: absolute; left: -18px; color: var
   }
 }
 @media (max-width: 640px) {
+  .wb-list { --wb-row-h: 72px; }
   .wb-list-head { display: none; }
   .wb-packet {
     grid-template-columns: 3.5em minmax(0, 1fr) 5em 3.5em;
