@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DHCP — BOOTP header, message types &amp; options · netlens.dev</title>
-<meta name="description" content="Interactive DHCPv4 explorer: BOOTP fixed header, flags, message types, option TLVs, lease timers, relay agent information, and a byte-accurate encoder/decoder.">
+<meta name="description" content="Interactive DHCPv4 explorer and DORA lease animation: BOOTP fixed header, flags, message types, option TLVs, lease timers, relay agent information, and a byte-accurate encoder/decoder.">
 <meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/styles.css">
@@ -29,6 +29,7 @@
       <ul>
         <li><a href="#layout">message layout</a></li>
         <li><a href="#types">message types</a></li>
+        <li><a href="#dora">lease flow</a></li>
         <li><a href="#options">options</a></li>
         <li><a href="#encode">encoder</a></li>
         <li><a href="#decode">decoder</a></li>
@@ -68,6 +69,7 @@
       <ul class="toc">
         <li><a href="#layout">layout</a></li>
         <li><a href="#types">types</a></li>
+        <li><a href="#dora">lease flow</a></li>
         <li><a href="#options">options</a></li>
         <li><a href="#encode">encode</a></li>
         <li><a href="#decode">decode</a></li>
@@ -173,9 +175,131 @@
       </div>
     </section>
 
+    <section class="section" id="dora">
+      <div class="section__head">
+        <h2><span class="num">03</span>How a client gets a lease</h2>
+        <span class="section__hint">five frames · discover → offer → request → ack</span>
+      </div>
+      <p>
+        DHCP is easiest to understand as a four-message exchange. The client starts with no
+        address at all, so the first two messages are broadcast; the server's replies are
+        normally unicast back to the client's MAC. The lease table follows what the client knows
+        at each step.
+      </p>
+
+      <div class="flow dhcp-flow" id="dhcp-flow">
+        <div class="flow__head">
+          <h3>DORA · one IPv4 lease</h3>
+          <span class="tag" id="dhcp-flow-counter" data-flow-counter>step 1 / 5</span>
+        </div>
+
+        <div class="flow__scroll" tabindex="0" role="group" aria-label="DHCP lease acquisition diagram, scroll horizontally to see client, LAN and server">
+          <div class="flow__inner">
+            <svg class="flow__svg" viewBox="0 0 720 300" role="img" aria-labelledby="dhcp-flow-svg-title dhcp-flow-svg-desc">
+              <title id="dhcp-flow-svg-title">DHCP DORA lease acquisition</title>
+              <desc id="dhcp-flow-svg-desc">A DHCP client with no address broadcasts DHCPDISCOVER. A server offers 192.0.2.50 in a DHCPOFFER. The client broadcasts DHCPREQUEST to accept it, and the server commits the lease with DHCPACK. The client then uses 192.0.2.50 with the supplied router, DNS and lease options.</desc>
+
+              <g class="dhcp-link" data-link="client-lan">
+                <line x1="210" y1="150" x2="300" y2="150"></line>
+              </g>
+              <g class="dhcp-link" data-link="lan-server">
+                <line x1="420" y1="150" x2="510" y2="150"></line>
+              </g>
+
+              <g class="dhcp-node dhcp-node--client" data-node="client">
+                <rect x="20" y="75" width="190" height="150" rx="2"></rect>
+                <text class="n-label" x="34" y="98">DHCP CLIENT</text>
+                <text class="n-ip" id="dhcp-node-client-ip" x="34" y="126">0.0.0.0</text>
+                <text class="n-mac" x="34" y="146">02:00:00:00:00:0a</text>
+                <text class="n-note" id="dhcp-node-client-note" x="34" y="172">no address · UDP 68</text>
+              </g>
+
+              <g class="dhcp-node dhcp-node--lan" data-node="lan">
+                <rect x="300" y="115" width="120" height="70" rx="2"></rect>
+                <text class="n-label" x="360" y="139" text-anchor="middle">LAN</text>
+                <text class="n-note" x="360" y="156" text-anchor="middle">broadcast domain</text>
+                <text class="n-note" id="dhcp-node-lan-note" x="360" y="172" text-anchor="middle">waiting</text>
+              </g>
+
+              <g class="dhcp-node dhcp-node--server" data-node="server">
+                <rect x="510" y="75" width="190" height="150" rx="2"></rect>
+                <text class="n-label" x="524" y="98">DHCP SERVER</text>
+                <text class="n-ip" x="524" y="126">192.0.2.1</text>
+                <text class="n-mac" x="524" y="146">pool 192.0.2.100–200</text>
+                <text class="n-note" id="dhcp-node-server-note" x="524" y="172">waiting · UDP 67</text>
+              </g>
+
+              <g class="dhcp-token dhcp-token--broadcast" data-token="discover" style="transform: translate(255px, 150px)">
+                <rect x="-64" y="-19" width="128" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">DHCPDISCOVER</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">broadcast · UDP 68/67</text>
+              </g>
+              <g class="dhcp-token dhcp-token--unicast" data-token="offer" style="transform: translate(465px, 150px)">
+                <rect x="-64" y="-19" width="128" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">DHCPOFFER</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">unicast · offer .50</text>
+              </g>
+              <g class="dhcp-token dhcp-token--broadcast" data-token="request" style="transform: translate(255px, 150px)">
+                <rect x="-64" y="-19" width="128" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">DHCPREQUEST</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">broadcast · req .50</text>
+              </g>
+              <g class="dhcp-token dhcp-token--unicast" data-token="ack" style="transform: translate(465px, 150px)">
+                <rect x="-64" y="-19" width="128" height="38" rx="2"></rect>
+                <text class="p-title" x="0" y="-3" text-anchor="middle">DHCPACK</text>
+                <text class="p-sub" x="0" y="10" text-anchor="middle">unicast · 3600 s</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="flow__body">
+          <div class="flow__narration">
+            <p class="flow__kicker">now · <span id="dhcp-flow-step" data-flow-step>1</span> of 5</p>
+            <p class="flow__caption" id="dhcp-flow-caption" role="status" aria-live="polite"><b>No address yet.</b> The client boots with no usable IPv4 configuration. It needs an address, a default route, DNS servers and a lease before it can use the LAN.</p>
+          </div>
+          <div class="flow__cache">
+            <div class="flow__cache-head"><span>client · lease state</span><span id="dhcp-flow-state" class="dim">no lease</span></div>
+            <table class="flow-table">
+              <thead><tr><th>field</th><th>value</th></tr></thead>
+              <tbody id="dhcp-flow-lease">
+                <tr><td>address</td><td><code>0.0.0.0</code></td></tr>
+                <tr><td>xid</td><td>—</td></tr>
+                <tr><td>server</td><td>—</td></tr>
+                <tr><td>lease</td><td>—</td></tr>
+                <tr><td>options</td><td>—</td></tr>
+              </tbody>
+            </table>
+            <p class="flow__footnote">Values are illustrative; pools, lease times and relay behaviour vary.</p>
+          </div>
+        </div>
+
+        <div class="flow__controls">
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="dhcp-flow-play" data-flow-play>Play</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="dhcp-flow-prev" data-flow-prev disabled>Back</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="dhcp-flow-next" data-flow-next>Next</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="dhcp-flow-reset" data-flow-reset>Reset</button>
+          </div>
+          <div class="flow__progress" id="dhcp-flow-progress" data-flow-progress aria-hidden="true">
+            <span class="is-current"></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout__title">Broadcast is the point</div>
+        <p>DISCOVER and REQUEST go to <code>255.255.255.255</code> because the client has no
+        address and may not know which server will answer. OFFER and ACK are normally unicast
+        to the client's MAC; the client can ask for broadcast replies with the flag
+        <code>0x8000</code>. A NAK restarts acquisition, and renewal later unicasts REQUEST to
+        the same server.</p>
+      </div>
+    </section>
+
     <section class="section" id="options">
       <div class="section__head">
-        <h2><span class="num">03</span>Options</h2>
+        <h2><span class="num">04</span>Options</h2>
         <span class="section__hint">code · length · value · end</span>
       </div>
       <p>
@@ -232,7 +356,7 @@
 
     <section class="section" id="encode">
       <div class="section__head">
-        <h2><span class="num">04</span>Encoder</h2>
+        <h2><span class="num">05</span>Encoder</h2>
         <span class="section__hint">BOOTP header · common options · arbitrary TLVs</span>
       </div>
       <p>
@@ -319,7 +443,7 @@
 
     <section class="section" id="decode">
       <div class="section__head">
-        <h2><span class="num">05</span>Decoder</h2>
+        <h2><span class="num">06</span>Decoder</h2>
         <span class="section__hint">raw DHCP · UDP · IPv4 · Ethernet</span>
       </div>
       <p>
@@ -367,7 +491,7 @@
 
     <section class="section" id="notes">
       <div class="section__head">
-        <h2><span class="num">06</span>Wire notes</h2>
+        <h2><span class="num">07</span>Wire notes</h2>
         <span class="section__hint">operational details that matter</span>
       </div>
       <div class="callout callout--warn">

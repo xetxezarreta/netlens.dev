@@ -343,15 +343,8 @@
     if (!flow) return;
 
     const caption = document.getElementById("arp-flow-caption");
-    const counter = document.getElementById("arp-flow-counter");
-    const stepLabel = document.getElementById("arp-flow-step");
     const cacheBody = document.getElementById("arp-flow-cache-body");
     const cacheState = document.getElementById("arp-flow-cache-state");
-    const playBtn = document.getElementById("arp-flow-play");
-    const prevBtn = document.getElementById("arp-flow-prev");
-    const nextBtn = document.getElementById("arp-flow-next");
-    const resetBtn = document.getElementById("arp-flow-reset");
-    const dots = Array.from(document.querySelectorAll("#arp-flow-progress span"));
     const noteA = document.getElementById("arp-node-a-note");
     const noteB = document.getElementById("arp-node-b-note");
     const noteC = document.getElementById("arp-node-c-note");
@@ -362,19 +355,6 @@
     flow.querySelectorAll("[data-link]").forEach((el) => { links[el.dataset.link] = el; });
     const tokens = {};
     flow.querySelectorAll("[data-token]").forEach((el) => { tokens[el.dataset.token] = el; });
-
-    let step = 1;
-    let playing = false;
-    let timer = null;
-
-    function syncControls() {
-      playBtn.textContent = playing ? "Pause" : step >= FLOW_STEPS.length ? "Replay" : "Play";
-      prevBtn.disabled = step <= 1;
-      nextBtn.disabled = step >= FLOW_STEPS.length;
-      counter.textContent = `step ${step} / ${FLOW_STEPS.length}`;
-      stepLabel.textContent = String(step);
-      dots.forEach((dot, index) => dot.classList.toggle("is-current", index === step - 1));
-    }
 
     function renderCache(state) {
       if (state === "empty") {
@@ -423,52 +403,13 @@
       });
 
       renderCache(current.cache);
-      syncControls();
     }
 
-    function pause() {
-      if (timer) { clearTimeout(timer); timer = null; }
-      playing = false;
-      syncControls();
-    }
-
-    function tick() {
-      timer = setTimeout(() => {
-        timer = null;
-        if (!playing) return;
-        if (step >= FLOW_STEPS.length) { pause(); return; }
-        step += 1;
-        applyStep(step);
-        if (step >= FLOW_STEPS.length) pause();
-        else tick();
-      }, 1900);
-    }
-
-    playBtn.addEventListener("click", () => {
-      if (playing) { pause(); return; }
-      if (step >= FLOW_STEPS.length) { step = 1; applyStep(step); }
-      playing = true;
-      syncControls();
-      tick();
+    PH.stepFlow({
+      root: flow,
+      count: FLOW_STEPS.length,
+      onStep: applyStep
     });
-
-    prevBtn.addEventListener("click", () => {
-      pause();
-      if (step > 1) { step -= 1; applyStep(step); }
-    });
-
-    nextBtn.addEventListener("click", () => {
-      pause();
-      if (step < FLOW_STEPS.length) { step += 1; applyStep(step); }
-    });
-
-    resetBtn.addEventListener("click", () => {
-      pause();
-      step = 1;
-      applyStep(step);
-    });
-
-    applyStep(step);
   }
 
   function init() {

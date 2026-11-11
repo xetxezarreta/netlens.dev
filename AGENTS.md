@@ -93,6 +93,9 @@ Use the existing `PH` helpers rather than reimplementing them:
 - `PH.byteLane(target, spec)` for byte-aligned layouts
 - `PH.fieldTable(target, controller, { columns })`
 - `PH.setStatus(el, text, "ok" | "warn" | "bad")`
+- `PH.stepFlow({ root, count, onStep })` for step-by-step storyboards; wire `[data-flow-play]`,
+  `[data-flow-prev]`, `[data-flow-next]`, `[data-flow-reset]`, `[data-flow-counter]`,
+  `[data-flow-step]` and `[data-flow-progress]`
 - `PH.shareState(value, message)`, `PH.readHashState()`, `PH.downloadText(...)`
 - `PH.captureFormState()` / `PH.applyFormState()`
 

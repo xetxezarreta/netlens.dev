@@ -117,15 +117,15 @@
         <strong>Back</strong>.
       </p>
 
-      <div class="arp-flow" id="arp-flow">
-        <div class="arp-flow__head">
+      <div class="flow" id="arp-flow">
+        <div class="flow__head">
           <h3>who-has 192.0.2.1?</h3>
-          <span class="tag" id="arp-flow-counter">step 1 / 5</span>
+          <span class="tag" id="arp-flow-counter" data-flow-counter>step 1 / 5</span>
         </div>
 
-        <div class="arp-flow__scroll" tabindex="0" role="group" aria-label="ARP resolution diagram, scroll horizontally to see every host">
-          <div class="arp-flow__inner">
-            <svg class="arp-flow__svg" viewBox="0 0 720 336" role="img" aria-labelledby="arp-flow-svg-title arp-flow-svg-desc">
+        <div class="flow__scroll" tabindex="0" role="group" aria-label="ARP resolution diagram, scroll horizontally to see every host">
+          <div class="flow__inner">
+            <svg class="flow__svg" viewBox="0 0 720 336" role="img" aria-labelledby="arp-flow-svg-title arp-flow-svg-desc">
               <title id="arp-flow-svg-title">ARP request and reply on a switched LAN</title>
               <desc id="arp-flow-svg-desc">Host A at 192.0.2.10 broadcasts an ARP request for 192.0.2.1. The switch floods the broadcast to host B, which owns that address, and host C, which discards it. Host B replies with its MAC address 02:00:00:00:00:01 and host A caches the mapping.</desc>
 
@@ -198,29 +198,29 @@
           </div>
         </div>
 
-        <div class="arp-flow__body">
-          <div class="arp-flow__narration">
-            <p class="arp-flow__kicker">now · <span id="arp-flow-step">1</span> of 5</p>
-            <p class="arp-flow__caption" id="arp-flow-caption" role="status" aria-live="polite"><b>Cache miss.</b> Host A wants to send an IPv4 packet to <code>192.0.2.1</code>. It looks up the next hop in its ARP cache and finds no entry, so it cannot build the Ethernet destination yet.</p>
+        <div class="flow__body">
+          <div class="flow__narration">
+            <p class="flow__kicker">now · <span id="arp-flow-step" data-flow-step>1</span> of 5</p>
+            <p class="flow__caption" id="arp-flow-caption" role="status" aria-live="polite"><b>Cache miss.</b> Host A wants to send an IPv4 packet to <code>192.0.2.1</code>. It looks up the next hop in its ARP cache and finds no entry, so it cannot build the Ethernet destination yet.</p>
           </div>
-          <div class="arp-flow__cache">
-            <div class="arp-flow__cache-head"><span>host A · ARP cache</span><span id="arp-flow-cache-state">empty</span></div>
-            <table class="arp-cache">
+          <div class="flow__cache">
+            <div class="flow__cache-head"><span>host A · ARP cache</span><span id="arp-flow-cache-state">empty</span></div>
+            <table class="flow-table">
               <thead><tr><th>IPv4</th><th>MAC</th><th>state</th></tr></thead>
               <tbody id="arp-flow-cache-body"><tr><td colspan="3" class="is-empty">no entries</td></tr></tbody>
             </table>
-            <p class="arp-flow__footnote">The pending row is illustrative; cache policy is implementation-specific.</p>
+            <p class="flow__footnote">The pending row is illustrative; cache policy is implementation-specific.</p>
           </div>
         </div>
 
-        <div class="arp-flow__controls">
+        <div class="flow__controls">
           <div class="btn-row">
-            <button class="btn btn--primary" type="button" id="arp-flow-play">Play</button>
-            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-prev" disabled>Back</button>
-            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-next">Next</button>
-            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-reset">Reset</button>
+            <button class="btn btn--primary" type="button" id="arp-flow-play" data-flow-play>Play</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-prev" data-flow-prev disabled>Back</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-next" data-flow-next>Next</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="arp-flow-reset" data-flow-reset>Reset</button>
           </div>
-          <div class="arp-flow__progress" id="arp-flow-progress" aria-hidden="true">
+          <div class="flow__progress" id="arp-flow-progress" data-flow-progress aria-hidden="true">
             <span class="is-current"></span><span></span><span></span><span></span><span></span>
           </div>
         </div>

@@ -1458,14 +1458,14 @@ table.data-table td .flag-tag {
   .byte-lane__inner { min-width: 460px; }
 }
 
-/* ---------- ARP resolution storyboard ---------- */
-.arp-flow {
+/* ---------- step-by-step storyboards (ARP, DHCP) ---------- */
+.flow {
   border: 1px solid var(--line-strong);
   background: var(--panel);
   margin: 18px 0;
   min-width: 0;
 }
-.arp-flow__head {
+.flow__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1474,76 +1474,102 @@ table.data-table td .flag-tag {
   border-bottom: 1px dashed var(--line-strong);
   background: var(--panel-2);
 }
-.arp-flow__head h3 { margin: 0; font-size: 0.74rem; font-weight: 500; color: var(--fg); }
-.arp-flow__head .tag { color: var(--dim); font-size: 0.6rem; white-space: nowrap; }
-.arp-flow__scroll { overflow-x: auto; padding: 12px; }
-.arp-flow__inner { min-width: 680px; }
-.arp-flow__svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
-.arp-flow__svg text { fill: var(--muted); }
-.arp-node rect {
+.flow__head h3 { margin: 0; font-size: 0.74rem; font-weight: 500; color: var(--fg); }
+.flow__head .tag { color: var(--dim); font-size: 0.6rem; white-space: nowrap; }
+.flow__scroll { overflow-x: auto; padding: 12px; }
+.flow__inner { min-width: 680px; }
+.flow__svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+.flow__svg text { fill: var(--muted); }
+.arp-node rect,
+.dhcp-node rect {
   fill: var(--panel-2);
   stroke: var(--line-strong);
   stroke-width: 1;
   transition: fill 0.35s, stroke 0.35s;
 }
-.arp-node .n-label { fill: var(--dim); font-size: 9px; letter-spacing: 0.08em; }
-.arp-node .n-ip { fill: var(--fg); font-size: 17px; font-weight: 700; }
-.arp-node .n-mac { fill: var(--muted); font-size: 10.5px; }
-.arp-node .n-note { fill: var(--dim); font-size: 9.5px; }
-.arp-node.is-active rect { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); }
-.arp-node.is-active .n-label { fill: var(--accent); }
-.arp-node.is-match rect { stroke: var(--good); fill: color-mix(in srgb, var(--good) 7%, var(--panel-2)); }
-.arp-node.is-match .n-note { fill: var(--good); }
+.arp-node .n-label,
+.dhcp-node .n-label { fill: var(--dim); font-size: 9px; letter-spacing: 0.08em; }
+.arp-node .n-ip,
+.dhcp-node .n-ip { fill: var(--fg); font-size: 17px; font-weight: 700; }
+.arp-node .n-mac,
+.dhcp-node .n-mac { fill: var(--muted); font-size: 10.5px; }
+.arp-node .n-note,
+.dhcp-node .n-note { fill: var(--dim); font-size: 9.5px; }
+.arp-node.is-active rect,
+.dhcp-node.is-active rect { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); }
+.arp-node.is-active .n-label,
+.dhcp-node.is-active .n-label { fill: var(--accent); }
+.arp-node.is-match rect,
+.dhcp-node.is-match rect { stroke: var(--good); fill: color-mix(in srgb, var(--good) 7%, var(--panel-2)); }
+.arp-node.is-match .n-note,
+.dhcp-node.is-match .n-note { fill: var(--good); }
 .arp-node.is-ignored { opacity: 0.55; }
 .arp-node.is-ignored .n-note { fill: var(--warn); }
-.arp-link line {
+.dhcp-node.is-bound rect { stroke: var(--good); fill: color-mix(in srgb, var(--good) 12%, var(--panel-2)); }
+.dhcp-node.is-bound .n-label,
+.dhcp-node.is-bound .n-note { fill: var(--good); }
+.arp-link line,
+.dhcp-link line {
   stroke: var(--line-strong);
   stroke-width: 1.2;
   stroke-dasharray: 4 4;
   transition: stroke 0.35s;
 }
-.arp-link.is-active line { stroke: var(--accent); stroke-dasharray: none; }
-.arp-packet {
+.arp-link.is-active line,
+.dhcp-link.is-active line { stroke: var(--accent); stroke-dasharray: none; }
+.dhcp-flow.is-unicast .dhcp-link.is-active line { stroke: var(--accent-2); }
+.dhcp-flow.is-unicast .dhcp-node.is-active rect { stroke: var(--accent-2); fill: color-mix(in srgb, var(--accent-2) 8%, var(--panel-2)); }
+.dhcp-flow.is-unicast .dhcp-node.is-active .n-label { fill: var(--accent-2); }
+.dhcp-flow.is-unicast .dhcp-node.is-match rect { stroke: var(--accent-2); fill: color-mix(in srgb, var(--accent-2) 7%, var(--panel-2)); }
+.dhcp-flow.is-unicast .dhcp-node.is-match .n-note { fill: var(--accent-2); }
+.arp-packet,
+.dhcp-token {
   opacity: 0;
   transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
   pointer-events: none;
 }
-.arp-packet.is-visible { opacity: 1; }
-.arp-packet rect { fill: var(--panel-3); stroke: var(--accent); stroke-width: 1.5; }
-.arp-packet .p-title { fill: var(--accent); font-size: 9.5px; font-weight: 700; }
-.arp-packet .p-sub { fill: var(--muted); font-size: 9px; }
-.arp-packet--reply rect { stroke: var(--accent-2); }
-.arp-packet--reply .p-title { fill: var(--accent-2); }
-.arp-flow__body {
+.arp-packet.is-visible,
+.dhcp-token.is-visible { opacity: 1; }
+.arp-packet rect,
+.dhcp-token rect { fill: var(--panel-3); stroke: var(--accent); stroke-width: 1.5; }
+.arp-packet .p-title,
+.dhcp-token .p-title { fill: var(--accent); font-size: 9.5px; font-weight: 700; }
+.arp-packet .p-sub,
+.dhcp-token .p-sub { fill: var(--muted); font-size: 9px; }
+.arp-packet--reply rect,
+.dhcp-token--unicast rect { stroke: var(--accent-2); }
+.arp-packet--reply .p-title,
+.dhcp-token--unicast .p-title { fill: var(--accent-2); }
+.flow__body {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(220px, 1fr);
   gap: 12px;
   padding: 0 12px 12px;
 }
-.arp-flow__narration { min-width: 0; }
-.arp-flow__kicker {
+.flow__narration { min-width: 0; }
+.flow__kicker {
   margin: 0 0 4px;
   color: var(--accent);
   font-size: 0.6rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
-.arp-flow__caption {
+.flow__caption {
   margin: 0;
   color: var(--muted);
   font-size: 0.76rem;
   line-height: 1.65;
   min-height: 5.2em;
 }
-.arp-flow__caption b { color: var(--fg); }
-.arp-flow__caption code { font-size: 0.86em; }
-.arp-flow__cache {
+.flow__caption b { color: var(--fg); }
+.flow__caption code { font-size: 0.86em; }
+.flow__cache {
   border: 1px solid var(--line);
   background: var(--bg-raised);
   padding: 8px 9px;
   min-width: 0;
 }
-.arp-flow__cache-head {
+.flow__cache-head {
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -1554,28 +1580,29 @@ table.data-table td .flag-tag {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.arp-cache { width: 100%; border-collapse: collapse; font-size: 0.66rem; }
-.arp-cache th,
-.arp-cache td {
+.flow-table { width: 100%; border-collapse: collapse; font-size: 0.66rem; }
+.flow-table th,
+.flow-table td {
   text-align: left;
   padding: 3px 4px;
   border-bottom: 1px dashed var(--line);
   white-space: nowrap;
 }
-.arp-cache th {
+.flow-table th {
   color: var(--dim);
   font-weight: 400;
   font-size: 0.56rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.arp-cache td { color: var(--muted); }
-.arp-cache td code { background: none; padding: 0; color: var(--fg); font-size: 0.95em; }
-.arp-cache .is-pending { color: var(--warn); }
-.arp-cache .is-resolved { color: var(--good); }
-.arp-cache .is-empty { color: var(--dim); }
-.arp-flow__footnote { margin: 6px 0 0; color: var(--dim); font-size: 0.54rem; line-height: 1.5; }
-.arp-flow__controls {
+.flow-table td { color: var(--muted); }
+.flow-table td code { background: none; padding: 0; color: var(--fg); font-size: 0.95em; }
+.flow-table .is-pending { color: var(--warn); }
+.flow-table .is-resolved { color: var(--good); }
+.flow-table .is-empty { color: var(--dim); }
+.dhcp-flow .flow-table td:last-child { white-space: normal; }
+.flow__footnote { margin: 6px 0 0; color: var(--dim); font-size: 0.54rem; line-height: 1.5; }
+.flow__controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1583,20 +1610,20 @@ table.data-table td .flag-tag {
   flex-wrap: wrap;
   padding: 0 12px 12px;
 }
-.arp-flow__progress { display: flex; gap: 5px; }
-.arp-flow__progress span {
+.flow__progress { display: flex; gap: 5px; }
+.flow__progress span {
   width: 18px;
   height: 3px;
   background: var(--line-strong);
   transition: background 0.3s;
 }
-.arp-flow__progress span.is-current { background: var(--accent); }
-.arp-flow__controls .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.flow__progress span.is-current { background: var(--accent); }
+.flow__controls .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 @media (max-width: 720px) {
-  .arp-flow__body { grid-template-columns: minmax(0, 1fr); }
-  .arp-flow__caption { min-height: 0; }
-  .arp-flow__controls { align-items: flex-start; flex-direction: column; }
+  .flow__body { grid-template-columns: minmax(0, 1fr); }
+  .flow__caption { min-height: 0; }
+  .flow__controls { align-items: flex-start; flex-direction: column; }
 }
 
 /* ---------- callouts ---------- */

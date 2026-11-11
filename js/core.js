@@ -1447,7 +1447,7 @@
   }
 
   function initScrollRegions() {
-    const selector = ".table-wrap, .diagram__scroll, .byte-lane__scroll, .hexdump, pre";
+    const selector = ".table-wrap, .diagram__scroll, .byte-lane__scroll, .flow__scroll, .hexdump, pre";
     let raf = null;
     function mark() {
       $$(selector).forEach((el) => {
@@ -1472,6 +1472,72 @@
     if ("MutationObserver" in window) {
       new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
     }
+  }
+
+  function stepFlow(options) {
+    const root = typeof options.root === "string" ? $(options.root) : options.root;
+    if (!root) return null;
+    const count = Math.max(1, Number(options.count) || 1);
+    const interval = Number(options.interval) || 1900;
+    const playBtn = $("[data-flow-play]", root);
+    const prevBtn = $("[data-flow-prev]", root);
+    const nextBtn = $("[data-flow-next]", root);
+    const resetBtn = $("[data-flow-reset]", root);
+    const counter = $("[data-flow-counter]", root);
+    const stepLabel = $("[data-flow-step]", root);
+    const progress = $("[data-flow-progress]", root);
+    const dots = progress ? $$("span", progress) : [];
+    let step = 1;
+    let playing = false;
+    let timer = null;
+
+    function sync() {
+      if (playBtn) playBtn.textContent = playing ? "Pause" : step >= count ? "Replay" : "Play";
+      if (prevBtn) prevBtn.disabled = step <= 1;
+      if (nextBtn) nextBtn.disabled = step >= count;
+      if (counter) counter.textContent = `step ${step} / ${count}`;
+      if (stepLabel) stepLabel.textContent = String(step);
+      dots.forEach((dot, index) => dot.classList.toggle("is-current", index === step - 1));
+    }
+
+    function pause() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      playing = false;
+      sync();
+    }
+
+    function go(index) {
+      step = Math.max(1, Math.min(count, Number(index) || 1));
+      if (typeof options.onStep === "function") options.onStep(step);
+      sync();
+    }
+
+    function tick() {
+      timer = setTimeout(() => {
+        timer = null;
+        if (!playing) return;
+        if (step >= count) { pause(); return; }
+        go(step + 1);
+        if (step >= count) pause();
+        else tick();
+      }, interval);
+    }
+
+    if (playBtn) {
+      playBtn.addEventListener("click", () => {
+        if (playing) { pause(); return; }
+        if (step >= count) go(1);
+        playing = true;
+        sync();
+        tick();
+      });
+    }
+    if (prevBtn) prevBtn.addEventListener("click", () => { pause(); go(step - 1); });
+    if (nextBtn) nextBtn.addEventListener("click", () => { pause(); go(step + 1); });
+    if (resetBtn) resetBtn.addEventListener("click", () => { pause(); go(1); });
+
+    go(1);
+    return { go, pause, current: () => step };
   }
 
   function init() {
@@ -1500,7 +1566,7 @@
     $, $$, esc, hex, bin, parseNumber, parseHex, bytesToHex, bytesToAscii, concatBytes,
     u8, u16be, u16le, u32be, u32le, u64le, put16be, put16le, put32be, put32le, put64le,
     checksum16, checksumValid, parseIPv4, ipv4String, toast, copyText, setStatus,
-    hexdump, diagram, fieldTable, byteLane, renderInspector, tabs, applyTheme, openSearch, initStacks,
+    hexdump, diagram, fieldTable, byteLane, renderInspector, tabs, stepFlow, applyTheme, openSearch, initStacks,
     encodeState, decodeState, readHashState, hashForState, shareState, downloadText, downloadBytes,
     bytesToBase64Url, base64UrlToBytes, captureFormState, applyFormState, pageSnapshot
   });

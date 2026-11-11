@@ -141,6 +141,126 @@
     }
   };
 
+  const DORA_STEPS = [
+    {
+      caption: "<b>No address yet.</b> The client boots with no usable IPv4 configuration. It needs an address, a default route, DNS servers and a lease before it can use the LAN.",
+      state: "no lease",
+      stateClass: "dim",
+      mode: "",
+      ip: "0.0.0.0",
+      clientNote: "no address · UDP 68",
+      lanNote: "waiting",
+      serverNote: "waiting · UDP 67",
+      tokens: {},
+      active: ["client"],
+      match: [],
+      bound: [],
+      links: [],
+      lease: [
+        ["address", "<code>0.0.0.0</code>", ""],
+        ["xid", "—", ""],
+        ["server", "—", ""],
+        ["lease", "—", ""],
+        ["options", "—", ""]
+      ]
+    },
+    {
+      caption: "<b>DISCOVER.</b> The client broadcasts UDP/68 → UDP/67 with source <code>0.0.0.0</code> and destination <code>255.255.255.255</code>. Option 53 = 1, <code>xid</code> matches the transaction and <code>chaddr</code> carries its MAC. Option 55 lists the parameters it wants.",
+      state: "discover sent",
+      stateClass: "warn-text",
+      mode: "is-broadcast",
+      ip: "0.0.0.0",
+      clientNote: "selecting · UDP 68",
+      lanNote: "flood",
+      serverNote: "DISCOVER received",
+      tokens: { discover: [465, 150] },
+      active: ["client", "lan"],
+      match: ["server"],
+      bound: [],
+      links: ["client-lan", "lan-server"],
+      lease: [
+        ["address", "<code>0.0.0.0</code>", "is-pending"],
+        ["xid", "<code>0x3903f326</code>", ""],
+        ["server", "—", ""],
+        ["lease", "—", ""],
+        ["options", "—", ""]
+      ]
+    },
+    {
+      caption: "<b>OFFER.</b> A server picks <code>192.0.2.50</code> from its pool and returns DHCPOFFER with <code>yiaddr</code>, option 54 (server identifier), the mask, router, DNS and a 3600-second lease. The reply goes to the client's MAC; a client that sets the broadcast flag gets it broadcast instead.",
+      state: "offer received",
+      stateClass: "warn-text",
+      mode: "is-unicast",
+      ip: "0.0.0.0",
+      clientNote: "offer: .50",
+      lanNote: "forward",
+      serverNote: "OFFER sent",
+      tokens: { offer: [255, 150] },
+      active: ["server", "lan"],
+      match: ["client"],
+      bound: [],
+      links: ["client-lan", "lan-server"],
+      lease: [
+        ["address", "<code>192.0.2.50</code>", "is-pending"],
+        ["xid", "<code>0x3903f326</code>", ""],
+        ["server", "<code>192.0.2.1</code>", ""],
+        ["lease", "3600 s · offered", "is-pending"],
+        ["options", "mask /24 · router · DNS", ""]
+      ]
+    },
+    {
+      caption: "<b>REQUEST.</b> The client broadcasts DHCPREQUEST with option 50 (requested address) and option 54 (chosen server). Every server on the link sees which offer was accepted.",
+      state: "requesting",
+      stateClass: "warn-text",
+      mode: "is-broadcast",
+      ip: "0.0.0.0",
+      clientNote: "requesting · .50",
+      lanNote: "flood",
+      serverNote: "REQUEST received",
+      tokens: { request: [465, 150] },
+      active: ["client", "lan"],
+      match: ["server"],
+      bound: [],
+      links: ["client-lan", "lan-server"],
+      lease: [
+        ["address", "<code>192.0.2.50</code>", "is-pending"],
+        ["xid", "<code>0x3903f326</code>", ""],
+        ["server", "<code>192.0.2.1</code>", ""],
+        ["lease", "3600 s · requested", "is-pending"],
+        ["options", "mask /24 · router · DNS", ""]
+      ]
+    },
+    {
+      caption: "<b>ACK and bind.</b> The server commits the lease with DHCPACK. The client can use <code>192.0.2.50</code> after checking the address is not already in use. A NAK restarts acquisition; a lost reply is retransmitted with the same <code>xid</code>. Renewal later unicasts REQUEST to the same server.",
+      state: "bound",
+      stateClass: "good-text",
+      mode: "is-unicast",
+      ip: "192.0.2.50",
+      clientNote: "bound · lease 3600 s",
+      lanNote: "forward",
+      serverNote: "ACK sent · lease committed",
+      tokens: { ack: [255, 150] },
+      active: ["server", "lan"],
+      match: [],
+      bound: ["client"],
+      links: ["client-lan", "lan-server"],
+      lease: [
+        ["address", "<code>192.0.2.50</code>", "is-resolved"],
+        ["xid", "<code>0x3903f326</code>", ""],
+        ["server", "<code>192.0.2.1</code>", ""],
+        ["lease", "3600 s · T1 1800 s", "is-resolved"],
+        ["options", "mask /24 · gw .1 · dns .53", "is-resolved"]
+      ]
+    }
+  ];
+
+  const DORA_TOKEN_HOME = {
+    discover: [255, 150],
+    offer: [465, 150],
+    request: [255, 150],
+    ack: [465, 150]
+  };
+
   function applyPreset(name) {
     const preset = PRESETS[name];
     if (!preset) return;
@@ -591,6 +711,74 @@
     return { page: "dhcp-dec", kind: el("dhcp-decode-kind").value, hex: el("dhcp-decode-input").value };
   }
 
+  function initDora() {
+    const flow = el("dhcp-flow");
+    if (!flow) return;
+
+    const caption = el("dhcp-flow-caption");
+    const state = el("dhcp-flow-state");
+    const leaseBody = el("dhcp-flow-lease");
+    const clientIp = el("dhcp-node-client-ip");
+    const clientNote = el("dhcp-node-client-note");
+    const lanNote = el("dhcp-node-lan-note");
+    const serverNote = el("dhcp-node-server-note");
+    const nodes = {};
+    flow.querySelectorAll("[data-node]").forEach((node) => { nodes[node.dataset.node] = node; });
+    const links = {};
+    flow.querySelectorAll("[data-link]").forEach((link) => { links[link.dataset.link] = link; });
+    const tokens = {};
+    flow.querySelectorAll("[data-token]").forEach((token) => { tokens[token.dataset.token] = token; });
+
+    function applyStep(index) {
+      const step = DORA_STEPS[index - 1];
+      caption.innerHTML = step.caption;
+      state.textContent = step.state;
+      state.className = step.stateClass;
+      clientIp.textContent = step.ip;
+      clientNote.textContent = step.clientNote;
+      lanNote.textContent = step.lanNote;
+      serverNote.textContent = step.serverNote;
+      flow.classList.toggle("is-broadcast", step.mode === "is-broadcast");
+      flow.classList.toggle("is-unicast", step.mode === "is-unicast");
+
+      if (index === 1) {
+        Object.keys(tokens).forEach((name) => {
+          const token = tokens[name];
+          token.classList.remove("is-visible");
+          const home = DORA_TOKEN_HOME[name];
+          if (home) token.style.transform = `translate(${home[0]}px, ${home[1]}px)`;
+        });
+      }
+
+      Object.keys(tokens).forEach((name) => {
+        const token = tokens[name];
+        const position = step.tokens[name];
+        if (position) {
+          token.style.transform = `translate(${position[0]}px, ${position[1]}px)`;
+          token.classList.add("is-visible");
+        } else {
+          token.classList.remove("is-visible");
+        }
+      });
+
+      Object.keys(nodes).forEach((name) => {
+        nodes[name].classList.toggle("is-active", step.active.includes(name));
+        nodes[name].classList.toggle("is-match", step.match.includes(name));
+        nodes[name].classList.toggle("is-bound", step.bound.includes(name));
+      });
+
+      Object.keys(links).forEach((name) => {
+        links[name].classList.toggle("is-active", step.links.includes(name));
+      });
+
+      leaseBody.innerHTML = step.lease.map(([field, value, cls]) =>
+        `<tr><td>${field}</td><td${cls ? ` class="${cls}"` : ""}>${value}</td></tr>`
+      ).join("");
+    }
+
+    PH.stepFlow({ root: flow, count: DORA_STEPS.length, onStep: applyStep });
+  }
+
   function restoreState() {
     const state = PH.readHashState();
     if (!state) return false;
@@ -609,6 +797,7 @@
     initDiagrams();
     initEncoder();
     initDecoder();
+    initDora();
     if (!restoreState()) buildFromForm(false);
   }
 
