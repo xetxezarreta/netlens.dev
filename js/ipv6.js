@@ -32,7 +32,7 @@
   const hbhFields = [
     { id: "next", name: "Next Header", bits: 8, range: "0–255", rfc: "RFC 8200 §4.3", rfcUrl: RFC.base + "#section-4.3", desc: "The header or upper-layer protocol that follows this extension. The chain stops when this is not another extension header." },
     { id: "len", name: "Hdr Ext Len", bits: 8, range: "0–255 · ×8 B", rfc: "RFC 8200 §4.3", rfcUrl: RFC.base + "#section-4.3", desc: "Length of the extension header in 8-octet units, excluding the first eight octets. Total header length is <code>(value + 1) × 8</code> bytes." },
-    { id: "options", name: "Options & Padding", bits: "var", varWidth: 48, range: "TLVs", rfc: "RFC 8200 §4.2", rfcUrl: RFC.base + "#section-4.2", desc: "Type-length-value options. Pad1 and PadN align the header; Router Alert, Jumbo Payload and Home Address are the options you are most likely to meet. Unknown options carry an action in the top two type bits." }
+    { id: "options", name: "Options & Padding", bits: "var", varWidth: 48, range: "TLVs", rfc: "RFC 8200 §4.2", rfcUrl: RFC.base + "#section-4.2", desc: "Type-length-value options. Pad1 and PadN align the header; Router Alert, Jumbo Payload and Home Address are the options most frequently encountered. Unknown options carry an action in the top two type bits." }
   ];
 
   const fragmentFields = [

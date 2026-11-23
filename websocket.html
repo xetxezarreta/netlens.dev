@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebSocket frames &amp; handshake — bit diagram, encoder, decoder · netlens.dev</title>
+<meta name="description" content="WebSocket (RFC 6455) opening handshake, Sec-WebSocket-Key and Accept, frame header, FIN/RSV/opcode bits, masking, extended lengths, close codes, encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#handshake">opening handshake</a></li>
+        <li><a href="#frame">frame layout</a></li>
+        <li><a href="#opcodes">opcodes</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>WebSocket</b> starts as HTTP/1.1 and then switches to a frame protocol over the same TCP connection. Client-to-server frames are masked; server-to-client frames are not.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>websocket</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>WebSocket <span class="on">// upgrade handshake and framing</span></h1>
+      <p class="lead">
+        WebSocket is a full-duplex message protocol initiated by an HTTP/1.1 upgrade.
+        Once the handshake succeeds, both endpoints exchange binary frames with an opcode,
+        a length and an optional mask. This page covers the handshake, the frame
+        header, fragmentation, control frames and close codes.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 6455</b> · WebSocket</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7692" target="_blank" rel="noopener">RFC 7692 · compression</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9110" target="_blank" rel="noopener">RFC 9110 · HTTP</a>
+        <span class="badge">wss · 443</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> application</span>
+        <span><b>handshake</b> HTTP/1.1 Upgrade</span>
+        <span><b>frames</b> 2 B + extended length</span>
+        <span><b>transport</b> TCP 80/443</span>
+      </div>
+      <div class="stackbar" data-stack="websocket"></div>
+      <ul class="toc">
+        <li><a href="#handshake">handshake</a></li>
+        <li><a href="#frame">frame</a></li>
+        <li><a href="#opcodes">opcodes</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="handshake">
+      <div class="section__head">
+        <h2><span class="num">01</span>Opening handshake</h2>
+        <span class="section__hint">HTTP Upgrade · Sec-WebSocket-Key</span>
+      </div>
+      <p>
+        The client sends a normal HTTP/1.1 GET with <code>Upgrade: websocket</code>,
+        <code>Connection: Upgrade</code> and a random base64 <code>Sec-WebSocket-Key</code>.
+        The server replies <code>101 Switching Protocols</code> with
+        <code>Sec-WebSocket-Accept</code>, the SHA-1 of the key concatenated with the
+        WebSocket GUID, base64-encoded. After that, HTTP syntax stops.
+      </p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Header</th><th>Who sends it</th><th>Value</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td><code>Upgrade</code></td><td>both</td><td><code>websocket</code></td><td>Selects the protocol</td></tr>
+            <tr><td><code>Connection</code></td><td>both</td><td>includes <code>Upgrade</code></td><td>HTTP/1.1 hop-by-hop token</td></tr>
+            <tr><td><code>Sec-WebSocket-Key</code></td><td>client</td><td>16 random bytes, base64</td><td>Prevents caches from accidentally completing a handshake</td></tr>
+            <tr><td><code>Sec-WebSocket-Version</code></td><td>client</td><td><code>13</code></td><td>Protocol version; 13 is the RFC 6455 version</td></tr>
+            <tr><td><code>Sec-WebSocket-Accept</code></td><td>server</td><td>base64(SHA-1(key + GUID))</td><td>Proves the server understood the handshake</td></tr>
+            <tr><td><code>Sec-WebSocket-Protocol</code></td><td>both</td><td>e.g. <code>chat</code></td><td>Application subprotocol negotiation</td></tr>
+            <tr><td><code>Sec-WebSocket-Extensions</code></td><td>both</td><td>e.g. <code>permessage-deflate</code></td><td>Frame extension negotiation</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>handshake builder</h3><span class="tag">GET + 101</span></div>
+          <div class="codec-panel__body">
+            <div class="field-grid">
+              <div class="form-field"><label for="ws-hs-host">host</label><input type="text" id="ws-hs-host" value="example.com" spellcheck="false"></div>
+              <div class="form-field"><label for="ws-hs-path">path</label><input type="text" id="ws-hs-path" value="/chat" spellcheck="false"></div>
+              <div class="form-field"><label for="ws-hs-key">key</label><input type="text" id="ws-hs-key" value="dGhlIHNhbXBsZSBub25jZQ==" spellcheck="false"></div>
+              <div class="form-field"><label for="ws-hs-protocol">subprotocol</label><input type="text" id="ws-hs-protocol" value="" placeholder="optional" spellcheck="false"></div>
+            </div>
+            <div class="btn-row"><button class="btn btn--primary" type="button" id="ws-hs-build">Build request + response</button></div>
+            <div class="output"><div class="output__label">request</div><pre id="ws-hs-request">—</pre></div>
+            <div class="output"><div class="output__label">response</div><pre id="ws-hs-response">—</pre></div>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>handshake parser</h3><span class="tag">paste HTTP text</span></div>
+          <div class="codec-panel__body">
+            <div class="form-field"><label for="ws-hs-input">raw handshake</label><textarea id="ws-hs-input" rows="7" spellcheck="false" placeholder="GET /chat HTTP/1.1&#10;Host: example.com&#10;Upgrade: websocket"></textarea></div>
+            <div class="btn-row"><button class="btn btn--primary" type="button" id="ws-hs-parse">Parse handshake</button><button class="btn btn--ghost" type="button" id="ws-hs-example">Load example</button></div>
+            <div class="codec-status" id="ws-hs-status" role="status" aria-live="polite">No handshake parsed yet.</div>
+            <div id="ws-hs-result"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="frame">
+      <div class="section__head">
+        <h2><span class="num">02</span>Frame layout</h2>
+        <span class="section__hint">FIN · RSV · opcode · mask · length</span>
+      </div>
+      <p>
+        The first byte carries <strong>FIN</strong>, three reserved bits and the
+        <strong>opcode</strong>. The second byte has the <strong>MASK</strong> bit and a
+        7-bit length. Lengths 126 and 127 select a 16-bit or 64-bit extended length. A
+        masked frame carries a four-byte masking key before the payload; the payload is
+        XORed with the key.
+      </p>
+      <div id="ws-diagram"></div>
+      <div class="field-detail" id="ws-inspector"></div>
+      <div id="ws-fields"></div>
+      <div class="callout">
+        <div class="callout__title">Masking is not encryption</div>
+        <p>The mask key is sent in the frame and is trivially reversible. Its purpose is to
+        stop intermediaries from interpreting WebSocket payloads as HTTP and to make
+        cache-poisoning attacks harder. It provides no confidentiality.</p>
+      </div>
+    </section>
+
+    <section class="section" id="opcodes">
+      <div class="section__head">
+        <h2><span class="num">03</span>Opcodes &amp; control frames</h2>
+        <span class="section__hint">4 bits</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Opcode</th><th>Name</th><th>Kind</th><th>Rules</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x0</code></td><td>Continuation</td><td>data</td><td>Continues a fragmented message</td></tr>
+            <tr><td><code>0x1</code></td><td>Text</td><td>data</td><td>UTF-8 payload, may be fragmented</td></tr>
+            <tr><td><code>0x2</code></td><td>Binary</td><td>data</td><td>Arbitrary bytes, may be fragmented</td></tr>
+            <tr><td><code>0x8</code></td><td>Close</td><td>control</td><td>Payload ≤ 125 B; optional 2-byte code + reason</td></tr>
+            <tr><td><code>0x9</code></td><td>Ping</td><td>control</td><td>Payload ≤ 125 B; peer should answer Pong</td></tr>
+            <tr><td><code>0xA</code></td><td>Pong</td><td>control</td><td>Payload ≤ 125 B; response to Ping</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Close code</th><th>Meaning</th><th>Wire-valid</th></tr></thead>
+          <tbody>
+            <tr><td><code>1000</code></td><td>Normal closure</td><td>yes</td></tr>
+            <tr><td><code>1001</code></td><td>Going away</td><td>yes</td></tr>
+            <tr><td><code>1002</code></td><td>Protocol error</td><td>yes</td></tr>
+            <tr><td><code>1003</code></td><td>Unsupported data</td><td>yes</td></tr>
+            <tr><td><code>1005/1006</code></td><td>No status / abnormal closure</td><td>no — local only</td></tr>
+            <tr><td><code>1007</code></td><td>Invalid payload data</td><td>yes</td></tr>
+            <tr><td><code>1008</code></td><td>Policy violation</td><td>yes</td></tr>
+            <tr><td><code>1009</code></td><td>Message too big</td><td>yes</td></tr>
+            <tr><td><code>1011</code></td><td>Internal server error</td><td>yes</td></tr>
+            <tr><td><code>3000–4999</code></td><td>Application-defined</td><td>yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Frame encoder</h2>
+        <span class="section__hint">text, binary or control</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build a frame</h3><span class="tag" id="ws-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="ws-encode-form" onsubmit="return false">
+              <div class="field-grid">
+                <div class="form-field"><label for="ws-enc-opcode">opcode</label><select id="ws-enc-opcode"><option value="1">1 · text</option><option value="2">2 · binary</option><option value="8">8 · close</option><option value="9">9 · ping</option><option value="10">10 · pong</option><option value="0">0 · continuation</option></select></div>
+                <div class="form-field"><label for="ws-enc-mode">payload mode</label><select id="ws-enc-mode"><option value="text">text</option><option value="hex">hex</option></select></div>
+                <div class="form-field span-2"><label for="ws-enc-payload">payload</label><input type="text" id="ws-enc-payload" value="Hello, WebSocket" spellcheck="false"></div>
+                <div class="form-field"><label for="ws-enc-mask">mask key <span class="units">4 hex bytes</span></label><input type="text" id="ws-enc-mask" value="37 fa 21 3d" spellcheck="false"></div>
+                <div class="form-field"><label for="ws-enc-close">close code <span class="units">optional</span></label><input type="number" id="ws-enc-close" value="" min="1000" max="4999" inputmode="numeric"></div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px"><label><input type="checkbox" id="ws-enc-fin" checked> FIN</label><label><input type="checkbox" id="ws-enc-use-mask" checked> mask (client → server)</label><label><input type="checkbox" id="ws-enc-rsv1"> RSV1</label></div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="ws-build">Build frame</button><button class="btn btn--ghost" type="button" id="ws-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="ws-export">JSON</button></div>
+              <p class="form-note">A client must mask data frames; a server must not. The checkbox permits inspection of either direction.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">WebSocket</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="ws-encode-status" role="status" aria-live="polite">Set the fields and press Build frame.</div>
+            <div class="output"><div class="row-between"><div class="output__label">frame hex</div><button class="copy-btn" type="button" data-copy-target="#ws-enc-output">copy</button></div><pre id="ws-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="ws-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Frame decoder</h2>
+        <span class="section__hint">one or more frames</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 6455</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="ws-decode-input">hex input <span class="units">WebSocket frame bytes</span></label><textarea id="ws-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="ws-decode">Decode</button><button class="btn btn--ghost" type="button" id="ws-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="ws-decode-clear">Clear</button></div>
+          <div class="codec-status" id="ws-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="ws-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">implementation considerations</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>HTTP/1.1 only.</strong> The RFC 6455 handshake uses HTTP/1.1. HTTP/2 and HTTP/3 have a different extended CONNECT mechanism (RFC 8441).</li>
+        <li><strong>Masking direction matters.</strong> A server that receives an unmasked client frame must fail the connection; a client that receives a masked server frame must fail it.</li>
+        <li><strong>Control frames cannot be fragmented.</strong> FIN must be set and the payload must be 125 bytes or fewer.</li>
+        <li><strong>Text must be UTF-8.</strong> Fragmented text is validated across the complete message, not per frame.</li>
+        <li><strong>Close codes 1005 and 1006 are local.</strong> They must never appear in a Close frame's payload.</li>
+        <li><strong>Ping and Pong are application-visible.</strong> Intermediaries do not answer on behalf of an endpoint. A proxy may drop idle connections if the endpoints do not keep them active.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6455" target="_blank" rel="noopener">RFC 6455</a><span>WebSocket</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7692" target="_blank" rel="noopener">RFC 7692</a><span>permessage-deflate</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8441" target="_blank" rel="noopener">RFC 8441</a><span>WebSocket over HTTP/2</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9110" target="_blank" rel="noopener">RFC 9110</a><span>HTTP semantics</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="dhcpv6.html">DHCPv6 -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/websocket-codec.js"></script>
+<script src="js/websocket.js"></script>
+</body>
+</html>

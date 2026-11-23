@@ -332,7 +332,7 @@
       </div>
       <p>
         Build a structurally valid IPv6 base header and append a payload. Payload Length is
-        calculated from the bytes you supply, so it includes any extension headers you paste or
+        calculated from the supplied bytes, so it includes any extension headers supplied or
         generate. The optional presets create a TCP, UDP, ICMPv6, Hop-by-Hop or Fragment example;
         transport checksums are calculated for the current source and destination when a preset
         is loaded.
@@ -403,7 +403,7 @@
               <button class="btn btn--primary" type="button" id="ipv6-enc-build">Build IPv6</button>
               <button class="btn btn--ghost" type="button" id="ipv6-enc-example">Load chain example</button>
             </div>
-            <p class="form-note">The base header has no checksum. Transport checksums use an IPv6 pseudo-header: source, destination, upper-layer length and next header. If you edit addresses after loading a preset, the preset checksum is no longer valid for the new addresses.</p>
+            <p class="form-note">The base header has no checksum. Transport checksums use an IPv6 pseudo-header: source, destination, upper-layer length and next header. If addresses are edited after loading a preset, the preset checksum is no longer valid for the new addresses.</p>
           </div>
         </div>
 
@@ -418,9 +418,9 @@
             <div class="decode-summary" id="ipv6-enc-summary"></div>
             <div class="callout" style="margin:0">
               <div class="callout__title">the header is not the whole packet</div>
-              <p>The output includes the 40-byte IPv6 header and the payload you supplied.
+              <p>The output includes the 40-byte IPv6 header and the supplied payload.
               It does not add Ethernet framing or an FCS, and it does not recompute transport
-              checksums after you edit the addresses. Use the Ethernet explorer for EtherType
+              checksums after the addresses are edited. The Ethernet explorer should be used for EtherType
               <code>0x86DD</code> framing.</p>
             </div>
           </div>
@@ -478,7 +478,7 @@
         <li><strong>Address text is not wire format.</strong> The wire is always 16 bytes. RFC 5952 canonical text compresses the longest zero run, lowercases hex and omits leading zeros. Zone identifiers such as <code>%eth0</code> are local scope syntax.</li>
         <li><strong>No broadcast.</strong> IPv6 uses multicast and anycast. All-nodes multicast is <code>ff02::1</code>; solicited-node multicast is <code>ff02::1:ff00:0/104</code>. ARP is replaced by Neighbor Discovery over ICMPv6.</li>
         <li><strong>Extension chains need limits.</strong> A parser must bound the number of extension headers it follows, validate every length before slicing, and stop at ESP because the next header is encrypted.</li>
-        <li><strong>Filtering ICMPv6 breaks IPv6.</strong> Neighbor Discovery, Router Advertisement, Packet Too Big and Time Exceeded are not optional noise. Blanket ICMP drop policies are a common cause of IPv6 black holes.</li>
+        <li><strong>Filtering ICMPv6 breaks IPv6.</strong> Neighbor Discovery, Router Advertisement, Packet Too Big and Time Exceeded are essential control messages. Blanket ICMP drop policies are a common cause of IPv6 connectivity failures.</li>
         <li><strong>Extension headers are not IPv4 options.</strong> They are chained through Next Header values and counted in Payload Length; AH uses 4-octet length units, while Hop-by-Hop, Routing and Destination Options use 8-octet units.</li>
       </ul>
 

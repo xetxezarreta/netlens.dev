@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLDP TLVs, neighbours &amp; capabilities — bit diagram, encoder, decoder · netlens.dev</title>
+<meta name="description" content="LLDP (IEEE 802.1AB) frame TLVs: chassis ID, port ID, TTL, system name, capabilities, management address, organizationally specific VLAN TLV, encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">TLV layout</a></li>
+        <li><a href="#tlvs">mandatory TLVs</a></li>
+        <li><a href="#capabilities">capabilities</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>LLDP</b> is an Ethernet frame with EtherType <b>0x88CC</b>. It is one-way, link-local and has no request/response exchange. A neighbour only advertises.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>lldp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>LLDP <span class="on">// neighbour advertisements</span></h1>
+      <p class="lead">
+        LLDP informs directly connected devices of the local identity: chassis ID, port ID,
+        system name, capabilities and, optionally, management addresses, VLANs, power and
+        related attributes.
+        It is the protocol behind the neighbour table on a switch and the topology view
+        in a network manager.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>IEEE 802.1AB</b> · LLDP</span>
+        <a class="badge" href="https://standards.ieee.org/ieee/802.1AB/6202/" target="_blank" rel="noopener">IEEE 802.1AB</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4957" target="_blank" rel="noopener">RFC 4957</a>
+        <span class="badge">EtherType 0x88CC</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> link / discovery</span>
+        <span><b>frame</b> Ethernet + TLVs</span>
+        <span><b>default TTL</b> 120 s</span>
+        <span><b>destination</b> 01:80:c2:00:00:0e</span>
+      </div>
+      <div class="stackbar" data-stack="lldp"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#tlvs">TLVs</a></li>
+        <li><a href="#capabilities">capabilities</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>TLV layout</h2>
+        <span class="section__hint">7-bit type · 9-bit length</span>
+      </div>
+      <p>
+        An LLDP frame carries a sequence of TLVs. Each TLV header is two bytes: a 7-bit
+        type and a 9-bit length. The length counts the value only. The first three TLVs are
+        mandatory (chassis, port, TTL) and an End TLV closes the sequence.
+      </p>
+      <div id="lldp-diagram"></div>
+      <div class="field-detail" id="lldp-inspector"></div>
+      <div id="lldp-fields"></div>
+      <div id="lldp-frame-lane"></div>
+      <div class="callout">
+        <div class="callout__title">LLDP is not a routing protocol</div>
+        <p>It has no request, no acknowledgement and no path computation. It advertises
+        local information to the link. A missing neighbour means the peer is not sending,
+        the frame is filtered, or the destination MAC is blocked.</p>
+      </div>
+    </section>
+
+    <section class="section" id="tlvs">
+      <div class="section__head">
+        <h2><span class="num">02</span>Mandatory &amp; common TLVs</h2>
+        <span class="section__hint">type registry</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>TLV</th><th>Value</th><th>Mandatory</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>End of LLDPDU</td><td>zero length</td><td>yes</td></tr>
+            <tr><td><code>1</code></td><td>Chassis ID</td><td>subtype + identifier</td><td>yes</td></tr>
+            <tr><td><code>2</code></td><td>Port ID</td><td>subtype + identifier</td><td>yes</td></tr>
+            <tr><td><code>3</code></td><td>Time To Live</td><td>16-bit seconds</td><td>yes</td></tr>
+            <tr><td><code>4</code></td><td>Port Description</td><td>UTF-8 text</td><td>no</td></tr>
+            <tr><td><code>5</code></td><td>System Name</td><td>UTF-8 text</td><td>no</td></tr>
+            <tr><td><code>6</code></td><td>System Description</td><td>UTF-8 text</td><td>no</td></tr>
+            <tr><td><code>7</code></td><td>System Capabilities</td><td>capabilities + enabled bits</td><td>no</td></tr>
+            <tr><td><code>8</code></td><td>Management Address</td><td>address + interface + OID</td><td>no</td></tr>
+            <tr><td><code>127</code></td><td>Organizationally Specific</td><td>OUI + subtype + value</td><td>no</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Chassis ID subtype 4 is a MAC address; port ID subtype 3 is a MAC address. Other
+        subtypes carry text or network addresses. Management Addresses are not the same as
+        the chassis ID; a device can advertise several.
+      </p>
+    </section>
+
+    <section class="section" id="capabilities">
+      <div class="section__head">
+        <h2><span class="num">03</span>Capabilities</h2>
+        <span class="section__hint">two 16-bit masks</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Bit</th><th>Capability</th><th>Typical device</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x0001</code></td><td>Other</td><td>anything not covered</td></tr>
+            <tr><td><code>0x0002</code></td><td>Repeater</td><td>hub or repeater</td></tr>
+            <tr><td><code>0x0004</code></td><td>Bridge</td><td>switch</td></tr>
+            <tr><td><code>0x0008</code></td><td>WLAN access point</td><td>wireless AP</td></tr>
+            <tr><td><code>0x0010</code></td><td>Router</td><td>router or L3 switch</td></tr>
+            <tr><td><code>0x0020</code></td><td>Telephone</td><td>IP phone</td></tr>
+            <tr><td><code>0x0040</code></td><td>DOCSIS cable device</td><td>cable modem</td></tr>
+            <tr><td><code>0x0080</code></td><td>Station only</td><td>host or server</td></tr>
+            <tr><td><code>0x0100</code></td><td>C-VLAN component</td><td>customer VLAN bridge</td></tr>
+            <tr><td><code>0x0200</code></td><td>S-VLAN component</td><td>service provider bridge</td></tr>
+            <tr><td><code>0x0400</code></td><td>Two-port MAC relay</td><td>TPMR</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">mandatory TLVs + optional text</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an LLDPDU</h3><span class="tag" id="lldp-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="lldp-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="lldp-enc-chassis">chassis MAC</label><input type="text" id="lldp-enc-chassis" value="02:00:00:00:00:01" spellcheck="false"></div>
+                <div class="form-field"><label for="lldp-enc-port">port ID</label><input type="text" id="lldp-enc-port" value="eth0" spellcheck="false"></div>
+                <div class="form-field"><label for="lldp-enc-ttl">TTL <span class="units">s</span></label><input type="number" id="lldp-enc-ttl" value="120" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field span-2"><label for="lldp-enc-name">system name</label><input type="text" id="lldp-enc-name" value="edge-sw-1" spellcheck="false"></div>
+                <div class="form-field"><label for="lldp-enc-desc">system description</label><input type="text" id="lldp-enc-desc" value="" placeholder="optional" spellcheck="false"></div>
+                <div class="form-field"><label for="lldp-enc-caps">capabilities <span class="units">hex mask</span></label><input type="text" id="lldp-enc-caps" value="0x0014" spellcheck="false"></div>
+                <div class="form-field"><label for="lldp-enc-enabled">enabled <span class="units">hex mask</span></label><input type="text" id="lldp-enc-enabled" value="0x0014" spellcheck="false"></div>
+                <div class="form-field"><label for="lldp-enc-mgmt">management IPv4</label><input type="text" id="lldp-enc-mgmt" value="192.0.2.1" spellcheck="false"></div>
+                <div class="form-field"><label for="lldp-enc-vlan">port VLAN ID <span class="units">802.1 TLV</span></label><input type="number" id="lldp-enc-vlan" value="10" min="1" max="4094" inputmode="numeric"></div>
+              </div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="lldp-build">Build LLDPDU</button><button class="btn btn--ghost" type="button" id="lldp-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="lldp-export">JSON</button></div>
+              <p class="form-note">The encoder produces the LLDPDU only. An Ethernet frame adds destination 01:80:c2:00:00:0e, source MAC and EtherType 0x88CC.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">LLDP</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="lldp-encode-status" role="status" aria-live="polite">Set the fields and press Build LLDPDU.</div>
+            <div class="output"><div class="row-between"><div class="output__label">LLDPDU hex</div><button class="copy-btn" type="button" data-copy-target="#lldp-enc-output">copy</button></div><pre id="lldp-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="lldp-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">LLDPDU or full Ethernet frame</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">IEEE 802.1AB</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="lldp-decode-input">hex input <span class="units">LLDPDU or Ethernet frame</span></label><textarea id="lldp-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="lldp-decode">Decode</button><button class="btn btn--ghost" type="button" id="lldp-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="lldp-decode-clear">Clear</button></div>
+          <div class="codec-status" id="lldp-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="lldp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">operational considerations</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>The destination is a reserved multicast MAC.</strong> <code>01:80:c2:00:00:0e</code> is not forwarded by bridges, so LLDP stays link-local.</li>
+        <li><strong>TTL is the neighbour lifetime.</strong> The receiver expires the entry when it has not heard a new advertisement for the TTL. Zero means “shutdown” in LLDP-MED contexts.</li>
+        <li><strong>Chassis ID is not always a MAC.</strong> It can be a component name, interface alias, network address or locally assigned identifier. Normalise it only for display.</li>
+        <li><strong>Organizationally Specific TLVs are vendor space.</strong> 802.1, 802.3 and LLDP-MED define several; unknown OUIs should be shown as opaque bytes.</li>
+        <li><strong>LLDP is not LLDP-MED.</strong> LLDP-MED extends LLDP with voice, inventory and location TLVs. A phone may send both.</li>
+        <li><strong>LLDP is unauthenticated and can be spoofed.</strong> A topology map derived from LLDP is only as trustworthy as the access ports providing the advertisements.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://standards.ieee.org/ieee/802.1AB/6202/" target="_blank" rel="noopener">IEEE 802.1AB</a><span>LLDP</span></li>
+        <li><a href="https://standards.ieee.org/ieee/802.1Q/6844/" target="_blank" rel="noopener">IEEE 802.1Q</a><span>VLANs</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4957" target="_blank" rel="noopener">RFC 4957</a><span>LLDP for MIB</span></li>
+        <li><a href="https://www.iana.org/assignments/ieee-802-numbers/ieee-802-numbers.xhtml" target="_blank" rel="noopener">IANA</a><span>EtherType 0x88CC</span></li>
+      </ul>
+      <div class="next-protocol"><span>back to the map</span><a href="index.html#protocols">All protocols -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/lldp-codec.js"></script>
+<script src="js/lldp.js"></script>
+</body>
+</html>

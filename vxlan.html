@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VXLAN &amp; Geneve — overlay headers, VNI, options · netlens.dev</title>
+<meta name="description" content="VXLAN (RFC 7348) and Geneve (RFC 8926) header diagrams: VNI, I bit, reserved fields, Geneve options, inner Ethernet frames, UDP 4789/6081, an encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#vxlan">VXLAN header</a></li>
+        <li><a href="#geneve">Geneve</a></li>
+        <li><a href="#path">overlay path</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>VXLAN</b> is UDP <b>4789</b>. The inner frame is a complete Ethernet frame. The VNI is 24 bits, so the theoretical limit is 16,777,216 segments.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>vxlan</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>VXLAN &amp; Geneve <span class="on">// L2 over UDP</span></h1>
+      <p class="lead">
+        VXLAN stretches a layer-2 segment across a routed IP fabric. It wraps an entire
+        Ethernet frame in UDP, adds a 24-bit VNI and lets the underlay route between VTEPs.
+        Geneve provides a more extensible alternative: the same overlay model with a
+        different header and a TLV option space.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 7348</b> · VXLAN</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8926" target="_blank" rel="noopener">RFC 8926 · Geneve</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7348" target="_blank" rel="noopener">UDP 4789</a>
+        <span class="badge">24-bit VNI</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> overlay / tunnel</span>
+        <span><b>header</b> 8 B</span>
+        <span><b>transport</b> UDP 4789 / 6081</span>
+        <span><b>payload</b> inner Ethernet frame</span>
+      </div>
+      <div class="stackbar" data-stack="vxlan"></div>
+      <ul class="toc">
+        <li><a href="#vxlan">VXLAN</a></li>
+        <li><a href="#geneve">Geneve</a></li>
+        <li><a href="#path">path</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="vxlan">
+      <div class="section__head">
+        <h2><span class="num">01</span>VXLAN header</h2>
+        <span class="section__hint">8 bytes · UDP 4789</span>
+      </div>
+      <p>
+        The first byte carries the <strong>I</strong> bit, which marks a valid VNI. The
+        next 24 bits are reserved. The VNI is three bytes. The final byte is reserved.
+        Everything after the header is a complete inner Ethernet frame, including its
+        destination and source MAC addresses.
+      </p>
+      <div id="vxlan-diagram"></div>
+      <div class="field-detail" id="vxlan-inspector"></div>
+      <div id="vxlan-fields"></div>
+      <div class="callout">
+        <div class="callout__title">The VNI is not a VLAN ID</div>
+        <p>A 12-bit 802.1Q VLAN ID and a 24-bit VXLAN VNI are different namespaces. A frame
+        can carry both. Mapping between them is a local policy decision at the VTEP, not
+        something the VXLAN header encodes.</p>
+      </div>
+    </section>
+
+    <section class="section" id="geneve">
+      <div class="section__head">
+        <h2><span class="num">02</span>Geneve</h2>
+        <span class="section__hint">8 B base + 4-byte option units</span>
+      </div>
+      <p>
+        Geneve keeps the VNI but adds a version, an option length, OAM and critical bits,
+        and a protocol type. Options are TLVs in four-byte units. The same OUI/type/length
+        discipline as other TLV protocols applies; unknown critical options must be
+        rejected, unknown non-critical options can be ignored.
+      </p>
+      <div id="geneve-lane"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Field</th><th>Bits</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><b>Version</b></td><td><code>2</code></td><td>Geneve version; must be 0.</td></tr>
+            <tr><td><b>Opt Len</b></td><td><code>6</code></td><td>Option length in four-byte units, 0–63.</td></tr>
+            <tr><td><b>OAM</b></td><td><code>1</code></td><td>Operations, administration and maintenance packet.</td></tr>
+            <tr><td><b>Critical</b></td><td><code>1</code></td><td>Unknown critical options must be rejected.</td></tr>
+            <tr><td><b>Protocol Type</b></td><td><code>16</code></td><td>EtherType of the inner payload, usually <code>0x6558</code> for transparent Ethernet.</td></tr>
+            <tr><td><b>VNI</b></td><td><code>24</code></td><td>Virtual network identifier.</td></tr>
+            <tr><td><b>Options</b></td><td><code>var</code></td><td>Class 16, type 8 (with critical bit), length 8 in four-byte units, value.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="path">
+      <div class="section__head">
+        <h2><span class="num">03</span>Overlay path</h2>
+        <span class="section__hint">outer underlay · inner tenant frame</span>
+      </div>
+      <div id="vxlan-path-lane"></div>
+      <p>
+        The outer Ethernet/IP/UDP headers are visible to the underlay. The inner Ethernet
+        frame is the frame presented to the tenant. A capture on the underlay shows both;
+        a capture on a tenant interface shows only the inner frame. Consequently, VXLAN
+        presents a layer-2 link to the guest while the physical path is routed at layer 3.
+      </p>
+      <div class="callout callout--warn">
+        <div class="callout__title">VXLAN is not encrypted</div>
+        <p>It provides segmentation and encapsulation. Confidentiality requires IPsec,
+        MACsec or another layer. The VNI is visible on the wire and is not a secret.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">VXLAN or Geneve</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an overlay header</h3><span class="tag" id="vxlan-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="vxlan-encode-form" onsubmit="return false">
+              <div class="field-grid">
+                <div class="form-field"><label for="vxlan-enc-mode">encapsulation</label><select id="vxlan-enc-mode"><option value="vxlan">VXLAN · RFC 7348</option><option value="geneve">Geneve · RFC 8926</option></select></div>
+                <div class="form-field"><label for="vxlan-enc-vni">VNI <span class="units">0–16777215</span></label><input type="number" id="vxlan-enc-vni" value="42" min="0" max="16777215" inputmode="numeric"></div>
+                <div class="form-field"><label for="vxlan-enc-proto">Geneve protocol</label><select id="vxlan-enc-proto"><option value="25944">0x6558 · Ethernet</option><option value="2048">0x0800 · IPv4</option><option value="34525">0x86DD · IPv6</option></select></div>
+                <div class="form-field"><label for="vxlan-enc-opt-class">option class <span class="units">Geneve</span></label><input type="text" id="vxlan-enc-opt-class" value="0x0108" spellcheck="false"></div>
+                <div class="form-field"><label for="vxlan-enc-opt-value">option value <span class="units">hex · Geneve</span></label><input type="text" id="vxlan-enc-opt-value" class="hex-input" value="00 01 02 03" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="vxlan-enc-inner">inner frame <span class="units">hex</span></label><input type="text" id="vxlan-enc-inner" class="hex-input" value="ff ff ff ff ff ff 02 00 00 00 00 01 08 00 45 00 00 14 00 00 00 00 40 01 00 00 c0 00 02 01 c0 00 02 02" spellcheck="false"></div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px"><label><input type="checkbox" id="vxlan-enc-opt" checked> include Geneve option</label><label><input type="checkbox" id="vxlan-enc-critical"> critical option</label></div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="vxlan-build">Build header</button><button class="btn btn--ghost" type="button" id="vxlan-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="vxlan-export">JSON</button></div>
+              <p class="form-note">Neither encapsulation encrypts. The inner Ethernet frame is copied byte for byte.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">overlay</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="vxlan-encode-status" role="status" aria-live="polite">Set the VNI and press Build header.</div>
+            <div class="output"><div class="row-between"><div class="output__label">header + inner frame</div><button class="copy-btn" type="button" data-copy-target="#vxlan-enc-output">copy</button></div><pre id="vxlan-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="vxlan-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">VXLAN or Geneve header</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 7348 · RFC 8926</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field"><label for="vxlan-decode-mode">encapsulation</label><select id="vxlan-decode-mode"><option value="vxlan">VXLAN</option><option value="geneve">Geneve</option></select></div>
+            <div class="form-field span-2"><label for="vxlan-decode-input">hex input <span class="units">overlay header + inner frame</span></label><textarea id="vxlan-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          </div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="vxlan-decode">Decode</button><button class="btn btn--ghost" type="button" id="vxlan-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="vxlan-decode-clear">Clear</button></div>
+          <div class="codec-status" id="vxlan-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="vxlan-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">operational considerations</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>UDP 4789 is the IANA port.</strong> Some early implementations used 8472; the default in most modern stacks is 4789. Check both in a capture.</li>
+        <li><strong>The inner frame keeps its FCS?</strong> Usually not. VXLAN carries the frame without the original Ethernet FCS; the outer transport has its own integrity checks.</li>
+        <li><strong>MTU includes the overlay.</strong> VXLAN adds 50 bytes for IPv4 and 70 for IPv6 before the inner frame. A 1500-byte inner frame will not fit a 1500-byte underlay.</li>
+        <li><strong>Learning is control-plane dependent.</strong> VXLAN itself has no control protocol. Flood-and-learn, EVPN or a controller supplies the MAC/VNI-to-VTEP mapping.</li>
+        <li><strong>ECMP and entropy.</strong> The outer UDP source port is often derived from the inner flow to give the underlay more entropy. A fixed source port flattens ECMP.</li>
+        <li><strong>Geneve options are not free.</strong> Every option adds bytes and parsing risk. Unknown critical options must cause the packet to be dropped.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7348" target="_blank" rel="noopener">RFC 7348</a><span>VXLAN</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8926" target="_blank" rel="noopener">RFC 8926</a><span>Geneve</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8365" target="_blank" rel="noopener">RFC 8365</a><span>EVPN over NVO</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7348" target="_blank" rel="noopener">IANA</a><span>VXLAN port 4789</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="wireguard.html">WireGuard -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/vxlan-codec.js"></script>
+<script src="js/vxlan.js"></script>
+</body>
+</html>

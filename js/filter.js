@@ -9,7 +9,8 @@
 
   const PROTOCOLS = [
     "eth", "ethernet", "vlan", "arp", "ip", "ipv4", "ipv6", "tcp", "udp",
-    "icmp", "icmpv6", "icmp6", "dns", "dhcp", "http", "tls", "bgp", "quic",
+    "icmp", "icmpv6", "icmp6", "dns", "dhcp", "dhcpv6", "http", "tls", "bgp", "quic",
+    "ospf", "gre", "ntp", "wireguard", "ipsec", "lldp",
     "fcs", "mpls", "pppoe", "vxlan", "geneve", "sctp", "wifi", "radiotap", "ipv6-ext"
   ];
 
@@ -81,7 +82,27 @@
     "http.host": { type: "string", get: (i) => i.http && i.http.host },
     "http.status": { type: "number", get: (i) => i.http && i.http.status },
     "dhcp.type": { type: "string", get: (i) => i.dhcp && i.dhcp.type },
-    "bgp.type": { type: "number", get: (i) => i.bgp && i.bgp.type }
+    "bgp.type": { type: "number", get: (i) => i.bgp && i.bgp.type },
+    "ospf.type": { type: "number", get: (i) => i.ospf && i.ospf.type },
+    "ospf.area": { type: "string", get: (i) => i.ospf && i.ospf.area },
+    "ospf.router": { type: "string", get: (i) => i.ospf && i.ospf.router },
+    "gre.proto": { type: "number", get: (i) => i.gre && i.gre.protocol },
+    "gre.key": { type: "number", get: (i) => i.gre && i.gre.key },
+    "gre.seq": { type: "number", get: (i) => i.gre && i.gre.sequence },
+    "ntp.mode": { type: "number", get: (i) => i.ntp && i.ntp.mode },
+    "ntp.stratum": { type: "number", get: (i) => i.ntp && i.ntp.stratum },
+    "dhcpv6.type": { type: "number", get: (i) => i.dhcpv6 && i.dhcpv6.type },
+    "dhcpv6.xid": { type: "number", get: (i) => i.dhcpv6 && i.dhcpv6.xid },
+    "wireguard.type": { type: "number", get: (i) => i.wireguard && i.wireguard.type },
+    "ipsec.spi": { type: "number", get: (i) => i.ipsec && i.ipsec.spi },
+    "ipsec.seq": { type: "number", get: (i) => i.ipsec && i.ipsec.sequence },
+    "lldp.ttl": { type: "number", get: (i) => i.lldp && i.lldp.ttl },
+    "lldp.chassis": { type: "string", get: (i) => i.lldp && i.lldp.chassis },
+    "lldp.port": { type: "string", get: (i) => i.lldp && i.lldp.port },
+    "sctp.srcport": { type: "number", get: (i) => i.sctp && i.sctp.sport },
+    "sctp.dstport": { type: "number", get: (i) => i.sctp && i.sctp.dport },
+    "sctp.tag": { type: "number", get: (i) => i.sctp && i.sctp.tag },
+    "vxlan.vni": { type: "number", get: (i) => i.vxlan && i.vxlan.vni }
   };
 
   const ALIASES = {
@@ -336,7 +357,7 @@
           // e.g. "tcp == 1" is not a field comparison
           throw new FilterError("'" + word + "' is a protocol, not a field. Use a field such as tcp.port.", token.pos);
         }
-        throw new FilterError("Unknown field '" + word + "'. Try " + Object.keys(FIELDS).slice(0, 6).join(", ") + ", …", token.pos);
+        throw new FilterError("Unknown field '" + word + "'. Examples: " + Object.keys(FIELDS).slice(0, 6).join(", ") + ", …", token.pos);
       }
       let op = null;
       const opToken = peek();

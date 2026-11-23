@@ -47,9 +47,9 @@
     <div class="page-head">
       <h1>TCP header <span class="on">// RFC 9293</span></h1>
       <p class="lead">
-        A 20-byte header, eight control bits and a deceptively small option space.
-        Toggle the flags, inspect the TLV kinds, and let the encoder compute the
-        pseudo-header checksum that makes a segment believable.
+        A 20-byte header, eight control bits and a compact but extensible option space.
+        Toggle the flags, inspect the TLV kinds and use the encoder to compute the
+        pseudo-header checksum for a structurally valid segment.
       </p>
       <div class="badges">
         <span class="badge badge--accent"><b>RFC 9293</b> · TCP</span>
@@ -80,7 +80,7 @@
     <section class="section" id="layout">
       <div class="section__head">
         <h2><span class="num">01</span>Header layout</h2>
-        <span class="section__hint">click a field to pin it · esc clears</span>
+        <span class="section__hint">select a field to pin it; Escape clears the selection</span>
       </div>
       <p>
         <strong>Sequence Number</strong> and <strong>Acknowledgment Number</strong> are 32-bit
@@ -107,9 +107,9 @@
         <span class="section__hint">bits 104–111 · byte 13</span>
       </div>
       <p>
-        Flip the bits to see the raw octet, the tcpdump-style notation and the names.
-        The recipes below set common legitimate and scan combinations; they are here to
-        explain the wire, not to defeat a specific IDS.
+        Toggle the bits to display the raw octet, the tcpdump-style notation and the flag names.
+        The recipes below set common legitimate and scan combinations; they illustrate the
+        encoding rather than target a specific intrusion detection system.
       </p>
 
       <div class="flag-box">
@@ -145,7 +145,7 @@
         <button type="button" class="recipe" data-tcp-flags="FIN,ACK"><b>Maimon scan</b><code>-sM</code><span>FIN+ACK. Behaviour depends on the target stack; mostly historical.</span></button>
         <button type="button" class="recipe" data-tcp-flags="SYN,ACK"><b>SYN/ACK</b><code>response</code><span>The second packet of the three-way handshake. ACK must be set.</span></button>
         <button type="button" class="recipe" data-tcp-flags="RST"><b>Reset</b><code>abort</code><span>Unconditional close or refusal. RST+ACK is also common in responses.</span></button>
-        <button type="button" class="recipe" data-tcp-flags="FIN,ACK,PSH"><b>Close + data</b><code>FPA</code><span>Not standard as a recipe; illustrates that combinations are just bits.</span></button>
+        <button type="button" class="recipe" data-tcp-flags="FIN,ACK,PSH"><b>Close + data</b><code>FPA</code><span>Not a standard recipe; it demonstrates that arbitrary flag combinations are valid bit patterns.</span></button>
       </div>
     </section>
 
@@ -155,14 +155,14 @@
         <span class="section__hint">ten segments · handshake · retransmission · teardown</span>
       </div>
       <p>
-        TCP flags describe a state machine, not a bag of independent bits. Watch the three-way
+        TCP flags describe a state machine rather than a set of independent bits. Observe the three-way
         handshake establish sequence numbers, one data segment disappear and be retransmitted,
         and the four-segment close that follows. The state table tracks both endpoints.
       </p>
 
       <div class="flow tcp-flow" id="tcp-flow">
         <div class="flow__head">
-          <h3>one connection · sequence ladder</h3>
+          <h3>single connection · sequence ladder</h3>
           <span class="tag" id="tcp-flow-counter" data-flow-counter>step 1 / 10</span>
         </div>
 
@@ -292,7 +292,7 @@
         <div class="flow__body">
           <div class="flow__narration">
             <p class="flow__kicker">now · <span id="tcp-flow-step" data-flow-step>1</span> of 10</p>
-            <p class="flow__caption" id="tcp-flow-caption" role="status" aria-live="polite"><b>SYN.</b> The client picks an initial sequence number <code>x=1000</code> and sends SYN with no data. It moves to SYN-SENT; the server is still LISTEN.</p>
+            <p class="flow__caption" id="tcp-flow-caption" role="status" aria-live="polite"><b>SYN.</b> The client selects an initial sequence number <code>x=1000</code> and sends SYN with no data. It moves to SYN-SENT; the server is still LISTEN.</p>
           </div>
           <div class="flow__cache">
             <div class="flow__cache-head"><span>connection state</span><span id="tcp-flow-state" class="warn-text">opening</span></div>
@@ -490,7 +490,7 @@
     <section class="section" id="notes">
       <div class="section__head">
         <h2><span class="num">07</span>Wire notes</h2>
-        <span class="section__hint">where TCP implementations hurt</span>
+        <span class="section__hint">implementation considerations</span>
       </div>
       <div class="callout">
         <div class="callout__title">the checksum is over a fake header</div>
@@ -503,7 +503,7 @@
         <li><strong>Options are negotiated, not universal.</strong> Window Scale and SACK-permitted are normally SYN-only; timestamps are negotiated in both directions; SACK blocks appear after loss.</li>
         <li><strong>Window Scale shifts the 16-bit window.</strong> The shift is 0–14; values above 14 should be treated as 14. The scale applies to later segments, not the SYN itself.</li>
         <li><strong>MSS is not the path MTU.</strong> It is the largest TCP payload the sender can receive, normally MTU − 40. MSS 0 is invalid.</li>
-        <li><strong>The urgent pointer is practically dead.</strong> URG is rarely used and interpreted inconsistently; do not design new protocols around it.</li>
+        <li><strong>The urgent pointer is rarely used.</strong> URG is interpreted inconsistently; new protocols should not depend on it.</li>
         <li><strong>NS is historic.</strong> RFC 3540 defined the ECN nonce bit; RFC 8311 deprecated the nonce. Modern parsers treat the bit as reserved.</li>
         <li><strong>Flags are not authentication.</strong> Anyone can forge a RST or a SYN. TCP sequence numbers and cookies provide some resistance, not identity.</li>
       </ul>

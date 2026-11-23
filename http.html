@@ -48,11 +48,12 @@
     <div class="page-head">
       <h1>HTTP <span class="on">// RFC 9110 · RFC 9113</span></h1>
       <p class="lead">
-        HTTP is two protocols with one name. HTTP/1.1 puts a text start line, header fields, a
-        blank line and a body on a TCP stream, with <strong>Content-Length</strong> or
-        <strong>chunked</strong> framing. HTTP/2 replaces that with binary frames, stream IDs and
-        <strong>HPACK</strong>-compressed header blocks. This page decodes both and shows where
-        the request-smuggling bugs live.
+        HTTP/1.1 and HTTP/2 are distinct protocols that share the HTTP name. HTTP/1.1 places a text start line, header fields, an
+        empty line and a body on a TCP stream, with <strong>Content-Length</strong> or
+        <strong>chunked</strong> framing. HTTP/2 replaces that structure with binary frames,
+        stream identifiers and <strong>HPACK</strong>-compressed header blocks. This page
+        decodes both and identifies the conditions under which request-smuggling
+        vulnerabilities arise.
       </p>
       <div class="badges">
         <span class="badge badge--accent"><b>RFC 9110</b> · semantics</span>
@@ -336,8 +337,8 @@ accept: text/html</textarea>
         <p>Each entry costs <code>name length + value length + 32</code> bytes. The peer may
         announce a smaller <code>SETTINGS_HEADER_TABLE_SIZE</code>, and the encoder must emit a
         dynamic table size update before using the new size. Eviction is from the oldest entry.
-        If you start decoding in the middle of a connection, indexed fields may refer to entries
-        you never saw.</p>
+        If decoding begins in the middle of a connection, indexed fields may refer to entries
+        that were not previously observed.</p>
       </div>
     </section>
 
@@ -435,7 +436,7 @@ Accept-Encoding: gzip, br</textarea>
               <button type="button" data-http-preset="chunked">chunked response</button>
               <button type="button" data-http-preset="post">POST</button>
             </div>
-            <p class="form-note">Header names are case-insensitive on the wire, but this encoder preserves the capitalization you type. <code>Content-Length</code> and <code>Transfer-Encoding</code> are generated from the body and the chunked checkbox; do not add them by hand.</p>
+            <p class="form-note">Header names are case-insensitive on the wire, but this encoder preserves the capitalization entered. <code>Content-Length</code> and <code>Transfer-Encoding</code> are generated from the body and the chunked checkbox; do not add them by hand.</p>
           </div>
         </div>
 
@@ -479,7 +480,7 @@ Accept-Encoding: gzip, br</textarea>
         <code>Content-Length</code> and <code>Transfer-Encoding</code>; HTTP/2 frames are walked
         in order and header blocks are decoded with a connection-level HPACK context. A single
         response does not identify the request method, so a HEAD response cannot be distinguished
-        from an ordinary 200 response with an empty body unless you supply the request context.
+        from an ordinary 200 response with an empty body unless request context is supplied.
       </p>
 
       <div class="codec-panel codec-panel--wide">
@@ -537,7 +538,7 @@ Accept-Encoding: gzip, br</textarea>
         <li><strong>HTTP/2 flow control is per stream and per connection.</strong> DATA frames consume window; WINDOW_UPDATE restores it. A zero increment is a protocol error.</li>
         <li><strong>HPACK state is per connection, not per stream.</strong> HEADERS and CONTINUATION on different streams share one dynamic table. Starting a decode mid-connection can make indexed fields unresolvable.</li>
         <li><strong>Request smuggling lives in framing disagreement.</strong> Duplicate Content-Length, both Content-Length and chunked, whitespace before a colon, and obs-fold are all parser-differential bugs. Reject ambiguous messages.</li>
-        <li><strong>Trailers are real headers.</strong> In chunked HTTP/1.1 they follow the zero chunk; in HTTP/2 they are a HEADERS frame after DATA with END_STREAM. Do not drop them silently.</li>
+        <li><strong>Trailers are real headers.</strong> In chunked HTTP/1.1 they follow the zero chunk; in HTTP/2 they are a HEADERS frame after DATA with END_STREAM. They should not be discarded silently.</li>
         <li><strong>HTTP/3 is HTTP over QUIC.</strong> Requests and responses run on QUIC streams, and header compression is QPACK rather than HPACK. There is no TCP head-of-line blocking, but stream-level flow control and QUIC loss recovery replace it.</li>
         <li><strong>HTTPS is HTTP inside TLS.</strong> ALPN selects <code>h2</code> or <code>http/1.1</code>. The HTTP bytes only become visible after the TLS handshake and record decryption.</li>
       </ul>

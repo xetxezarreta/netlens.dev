@@ -31,13 +31,13 @@
 
   const TCP_STEPS = [
     {
-      caption: "<b>SYN.</b> The client picks an initial sequence number <code>x=1000</code> and sends SYN with no data. It moves to SYN-SENT; the server is still LISTEN.",
+      caption: "<b>SYN.</b> The client selects an initial sequence number <code>x=1000</code> and sends SYN with no data. It moves to SYN-SENT; the server is still LISTEN.",
       client: "SYN-SENT", server: "LISTEN", segment: "SYN · seq 1000",
       state: "opening", stateClass: "warn-text",
       active: ["client"], match: ["server"]
     },
     {
-      caption: "<b>SYN/ACK.</b> The server picks <code>y=5000</code> and replies with SYN+ACK: <code>seq 5000</code>, <code>ack 1001</code>. SYN consumes one sequence number, so the client's next byte is 1001. The server is SYN-RECEIVED.",
+      caption: "<b>SYN/ACK.</b> The server selects <code>y=5000</code> and replies with SYN+ACK: <code>seq 5000</code>, <code>ack 1001</code>. SYN consumes one sequence number, so the client's next byte is 1001. The server is SYN-RECEIVED.",
       client: "SYN-SENT", server: "SYN-RECEIVED", segment: "SYN/ACK · seq 5000 · ack 1001",
       state: "opening", stateClass: "warn-text",
       active: ["server"], match: ["client"]

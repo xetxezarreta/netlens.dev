@@ -279,7 +279,7 @@
     },
     {
       id: "flags", name: "Flags", bits: 3, range: "R, DF, MF", rfc: "RFC 791 §3.1", rfcUrl: RFC.base + "#section-3.1",
-      desc: "Three bits: reserved (must be zero), <strong>DF</strong> (don't fragment) and <strong>MF</strong> (more fragments follow). The next 13 bits are the fragment offset."
+      desc: "Three bits: reserved (must be zero), <strong>DF</strong> (do not fragment) and <strong>MF</strong> (more fragments follow). The next 13 bits are the fragment offset."
     },
     {
       id: "frag", name: "Fragment Offset", bits: 13, range: "0–8191 × 8 B", rfc: "RFC 791 §3.1", rfcUrl: RFC.base + "#section-3.1",

@@ -47,6 +47,22 @@ js/workbench-worker.js  optional parser worker (HTTP only; file:// falls back)
 js/dissect-codec.js     cross-layer dissection engine + link-type wrapper
 js/dissect-view.js      shared layer tree, hexdump and field-detail renderer
 js/*-codec.js           pure-ish codecs, exported on window for tests and other pages
+js/icmpv6-codec.js      ICMPv6, NDP, SLAAC and MLD
+js/ospf-codec.js        OSPFv2 header, Hello, DD, LSA
+js/gre-codec.js         GRE and PPTP-GRE
+js/vxlan-codec.js       VXLAN and Geneve
+js/wireguard-codec.js   WireGuard message framing (no cryptography)
+js/sctp-codec.js        SCTP chunks and CRC-32c
+js/ntp-codec.js         NTPv4 timestamps and extensions
+js/websocket-codec.js   WebSocket handshake and frames
+js/dhcpv6-codec.js      DHCPv6 messages, relay and options
+js/http3-codec.js       HTTP/3 frames, SETTINGS and static QPACK
+js/ipsec-codec.js       IPsec AH/ESP and IKEv2 framing
+js/lldp-codec.js        LLDP TLVs
+js/subnet-codec.js      IPv4/IPv6 prefix math and VLSM
+js/checksum-codec.js    Internet checksum, CRCs, FNV, Adler
+js/ports-data.js        curated port registry
+js/glossary-data.js     glossary data
 js/*.js                 page wiring for one page
 fonts/                  embedded JetBrains Mono source + license
 ```
@@ -198,7 +214,7 @@ Codec tests (all should exit 0):
 
 ```
 tests/test-pcap.js tests/test-filter.js tests/test-streams.js
-tests/test-dissect-link.js tests/test-flows.js tests/test-tunnels.js
+tests/test-dissect-link.js tests/test-flows.js tests/test-tunnels.js tests/test-new-codecs.js
 tests/test-tls-keys.js
 ```
 
@@ -209,9 +225,12 @@ The Playwright browser checks referenced by older notes are not committed in thi
 If they are restored, prefer the current page list:
 
 ```
-index.html ipv4.html icmp.html ipv6.html tcp.html udp.html dns.html dhcp.html
-http.html tls.html quic.html bgp.html ethernet.html arp.html
-workbench.html about.html 404.html
+index.html ipv4.html icmp.html ipv6.html icmpv6.html tcp.html udp.html quic.html sctp.html
+dns.html dhcp.html dhcpv6.html http.html http3.html tls.html websocket.html ntp.html
+bgp.html ospf.html gre.html vxlan.html wireguard.html ipsec.html
+ethernet.html arp.html lldp.html workbench.html
+subnet.html checksum.html ports.html glossary.html learn.html quiz.html
+about.html 404.html
 ```
 
 Also run:
@@ -227,7 +246,9 @@ part of the public surface; do not leave a stale `#anchor`.
 ## Known pitfalls
 
 - **Generated chrome drift.** Rail, footer and mobile nav come from `PH_PROTOCOLS`. If a new
-  protocol is missing from navigation, check the taxonomy entry and `modelLayer`.
+  protocol is missing from navigation, check the taxonomy entry and `modelLayer`. The
+  homepage filter now spans both `#protocol-grid` and `#tool-grid`, so a new tool card
+  needs `data-layer="tools"` and a matching taxonomy entry.
 - **Counts drift.** Homepage cards, hero stats, search entries and README/About page counts are
   still partly manual. Update them when adding or removing pages.
 - **Mobile breakpoint coupling.** The rail hides at `≤980px`; the mobile menu button appears
@@ -269,6 +290,10 @@ part of the public surface; do not leave a stale `#anchor`.
 - **Flows are best-effort.** `flows.js` tracks 5-tuples, reassembles IPv4/IPv6 fragments, tracks
   TCP sequence state and rebuilds streams. Missing bytes stay gaps; never invent them. The
   `streams.js` path remains as a fallback view for worker-compacted flows.
+- **Extended decoders are optional in the dissector.** `dissect-codec.js` guards
+  `OSPFCodec`, `GRECodec`, `WireGuardCodec`, `NTPCodec`, `DHCPv6Codec`, `IPsecCodec`,
+  `LLDPCodec`, `ICMPv6Codec` and `SCTPCodec`. Add any new codec to `workbench.html`,
+  `workbench-worker.js` and `tests/harness.js` (or the worker will silently fall back).
 - **Worker/file://.** `workbench-worker.js` is an HTTP-only optimisation. It stubs the DOM with
   `readyState: "loading"` so codec page wiring never runs. It must fall back to the main thread
   on `file://`, construction failure or timeout. Do not move capture bytes into the worker
@@ -290,7 +315,7 @@ part of the public surface; do not leave a stale `#anchor`.
 Before calling a change complete:
 
 - all relevant codec unit tests pass
-- all 17 pages load with zero console/page errors
+- all 35 pages load with zero console/page errors
 - Axe reports 0 violations on desktop and mobile
 - no horizontal overflow at 320, 360, 390, 430, 720, 768, 900, 980, 981, 1024, 1200 and 1440px
 - `file://` loads and codecs work

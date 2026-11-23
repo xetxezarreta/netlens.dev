@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning paths — guided study, construction and capture analysis · netlens.dev</title>
+<meta name="description" content="Guided networking learning paths: capture analysis, IPv6, TLS and HTTP, routing and overlays, security, and measurement. Progress is stored locally in the browser.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">tools</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#tools">all tools</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">paths</p>
+      <ul>
+        <li><a href="#capture">capture analysis</a></li>
+        <li><a href="#ipv6">IPv6</a></li>
+        <li><a href="#web">TLS &amp; HTTP</a></li>
+        <li><a href="#routing">routing &amp; overlays</a></li>
+        <li><a href="#security">security</a></li>
+        <li><a href="#verify">measure &amp; verify</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Progress</b> is a checklist in <code>localStorage</code>. It is not an account and nothing is uploaded.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#tools">tools</a><span class="sep">/</span><span>learn</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Learning paths <span class="on">// guided study</span></h1>
+      <p class="lead">
+        The field guide is intentionally detailed. These paths provide a sequence: review
+        the page, construct the header, decode a real packet and then inspect a capture.
+        Items are marked as completed; the checklist remains in this browser.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent">guided</span>
+        <span class="badge">local progress</span>
+        <span class="badge">no account</span>
+      </div>
+      <div class="stackbar" data-stack="learn"></div>
+    </div>
+
+    <div class="learn-progress" data-learn-overall>
+      <span class="learn-progress__bar"><span data-learn-bar></span></span>
+      <b data-learn-label>0 / 0 complete</b>
+      <button class="btn btn--ghost btn--sm" type="button" data-learn-reset>Reset progress</button>
+    </div>
+
+    <section class="section" id="capture">
+      <div class="section__head">
+        <h2><span class="num">01</span>Capture analysis: introductory path</h2>
+        <span class="section__hint">the packet path from frame to application</span>
+      </div>
+      <p>
+        Start at the link layer and walk inward. This is the order a dissector uses, and
+        the order that makes a capture legible.
+      </p>
+      <ul class="learn-list" data-learn-group="capture">
+        <li><input type="checkbox" id="learn-capture-1" data-learn-id="capture-1"><label for="learn-capture-1">Open the workbench and load any pcap<small>Local parsing, virtualized list, packet detail and hexdump.</small></label><a href="workbench.html">workbench →</a></li>
+        <li><input type="checkbox" id="learn-capture-2" data-learn-id="capture-2"><label for="learn-capture-2">Review an Ethernet II frame<small>Destination, source, EtherType, VLAN and FCS.</small></label><a href="ethernet.html">ethernet →</a></li>
+        <li><input type="checkbox" id="learn-capture-3" data-learn-id="capture-3"><label for="learn-capture-3">Examine an IPv4 header field by field<small>IHL, total length, ID, flags, fragment offset, TTL, protocol, checksum.</small></label><a href="ipv4.html">ipv4 →</a></li>
+        <li><input type="checkbox" id="learn-capture-4" data-learn-id="capture-4"><label for="learn-capture-4">Trace a TCP handshake and teardown<small>Sequence numbers, flags, options and TIME-WAIT.</small></label><a href="tcp.html">tcp →</a></li>
+        <li><input type="checkbox" id="learn-capture-5" data-learn-id="capture-5"><label for="learn-capture-5">Verify a UDP checksum with the pseudo-header<small>Why a copied datagram cannot be verified on its own.</small></label><a href="udp.html">udp →</a></li>
+        <li><input type="checkbox" id="learn-capture-6" data-learn-id="capture-6"><label for="learn-capture-6">Decode a DNS query and answer<small>Flags, question, compression pointer and EDNS.</small></label><a href="dns.html">dns →</a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="ipv6">
+      <div class="section__head">
+        <h2><span class="num">02</span>IPv6 from first principles</h2>
+        <span class="section__hint">no broadcast, no ARP, no NAT requirement</span>
+      </div>
+      <ul class="learn-list" data-learn-group="ipv6">
+        <li><input type="checkbox" id="learn-ipv6-1" data-learn-id="ipv6-1"><label for="learn-ipv6-1">Review the fixed 40-byte IPv6 header<small>Traffic class, flow label, next header, hop limit.</small></label><a href="ipv6.html">ipv6 →</a></li>
+        <li><input type="checkbox" id="learn-ipv6-2" data-learn-id="ipv6-2"><label for="learn-ipv6-2">Examine the extension-header chain<small>Hop-by-hop, routing, fragment, AH, destination options.</small></label><a href="ipv6.html#extensions">extensions →</a></li>
+        <li><input type="checkbox" id="learn-ipv6-3" data-learn-id="ipv6-3"><label for="learn-ipv6-3">Apply Neighbor Discovery instead of ARP<small>RS, RA, NS, NA and the solicited-node multicast address.</small></label><a href="icmpv6.html#ndp">icmpv6 →</a></li>
+        <li><input type="checkbox" id="learn-ipv6-4" data-learn-id="ipv6-4"><label for="learn-ipv6-4">Perform duplicate address detection and form a SLAAC address<small>Prefix Information, A/L bits and the tentative address.</small></label><a href="icmpv6.html#slaac">slaac →</a></li>
+        <li><input type="checkbox" id="learn-ipv6-5" data-learn-id="ipv6-5"><label for="learn-ipv6-5">Configure a DHCPv6 client<small>DUID, IA_NA, IAADDR, ORO and the M/O flags.</small></label><a href="dhcpv6.html">dhcpv6 →</a></li>
+        <li><input type="checkbox" id="learn-ipv6-6" data-learn-id="ipv6-6"><label for="learn-ipv6-6">Calculate an IPv6 prefix<small>Network, range and host count without estimation.</small></label><a href="subnet.html">subnet →</a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="web">
+      <div class="section__head">
+        <h2><span class="num">03</span>TLS, HTTP and contemporary web protocols</h2>
+        <span class="section__hint">operations after connection establishment</span>
+      </div>
+      <ul class="learn-list" data-learn-group="web">
+        <li><input type="checkbox" id="learn-web-1" data-learn-id="web-1"><label for="learn-web-1">Review an HTTP/1.1 request and response<small>Start line, header fields, framing and chunked bodies.</small></label><a href="http.html">http →</a></li>
+        <li><input type="checkbox" id="learn-web-2" data-learn-id="web-2"><label for="learn-web-2">Examine a TLS 1.3 handshake<small>ClientHello, ServerHello and the plaintext boundary.</small></label><a href="tls.html#sequence">tls →</a></li>
+        <li><input type="checkbox" id="learn-web-3" data-learn-id="web-3"><label for="learn-web-3">Examine QUIC streams and varints<small>Long/short headers, frames and connection IDs.</small></label><a href="quic.html">quic →</a></li>
+        <li><input type="checkbox" id="learn-web-4" data-learn-id="web-4"><label for="learn-web-4">Review HTTP/3 frames and QPACK<small>Why there is no HTTP/2 frame header on the wire.</small></label><a href="http3.html">http3 →</a></li>
+        <li><input type="checkbox" id="learn-web-5" data-learn-id="web-5"><label for="learn-web-5">Decode a WebSocket upgrade and frame<small>Sec-WebSocket-Accept, masking and close codes.</small></label><a href="websocket.html">websocket →</a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="routing">
+      <div class="section__head">
+        <h2><span class="num">04</span>Routing &amp; overlays</h2>
+        <span class="section__hint">from link state to tunnels</span>
+      </div>
+      <ul class="learn-list" data-learn-group="routing">
+        <li><input type="checkbox" id="learn-routing-1" data-learn-id="routing-1"><label for="learn-routing-1">Review an OSPF Hello and Router LSA<small>Area, DR/BDR, link descriptors and SPF.</small></label><a href="ospf.html">ospf →</a></li>
+        <li><input type="checkbox" id="learn-routing-2" data-learn-id="routing-2"><label for="learn-routing-2">Trace a BGP UPDATE<small>Path attributes, AS_PATH, communities and NLRI.</small></label><a href="bgp.html">bgp →</a></li>
+        <li><input type="checkbox" id="learn-routing-3" data-learn-id="routing-3"><label for="learn-routing-3">Encapsulate a packet in GRE<small>Flags, key, sequence and the optional checksum.</small></label><a href="gre.html">gre →</a></li>
+        <li><input type="checkbox" id="learn-routing-4" data-learn-id="routing-4"><label for="learn-routing-4">Carry a tenant frame in VXLAN<small>VNI, UDP 4789, inner Ethernet and MTU cost.</small></label><a href="vxlan.html">vxlan →</a></li>
+        <li><input type="checkbox" id="learn-routing-5" data-learn-id="routing-5"><label for="learn-routing-5">Review a WireGuard transport packet<small>Receiver index, counter and opaque ciphertext.</small></label><a href="wireguard.html">wireguard →</a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="security">
+      <div class="section__head">
+        <h2><span class="num">05</span>Security at the packet level</h2>
+        <span class="section__hint">what is protected and what is visible</span>
+      </div>
+      <ul class="learn-list" data-learn-group="security">
+        <li><input type="checkbox" id="learn-security-1" data-learn-id="security-1"><label for="learn-security-1">Distinguish AH from ESP<small>Authentication vs encryption, and why AH breaks under NAT.</small></label><a href="ipsec.html">ipsec →</a></li>
+        <li><input type="checkbox" id="learn-security-2" data-learn-id="security-2"><label for="learn-security-2">Review a TLS 1.3 key schedule<small>HKDF extract/expand, traffic secrets and AEAD nonces.</small></label><a href="tls.html#keyschedule">key schedule →</a></li>
+        <li><input type="checkbox" id="learn-security-3" data-learn-id="security-3"><label for="learn-security-3">Decrypt a local capture with a key log<small>Client/server handshake and application traffic secrets.</small></label><a href="workbench.html#load">workbench →</a></li>
+        <li><input type="checkbox" id="learn-security-4" data-learn-id="security-4"><label for="learn-security-4">Assess the visibility of DNS over TLS and HTTPS<small>Names, answers and metadata that remain visible.</small></label><a href="dns.html#transport">dns transport →</a></li>
+        <li><input type="checkbox" id="learn-security-5" data-learn-id="security-5"><label for="learn-security-5">Assess understanding with the quiz<small>Offsets, flags, RFCs and common protocol errors.</small></label><a href="quiz.html">quiz →</a></li>
+      </ul>
+    </section>
+
+    <section class="section" id="verify">
+      <div class="section__head">
+        <h2><span class="num">06</span>Measurement and verification</h2>
+        <span class="section__hint">reproducible calculations</span>
+      </div>
+      <ul class="learn-list" data-learn-group="verify">
+        <li><input type="checkbox" id="learn-verify-1" data-learn-id="verify-1"><label for="learn-verify-1">Compute an Internet checksum by hand<small>RFC 1071, one's complement and the pseudo-header.</small></label><a href="checksum.html">checksum →</a></li>
+        <li><input type="checkbox" id="learn-verify-2" data-learn-id="verify-2"><label for="learn-verify-2">Distinguish CRC-32 from CRC-32c<small>Ethernet compared with SCTP; the polynomials differ.</small></label><a href="checksum.html#notes">notes →</a></li>
+        <li><input type="checkbox" id="learn-verify-3" data-learn-id="verify-3"><label for="learn-verify-3">Plan a VLSM allocation<small>Largest first, aligned blocks and free space.</small></label><a href="subnet.html#vlsm">vlsm →</a></li>
+        <li><input type="checkbox" id="learn-verify-4" data-learn-id="verify-4"><label for="learn-verify-4">Locate a service by port<small>Port numbers are indicators, not proof of the application.</small></label><a href="ports.html">ports →</a></li>
+        <li><input type="checkbox" id="learn-verify-5" data-learn-id="verify-5"><label for="learn-verify-5">Consult the glossary for terminology<small>The glossary links back to the field guide.</small></label><a href="glossary.html">glossary →</a></li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/learn.js"></script>
+</body>
+</html>

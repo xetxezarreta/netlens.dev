@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port &amp; service registry — searchable TCP/UDP reference · netlens.dev</title>
+<meta name="description" content="Searchable reference of common TCP and UDP ports: service names, protocol pages, well-known/registered ranges, and the protocols behind DNS, DHCP, NTP, TLS, QUIC and more.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">tools</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#tools">all tools</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#registry">registry</a></li>
+        <li><a href="#ranges">port ranges</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>IANA is the registry of record.</b> This list is a curated subset for packet reading, not a replacement for the service-names-port-numbers registry.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#tools">tools</a><span class="sep">/</span><span>ports</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Port registry <span class="on">// TCP &amp; UDP services</span></h1>
+      <p class="lead">
+        Search by port number, service name or description. Each entry links to the
+        protocol page when netlens.dev covers it. The list is deliberately curated: it
+        favours ports commonly observed in captures over completeness.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent">searchable</span>
+        <span class="badge">well-known</span>
+        <span class="badge">registered</span>
+        <span class="badge">dynamic</span>
+      </div>
+      <div class="stackbar" data-stack="ports"></div>
+    </div>
+
+    <section class="section" id="registry">
+      <div class="section__head">
+        <h2><span class="num">01</span>Registry</h2>
+        <span class="section__hint">filter while typing</span>
+      </div>
+      <div class="registry-toolbar">
+        <input type="search" id="ports-search" placeholder="port, service or description…" aria-label="Search ports" autocomplete="off" spellcheck="false">
+        <select id="ports-proto" aria-label="Filter by protocol"><option value="all">all protocols</option><option value="tcp">TCP</option><option value="udp">UDP</option></select>
+        <select id="ports-range" aria-label="Filter by port range"><option value="all">all ranges</option><option value="well">0–1023 · well-known</option><option value="registered">1024–49151 · registered</option><option value="dynamic">49152–65535 · dynamic</option></select>
+        <span class="registry-count" id="ports-count" role="status" aria-live="polite">—</span>
+      </div>
+      <div id="ports-result"></div>
+      <p class="small dim mt-8">Port assignments do not prove the application. A service can listen on any port, and a capture can show TLS on 8443 or SSH on 2222. The payload and handshake should be examined in addition to the port number.</p>
+    </section>
+
+    <section class="section" id="ranges">
+      <div class="section__head">
+        <h2><span class="num">02</span>Port ranges</h2>
+        <span class="section__hint">IANA conventions</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Range</th><th>Name</th><th>Assignment</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>Reserved</td><td>—</td><td>A source port of 0 is not valid; some tools use it as “any”.</td></tr>
+            <tr><td><code>1–1023</code></td><td>System / well-known</td><td>IETF review</td><td>Binding usually needs privilege, though modern systems differ.</td></tr>
+            <tr><td><code>1024–49151</code></td><td>User / registered</td><td>IANA registration</td><td>Not enforced by the kernel; registration is a coordination mechanism.</td></tr>
+            <tr><td><code>49152–65535</code></td><td>Dynamic / private</td><td>Ephemeral</td><td>Typical client source-port range, but the exact range is OS-dependent.</td></tr>
+            <tr><td><code>32768–60999</code></td><td>Linux ephemeral (common)</td><td>sysctl</td><td><code>net.ipv4.ip_local_port_range</code>; this value should not be hardcoded.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">03</span>Notes</h2>
+        <span class="section__hint">ports are indicators, not proof</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>A port is not a protocol.</strong> TLS can run on 443, 8443, 993 or any port. QUIC usually uses UDP 443 but does not have to.</li>
+        <li><strong>Source ports are ephemeral.</strong> A client's source port is chosen locally and changes per connection. Only the destination usually identifies a service.</li>
+        <li><strong>Both TCP and UDP can share a number.</strong> DNS uses 53 on both; the transport is part of the flow identity.</li>
+        <li><strong>Firewall rules should not rely only on port numbers.</strong> Application identification, TLS SNI/ALPN and protocol parsing are more reliable, though each has its own limits.</li>
+        <li><strong>IANA registration is not deployment.</strong> A registered port may be unused; an unregistered port may be the de facto standard for a product.</li>
+      </ul>
+      <p class="small dim">Reference: <a href="https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml" target="_blank" rel="noopener">IANA Service Name and Transport Protocol Port Number Registry</a>.</p>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ports-data.js"></script>
+<script src="js/ports.js"></script>
+</body>
+</html>

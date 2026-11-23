@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NTPv4 packets &amp; timestamps — bit diagram, encoder, decoder · netlens.dev</title>
+<meta name="description" content="NTPv4 (RFC 5905) header layout: leap indicator, version, mode, stratum, poll, precision, root delay, reference ID and four 64-bit timestamps, with an encoder, decoder and clock-offset explanation.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">header layout</a></li>
+        <li><a href="#time">time &amp; modes</a></li>
+        <li><a href="#offset">clock offset</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>NTP</b> is UDP <b>123</b>. Timestamps count seconds from 1900-01-01, not 1970. The 64-bit value is 32 bits of seconds plus 32 bits of fraction.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>ntp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>NTPv4 <span class="on">// timestamps and clock synchronisation</span></h1>
+      <p class="lead">
+        NTP is one of the oldest protocols still in daily use. The packet is fixed at 48
+        bytes; the principal fields are the four 64-bit timestamps and the arithmetic
+        that derives offset and delay. This page decodes the header, the reference
+        identifier and the clock relationship.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 5905</b> · NTPv4</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4330" target="_blank" rel="noopener">RFC 4330 · SNTP</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7822" target="_blank" rel="noopener">RFC 7822</a>
+        <span class="badge">UDP 123</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> application</span>
+        <span><b>header</b> 48 B</span>
+        <span><b>transport</b> UDP 123</span>
+        <span><b>epoch</b> 1900-01-01</span>
+      </div>
+      <div class="stackbar" data-stack="ntp"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#time">time</a></li>
+        <li><a href="#offset">offset</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Header layout</h2>
+        <span class="section__hint">48 bytes · all modes</span>
+      </div>
+      <p>
+        The first byte packs <strong>Leap Indicator</strong>, <strong>Version</strong> and
+        <strong>Mode</strong>. The next three bytes are stratum, poll exponent and precision.
+        The four timestamps are <strong>Reference</strong>, <strong>Origin</strong>,
+        <strong>Receive</strong> and <strong>Transmit</strong>. Extension fields and a MAC
+        may follow the 48-byte header.
+      </p>
+      <div id="ntp-diagram"></div>
+      <div class="field-detail" id="ntp-inspector"></div>
+      <div id="ntp-fields"></div>
+      <div class="callout">
+        <div class="callout__title">Origin and Transmit are not the same clock</div>
+        <p>Origin is the client's transmit timestamp echoed by the server. Receive and
+        Transmit are the server's own receive and send times. A client uses all four to
+        estimate offset and round-trip delay.</p>
+      </div>
+    </section>
+
+    <section class="section" id="time">
+      <div class="section__head">
+        <h2><span class="num">02</span>Time &amp; modes</h2>
+        <span class="section__hint">LI · VN · Mode · stratum</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Mode</th><th>Name</th><th>Who sends it</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td>Symmetric active</td><td>peer</td><td>Wants a symmetric exchange</td></tr>
+            <tr><td><code>2</code></td><td>Symmetric passive</td><td>peer</td><td>Responds to symmetric active</td></tr>
+            <tr><td><code>3</code></td><td>Client</td><td>client</td><td>Requests time from a server</td></tr>
+            <tr><td><code>4</code></td><td>Server</td><td>server</td><td>Response to a client request</td></tr>
+            <tr><td><code>5</code></td><td>Broadcast</td><td>server</td><td>Unsolicited time broadcast</td></tr>
+            <tr><td><code>6</code></td><td>NTP control</td><td>management</td><td>Control/statistics messages, not time</td></tr>
+            <tr><td><code>7</code></td><td>Private</td><td>implementation</td><td>Reserved for private use</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Stratum</th><th>Meaning</th><th>Reference ID interpretation</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>Unspecified / kiss-o'-death</td><td>Four-character code such as DENY, RSTR, RATE</td></tr>
+            <tr><td><code>1</code></td><td>Primary server</td><td>Four-character source code such as GPS, PPS, LOCL</td></tr>
+            <tr><td><code>2–15</code></td><td>Secondary server</td><td>IPv4 address of the upstream server</td></tr>
+            <tr><td><code>16</code></td><td>Unsynchronised</td><td>Not usable</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">NTP is not authenticated by default</div>
+        <p>Symmetric key authentication and Autokey exist but are not universal. An
+        unauthenticated NTP client trusts whatever answers first. DNS spoofing or a local
+        attacker can shift a clock.</p>
+      </div>
+    </section>
+
+    <section class="section" id="offset">
+      <div class="section__head">
+        <h2><span class="num">03</span>Clock offset</h2>
+        <span class="section__hint">T1 · T2 · T3 · T4</span>
+      </div>
+      <p>
+        With client transmit <code>T1</code>, server receive <code>T2</code>, server transmit
+        <code>T3</code> and client receive <code>T4</code>, the standard estimates are:
+      </p>
+      <div class="output"><div class="output__label">arithmetic</div><pre>offset = ((T2 − T1) + (T3 − T4)) / 2
+delay  = (T4 − T1) − (T3 − T2)</pre></div>
+      <p>
+        This assumes the path delay is roughly symmetric. Asymmetric routing, queuing or a
+        inaccurate or malicious server produces a biased offset. Consequently, a
+        well-behaved client uses several servers and filters outliers.
+      </p>
+      <div id="ntp-offset-panel" class="tool-result">Decoding a packet with all four timestamps displays the computed offset and delay.</div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">client or server packet</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an NTP packet</h3><span class="tag" id="ntp-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="ntp-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="ntp-enc-mode">mode</label><select id="ntp-enc-mode"><option value="3">3 · client</option><option value="4">4 · server</option><option value="1">1 · symmetric active</option><option value="2">2 · symmetric passive</option><option value="5">5 · broadcast</option></select></div>
+                <div class="form-field"><label for="ntp-enc-version">version</label><select id="ntp-enc-version"><option value="4">4</option><option value="3">3</option></select></div>
+                <div class="form-field"><label for="ntp-enc-stratum">stratum</label><input type="number" id="ntp-enc-stratum" value="0" min="0" max="255" inputmode="numeric"></div>
+                <div class="form-field"><label for="ntp-enc-poll">poll exponent</label><input type="number" id="ntp-enc-poll" value="6" min="-128" max="127" inputmode="numeric"></div>
+                <div class="form-field"><label for="ntp-enc-precision">precision exponent</label><input type="number" id="ntp-enc-precision" value="-20" min="-128" max="127" inputmode="numeric"></div>
+                <div class="form-field"><label for="ntp-enc-refid">reference ID <span class="units">4 chars</span></label><input type="text" id="ntp-enc-refid" value="LOCL" maxlength="4" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="ntp-enc-ref">reference time <span class="units">ISO 8601</span></label><input type="text" id="ntp-enc-ref" value="" placeholder="2026-01-01T00:00:00Z" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="ntp-enc-transmit">transmit time <span class="units">ISO 8601</span></label><input type="text" id="ntp-enc-transmit" value="" placeholder="now" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="ntp-enc-ext">extension <span class="units">hex · optional</span></label><input type="text" id="ntp-enc-ext" class="hex-input" value="" placeholder="type 2 bytes + length 2 bytes + value" spellcheck="false"></div>
+              </div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="ntp-build">Build packet</button><button class="btn btn--ghost" type="button" id="ntp-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="ntp-export">JSON</button></div>
+              <p class="form-note">Dates are converted to NTP's 1900 epoch. Fractional seconds are rounded to the nearest 2⁻³² s.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">NTP</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="ntp-encode-status" role="status" aria-live="polite">Set the fields and press Build packet.</div>
+            <div class="output"><div class="row-between"><div class="output__label">packet hex</div><button class="copy-btn" type="button" data-copy-target="#ntp-enc-output">copy</button></div><pre id="ntp-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="ntp-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">48-byte header + extensions</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 5905</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="ntp-decode-input">hex input <span class="units">NTP packet</span></label><textarea id="ntp-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="ntp-decode">Decode</button><button class="btn btn--ghost" type="button" id="ntp-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="ntp-decode-clear">Clear</button></div>
+          <div class="codec-status" id="ntp-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="ntp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">operational considerations</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>The epoch is 1900.</strong> Unix time starts in 1970; the difference is 2,208,988,800 seconds. A 32-bit NTP seconds field wraps in 2036.</li>
+        <li><strong>The fraction is not milliseconds.</strong> It is a binary fraction: 2⁻³² of a second. Converting to decimal and back loses precision if done carelessly.</li>
+        <li><strong>Kiss-o'-death is a stratum-0 packet.</strong> RATE, DENY and RSTR tell a client to back off or stop. They are not time.</li>
+        <li><strong>Poll and precision are signed exponents.</strong> A precision of −20 means about one microsecond; it is not a byte count.</li>
+        <li><strong>NTP compared with SNTP.</strong> SNTP uses the same packet format with a simpler client algorithm. A capture does not identify which implementation sent a packet.</li>
+        <li><strong>NTS is different.</strong> Network Time Security wraps NTP in TLS for key establishment and authenticates packets; the base NTP header remains.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5905" target="_blank" rel="noopener">RFC 5905</a><span>NTPv4</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4330" target="_blank" rel="noopener">RFC 4330</a><span>SNTP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7822" target="_blank" rel="noopener">RFC 7822</a><span>NTP packet clarifications</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8915" target="_blank" rel="noopener">RFC 8915</a><span>NTS</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7384" target="_blank" rel="noopener">RFC 7384</a><span>security requirements</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="websocket.html">WebSocket frames -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ntp-codec.js"></script>
+<script src="js/ntp.js"></script>
+</body>
+</html>

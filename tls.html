@@ -228,7 +228,7 @@
                 <rect x="30" y="18" width="250" height="80" rx="2"></rect>
                 <text class="n-label" x="44" y="40">TLS CLIENT</text>
                 <text class="n-ip" x="44" y="62">192.0.2.10:49152</text>
-                <text class="n-note" id="tls-node-client-state" x="44" y="82">start</text>
+                <text class="n-note" id="tls-node-client-state" x="44" y="82">initial</text>
               </g>
               <g class="tls-node" data-node="server">
                 <rect x="440" y="18" width="250" height="80" rx="2"></rect>
@@ -279,7 +279,7 @@
         <div class="flow__body">
           <div class="flow__narration">
             <p class="flow__kicker">now · <span id="tls-flow-step" data-flow-step>1</span> of 7</p>
-            <p class="flow__caption" id="tls-flow-caption" role="status" aria-live="polite"><b>ClientHello.</b> The client offers TLS 1.3, cipher suites, a key share and extensions. This is a plaintext Handshake record: a capture can read it.</p>
+            <p class="flow__caption" id="tls-flow-caption" role="status" aria-live="polite"><b>ClientHello.</b> The client offers TLS 1.3, cipher suites, a key share and extensions. This is a plaintext Handshake record and is readable in a capture.</p>
           </div>
           <div class="flow__cache">
             <div class="flow__cache-head"><span>record on the wire</span><span id="tls-flow-state" class="warn-text">plaintext</span></div>
@@ -358,8 +358,8 @@
       <p>
         Extensions are the extension mechanism that made TLS 1.3 possible without changing the
         hello envelope. Each one is a four-byte header and an opaque body whose shape depends on
-        the extension type and the message that carries it. The same type can mean different
-        things in ClientHello, ServerHello, EncryptedExtensions and Certificate.
+        the extension type and the message that carries it. The same type can have different
+        meanings in ClientHello, ServerHello, EncryptedExtensions and Certificate.
       </p>
 
       <div id="tls-extension-lane"></div>
@@ -486,10 +486,10 @@
         <span class="section__hint">ClientHello · ServerHello · Alert · Application Data</span>
       </div>
       <p>
-        Build a syntactically valid TLS record. The key share is illustrative unless you paste a
-        real public key; the point is the encoding, not a usable handshake. Every length is
-        derived from the fields you enter, and the output can be fed straight back into the
-        decoder. ALPN selection for TLS 1.3 belongs in EncryptedExtensions, not ServerHello, so
+        Build a syntactically valid TLS record. The key share is illustrative unless a real
+        public key is supplied; the objective is the encoding, not a usable handshake. Every
+        length is derived from the entered fields, and the output can be supplied directly to
+        the decoder. ALPN selection for TLS 1.3 belongs in EncryptedExtensions, not ServerHello, so
         it is not offered here; the ClientHello form still shows the offered protocol list.
       </p>
 
@@ -639,7 +639,7 @@
               <button type="button" data-tls-preset="alert">Alert</button>
               <button type="button" data-tls-preset="appdata">Application Data</button>
             </div>
-            <p class="form-note">The example key share is deterministic filler, not a valid point or key for the selected group. Replace it with a real public key of the group's size if you need a handshake that a peer would accept. Lengths, extension framing and the record header are exact.</p>
+            <p class="form-note">The example key share is deterministic filler, not a valid point or key for the selected group. It should be replaced with a real public key of the group's size if a handshake acceptable to a peer is required. Lengths, extension framing and the record header are exact.</p>
           </div>
         </div>
 
@@ -664,8 +664,8 @@
             <div class="callout" style="margin-top:14px">
               <div class="callout__title">what the encoder does not do</div>
               <p>It does not generate a private key, sign the transcript, derive traffic keys or
-              encrypt anything. It builds the plaintext record and handshake structures so you can
-              inspect the layout and feed the bytes to a decoder.</p>
+              encrypt anything. It builds the plaintext record and handshake structures so that
+              the layout can be inspected and the bytes supplied to a decoder.</p>
             </div>
           </div>
         </div>

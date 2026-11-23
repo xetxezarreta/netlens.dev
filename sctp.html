@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCTP chunks, streams &amp; CRC32c — bit diagrams, encoder, decoder · netlens.dev</title>
+<meta name="description" content="SCTP (RFC 9260) common header, chunk TLV, DATA, INIT, SACK, HEARTBEAT and COOKIE chunks, verification tag, CRC32c checksum, an encoder and a decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">common header</a></li>
+        <li><a href="#chunks">chunks</a></li>
+        <li><a href="#types">chunk types</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>SCTP</b> is IP protocol <b>132</b>. Its checksum is CRC-32c (Castagnoli), not the Internet checksum used by TCP and UDP.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>sctp</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>SCTP <span class="on">// streams, chunks &amp; CRC32c</span></h1>
+      <p class="lead">
+        SCTP is a message-oriented transport protocol with multiple streams, built-in
+        multihoming and a chunked extension model. It is used by SS7-over-IP, WebRTC data
+        channels (as a substrate in some stacks), Diameter and a few telecom and database
+        systems. The common header is 12 bytes; everything else is chunks.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 9260</b> · SCTP</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3309" target="_blank" rel="noopener">RFC 3309 · CRC32c</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3758" target="_blank" rel="noopener">RFC 3758 · partially reliable</a>
+        <span class="badge">IP protocol 132</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> transport</span>
+        <span><b>header</b> 12 B + chunks</span>
+        <span><b>checksum</b> CRC-32c</span>
+        <span><b>streams</b> multiple per association</span>
+      </div>
+      <div class="stackbar" data-stack="sctp"></div>
+      <ul class="toc">
+        <li><a href="#layout">header</a></li>
+        <li><a href="#chunks">chunks</a></li>
+        <li><a href="#types">types</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Common header</h2>
+        <span class="section__hint">12 bytes · every packet</span>
+      </div>
+      <p>
+        Ports identify the endpoints. The <strong>Verification Tag</strong> is chosen at
+        association setup and must match the peer's value; it protects against stale or
+        injected packets. The <strong>Checksum</strong> is CRC-32c over the whole packet with
+        the checksum field zeroed.
+      </p>
+      <div id="sctp-diagram"></div>
+      <div class="field-detail" id="sctp-inspector"></div>
+      <div id="sctp-fields"></div>
+      <div class="callout">
+        <div class="callout__title">CRC-32c is not CRC-32</div>
+        <p>Ethernet uses CRC-32 (IEEE polynomial). SCTP uses CRC-32c (Castagnoli). The
+        two produce different values for the same bytes, so a generic “CRC32” tool will
+        report a valid SCTP checksum as invalid.</p>
+      </div>
+    </section>
+
+    <section class="section" id="chunks">
+      <div class="section__head">
+        <h2><span class="num">02</span>Chunks</h2>
+        <span class="section__hint">type · flags · length · value</span>
+      </div>
+      <p>
+        A packet carries one or more chunks. Each chunk header is four bytes and the
+        length includes the header. Chunks are padded to a four-byte boundary, but the
+        padding is not counted in the chunk length. The receiver can process chunks
+        independently.
+      </p>
+      <div id="sctp-chunk-lane"></div>
+      <div id="sctp-data-lane"></div>
+      <div class="callout callout--warn">
+        <div class="callout__title">Chunk length is the whole chunk</div>
+        <p>A DATA chunk with a 4-byte payload has Length 20: 4-byte chunk header + 12-byte
+        DATA fixed fields + 4-byte payload. Confusing chunk length with payload length is
+        a frequent SCTP parser implementation error.</p>
+      </div>
+    </section>
+
+    <section class="section" id="types">
+      <div class="section__head">
+        <h2><span class="num">03</span>Chunk types</h2>
+        <span class="section__hint">selected chunk types</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Chunk</th><th>Purpose</th><th>Notable fields</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>DATA</b></td><td>User message</td><td>I/U/B/E flags, TSN, stream ID, stream sequence, PPID, payload</td></tr>
+            <tr><td><code>1</code></td><td><b>INIT</b></td><td>Open an association</td><td>initiate tag, a_rwnd, stream counts, initial TSN, parameters</td></tr>
+            <tr><td><code>2</code></td><td><b>INIT ACK</b></td><td>Accept an association</td><td>same shape as INIT</td></tr>
+            <tr><td><code>3</code></td><td><b>SACK</b></td><td>Selective acknowledgment</td><td>cumulative TSN, a_rwnd, gap blocks, duplicate TSNs</td></tr>
+            <tr><td><code>4/5</code></td><td><b>HEARTBEAT / ACK</b></td><td>Path liveness</td><td>heartbeat info parameter</td></tr>
+            <tr><td><code>6</code></td><td><b>ABORT</b></td><td>Abort the association</td><td>error causes</td></tr>
+            <tr><td><code>7/8</code></td><td><b>SHUTDOWN / ACK</b></td><td>Orderly close</td><td>cumulative TSN</td></tr>
+            <tr><td><code>9</code></td><td><b>ERROR</b></td><td>Report a protocol error</td><td>error causes</td></tr>
+            <tr><td><code>10/11</code></td><td><b>COOKIE ECHO / ACK</b></td><td>Complete association setup</td><td>opaque state cookie</td></tr>
+            <tr><td><code>15</code></td><td><b>AUTH</b></td><td>Chunk authentication</td><td>HMAC and shared key identifiers</td></tr>
+            <tr><td><code>64</code></td><td><b>I-DATA</b></td><td>Interleaved user message</td><td>message identifier and fragment sequence</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">one chunk · CRC32c computed</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an SCTP packet</h3><span class="tag" id="sctp-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="sctp-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="sctp-enc-sport">source port</label><input type="number" id="sctp-enc-sport" value="5000" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="sctp-enc-dport">destination port</label><input type="number" id="sctp-enc-dport" value="5001" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="sctp-enc-vtag">verification tag</label><input type="text" id="sctp-enc-vtag" value="0x11223344" spellcheck="false"></div>
+                <div class="form-field"><label for="sctp-enc-chunk">chunk type</label><select id="sctp-enc-chunk"><option value="0">0 · DATA</option><option value="1">1 · INIT</option><option value="3">3 · SACK</option><option value="4">4 · HEARTBEAT</option><option value="10">10 · COOKIE ECHO</option></select></div>
+                <div class="form-field"><label for="sctp-enc-tsn">TSN <span class="units">DATA</span></label><input type="text" id="sctp-enc-tsn" value="1" spellcheck="false"></div>
+                <div class="form-field"><label for="sctp-enc-stream">stream ID <span class="units">DATA</span></label><input type="number" id="sctp-enc-stream" value="0" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="sctp-enc-streamseq">stream sequence <span class="units">DATA</span></label><input type="number" id="sctp-enc-streamseq" value="0" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="sctp-enc-ppid">PPID <span class="units">DATA</span></label><input type="text" id="sctp-enc-ppid" value="0" spellcheck="false"></div>
+                <div class="form-field"><label for="sctp-enc-payload">payload <span class="units">hex</span></label><input type="text" id="sctp-enc-payload" class="hex-input" value="de ad be ef" spellcheck="false"></div>
+                <div class="form-field"><label for="sctp-enc-init-tag">initiate tag <span class="units">INIT</span></label><input type="text" id="sctp-enc-init-tag" value="0x55667788" spellcheck="false"></div>
+                <div class="form-field"><label for="sctp-enc-cum">cumulative TSN <span class="units">SACK</span></label><input type="text" id="sctp-enc-cum" value="1" spellcheck="false"></div>
+                <div class="form-field"><label for="sctp-enc-heartbeat">heartbeat info <span class="units">hex</span></label><input type="text" id="sctp-enc-heartbeat" class="hex-input" value="00 01 00 04" spellcheck="false"></div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px"><label><input type="checkbox" id="sctp-enc-fin"> E bit (last fragment)</label><label><input type="checkbox" id="sctp-enc-begin" checked> B bit (first fragment)</label><label><input type="checkbox" id="sctp-enc-unordered"> U bit (unordered)</label></div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="sctp-build">Build packet</button><button class="btn btn--ghost" type="button" id="sctp-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="sctp-export">JSON</button></div>
+              <p class="form-note">The verification tag and CRC32c are structural: any value is accepted, but a real peer will reject a mismatched tag or checksum.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">SCTP</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="sctp-encode-status" role="status" aria-live="polite">Choose a chunk and press Build packet.</div>
+            <div class="output"><div class="row-between"><div class="output__label">packet hex</div><button class="copy-btn" type="button" data-copy-target="#sctp-enc-output">copy</button></div><pre id="sctp-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="sctp-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">common header + chunk chain</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 9260</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="sctp-decode-input">hex input <span class="units">SCTP packet</span></label><textarea id="sctp-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="sctp-decode">Decode</button><button class="btn btn--ghost" type="button" id="sctp-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="sctp-decode-clear">Clear</button></div>
+          <div class="codec-status" id="sctp-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="sctp-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">differences from TCP and UDP</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>Messages, not a byte stream.</strong> SCTP preserves message boundaries. A single DATA chunk or a series of fragments forms one user message.</li>
+        <li><strong>Multiple streams per association.</strong> Head-of-line blocking is per stream, not per connection. Streams are independent sequences inside one association.</li>
+        <li><strong>Multihoming is built in.</strong> An association can use several IP addresses; path failure does not necessarily close the association.</li>
+        <li><strong>The verification tag is mandatory.</strong> It is not a checksum; it prevents packets from an old association being accepted by a new one.</li>
+        <li><strong>CRC32c is stored over the packet with the checksum field zeroed.</strong> A tool that reports CRC-32 (IEEE) will disagree.</li>
+        <li><strong>NAT is awkward.</strong> SCTP's multihoming and address lists do not map cleanly to NAT; SCTP over UDP encapsulation exists for this reason.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9260" target="_blank" rel="noopener">RFC 9260</a><span>SCTP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3309" target="_blank" rel="noopener">RFC 3309</a><span>CRC32c for SCTP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3758" target="_blank" rel="noopener">RFC 3758</a><span>partially reliable SCTP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4960" target="_blank" rel="noopener">RFC 4960</a><span>SCTP (historic)</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc6951" target="_blank" rel="noopener">RFC 6951</a><span>SCTP over UDP</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="ntp.html">NTP timestamps -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/sctp-codec.js"></script>
+<script src="js/sctp.js"></script>
+</body>
+</html>

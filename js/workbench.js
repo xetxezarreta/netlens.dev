@@ -722,7 +722,7 @@
           '<text x="' + width + '" y="' + (height - 5) + '" text-anchor="end" fill="var(--dim)" font-size="9">' +
           PH.esc(formatAbsolute(max)) + '</text></svg></div>' +
           '<p class="small dim" style="margin:8px 0 0">Peak ' + countText(peak) + ' packets per bucket · ' +
-          formatDuration(span) + ' total span · hover a bar for details.</p>';
+          formatDuration(span) + ' total span · point to a bar for details.</p>';
       }
     }
   }
@@ -1084,22 +1084,22 @@
     if (watchTimer) clearInterval(watchTimer);
     watchTimer = null;
     const button = $("wb-watch");
-    if (button) button.textContent = "Watch file for growth";
+    if (button) button.textContent = "Monitor file for changes";
   }
 
   function toggleWatch() {
     const button = $("wb-watch");
     if (watchTimer) {
       stopWatch();
-      PH.toast("Stopped watching the capture file");
+      PH.toast("Capture file monitoring stopped");
       return;
     }
     if (!watchedFile) {
-      PH.toast("Open a capture file first");
+      PH.toast("A capture file must be opened first");
       return;
     }
     if (location.protocol === "file:") {
-      PH.toast("File watching needs a local HTTP server; reload the file manually");
+      PH.toast("File monitoring requires a local HTTP server; reload the file manually");
       return;
     }
     watchedSize = watchedFile.size;
@@ -1109,8 +1109,8 @@
       watchedSize = watchedFile.size;
       loadFile(watchedFile);
     }, 2000);
-    if (button) button.textContent = "Stop watching file";
-    PH.toast("Watching " + watchedFile.name + " for appended records");
+    if (button) button.textContent = "Stop monitoring file";
+    PH.toast("Monitoring " + watchedFile.name + " for appended records");
   }
 
   function tcpFrame(options) {

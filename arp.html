@@ -110,7 +110,7 @@
       </div>
       <p>
         Host A has an IPv4 packet for <code>192.0.2.1</code> but no MAC address for the next
-        hop. Watch the exchange that fills that gap: an ARP cache miss, a broadcast
+        hop. Observe the exchange that resolves that gap: an ARP cache miss, a broadcast
         <strong>who-has</strong>, a switch flooding it to every port, one host answering
         <strong>is-at</strong>, and A caching the mapping. Press <strong>Play</strong> to
         animate the exchange, or move one frame at a time with <strong>Next</strong> and
@@ -241,7 +241,7 @@
       </div>
       <p>
         The opcode is a 16-bit field, so RARP, InARP and experimental variants share the same
-        layout. Modern IPv4 LANs mostly use requests and replies; the rest are history,
+        layout. Modern IPv4 LANs primarily use requests and replies; the remainder are historic,
         specialized transports or diagnostic tools.
       </p>
 
@@ -251,7 +251,7 @@
           <tbody>
             <tr><td><code>1</code></td><td><b>ARP REQUEST</b></td><td>“Who has target IP? Tell sender IP.” Usually broadcast.</td><td>RFC 826</td></tr>
             <tr><td><code>2</code></td><td><b>ARP REPLY</b></td><td>“Target IP is at sender MAC.” Usually unicast back to the requester.</td><td>RFC 826</td></tr>
-            <tr><td><code>3</code></td><td><b>RARP REQUEST</b></td><td>“Who is my IP?” Reverse ARP; effectively obsolete.</td><td>RFC 903</td></tr>
+            <tr><td><code>3</code></td><td><b>RARP REQUEST</b></td><td>Reverse ARP request for a protocol address; effectively obsolete.</td><td>RFC 903</td></tr>
             <tr><td><code>4</code></td><td><b>RARP REPLY</b></td><td>Server response carrying the client's IPv4 address.</td><td>RFC 903</td></tr>
             <tr><td><code>8</code></td><td><b>InARP REQUEST</b></td><td>Inverse ARP: ask for a protocol address for a known hardware address.</td><td>RFC 2390</td></tr>
             <tr><td><code>9</code></td><td><b>InARP REPLY</b></td><td>Inverse ARP response.</td><td>RFC 2390</td></tr>
@@ -410,7 +410,7 @@
         <li><strong>ARP has no checksum or authentication.</strong> The Ethernet FCS detects accidental corruption; it does not prevent cache poisoning or spoofing.</li>
         <li><strong>ARP probes and gratuitous ARP use the same fields.</strong> A probe uses sender IP 0.0.0.0. A gratuitous announcement uses sender IP equal to target IP. RFC 5227 defines IPv4 address conflict detection.</li>
         <li><strong>InARP and RARP share the format.</strong> The hardware and protocol type fields make ARP extensible, but RARP is obsolete and InARP is specialized to transports such as Frame Relay.</li>
-        <li><strong>Watch the cache, not just the packet.</strong> Linux exposes neighbor entries through <code>ip neigh</code>; <code>arp_ignore</code> and <code>arp_announce</code> change how the kernel responds to ARP.</li>
+        <li><strong>The cache should be examined in addition to the packet.</strong> Linux exposes neighbour entries through <code>ip neigh</code>; <code>arp_ignore</code> and <code>arp_announce</code> change how the kernel responds to ARP.</li>
       </ul>
 
       <h2 class="mt-24">References</h2>

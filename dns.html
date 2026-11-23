@@ -49,10 +49,10 @@
     <div class="page-head">
       <h1>DNS <span class="on">// RFC 1035</span></h1>
       <p class="lead">
-        The Domain Name System turns names into records. Every query and response shares one
+        The Domain Name System maps names to records. Every query and response uses one
         header, four counted sections and a variable-length name encoding with compression
-        pointers. DNS normally rides UDP/53, falls back to TCP for truncation and zone transfers,
-        and is increasingly carried inside QUIC, TLS and HTTPS.
+        pointers. DNS normally uses UDP port 53, falls back to TCP for truncation and zone
+        transfers, and is increasingly carried over QUIC, TLS and HTTPS.
       </p>
       <div class="badges">
         <span class="badge badge--accent"><b>RFC 1035</b> · DNS</span>
@@ -116,7 +116,7 @@
         <div class="callout__title">counts are declarations, not limits</div>
         <p>A parser must stop when the bytes run out even if the counts promise more records.
         Truncated messages, compression loops and bad RDLENGTH values are common in captures.
-        The decoder below reports the first inconsistency instead of guessing.</p>
+        The decoder below reports the first inconsistency rather than inferring missing data.</p>
       </div>
     </section>
 
@@ -500,7 +500,7 @@
         Root and TLD servers usually return referrals rather than final answers, so the resolver
         repeats the query against the next name server. Every referral and record is cached for
         its TTL, which is why the second query in the animation is answered instantly. A CNAME
-        chain simply adds more names to resolve before the final address.</p>
+        chain adds further names to resolve before the final address.</p>
       </div>
     </section>
 
@@ -759,7 +759,7 @@
         <li><strong>ID is not authentication.</strong> A 16-bit transaction ID plus source-port randomisation raises the cost of off-path spoofing, but DNS cookies and DNSSEC are the actual defences.</li>
         <li><strong>Compression pointers must not loop.</strong> A pointer may jump backwards but must terminate. Parsers need a jump limit and a bound check on every target offset.</li>
         <li><strong>RDLENGTH is authoritative for skipping.</strong> A parser that does not understand a type can still walk the message because RDATA is length-delimited. Never parse past RDLENGTH.</li>
-        <li><strong>TC means retry over TCP.</strong> A truncated UDP response is not a complete answer. The client should repeat the query over TCP rather than guess at the missing records.</li>
+        <li><strong>TC requires retransmission over TCP.</strong> A truncated UDP response is not a complete answer. The client should repeat the query over TCP rather than infer the missing records.</li>
         <li><strong>UDP payload size is advertised, not guaranteed.</strong> EDNS CLASS is the requestor's receive buffer. Path MTU, fragmentation and middleboxes still decide what arrives.</li>
         <li><strong>CNAME chains end at the queried type.</strong> A response may contain a CNAME and then records for the canonical target. The owner name in each record is absolute after compression resolution.</li>
         <li><strong>DNSSEC does not encrypt.</strong> RRSIG and DNSKEY prove integrity and origin for signed zones. Names and addresses remain visible unless the transport is encrypted (DoT, DoH, DoQ).</li>

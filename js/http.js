@@ -27,7 +27,7 @@
         { id: "msg-body", name: "message body", bytes: "var", variable: true, range: "0 or more bytes", desc: "Framed by Content-Length, chunked transfer coding, the method/status rules, or connection close. The body is not self-describing.", rfc: "RFC 9112 §6", rfcUrl: RFC.h1, tone: "d" }
       ],
       inspector: "#http-message-inspector",
-      note: "HTTP/1.1 is text, but header values are byte strings, not necessarily UTF-8. Do not normalise a value you intend to forward."
+      note: "HTTP/1.1 is text, but header values are byte strings, not necessarily UTF-8. A value intended for forwarding should not be normalised."
     });
 
     lanes.request = PH.byteLane("#http-request-lane", {
@@ -530,7 +530,7 @@
       : "";
     const hpack = '<div class="callout"><div class="callout__title">HPACK state</div><p>Dynamic table: <b>' +
       result.hpack.dynamicCount + "</b> entr" + (result.hpack.dynamicCount === 1 ? "y" : "ies") +
-      " · maximum " + result.hpack.maxSize + " B. HPACK state is shared by every stream on the connection; a block that starts mid-connection can reference entries you never saw.</p></div>";
+      " · maximum " + result.hpack.maxSize + " B. HPACK state is shared by every stream on the connection; a block that starts mid-connection can reference entries not previously observed.</p></div>";
     return preface + frames + settings + hpack;
   }
 

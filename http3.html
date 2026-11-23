@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP/3 frames, SETTINGS &amp; QPACK — bit diagram, encoder, decoder · netlens.dev</title>
+<meta name="description" content="HTTP/3 (RFC 9114) over QUIC: frame types, varint framing, SETTINGS identifiers, unidirectional stream types, QPACK static table and field-line representations, encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#streams">QUIC streams</a></li>
+        <li><a href="#frames">frames</a></li>
+        <li><a href="#settings">SETTINGS</a></li>
+        <li><a href="#qpack">QPACK</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>HTTP/3</b> is HTTP semantics carried over QUIC streams. There is no HTTP/1.1 start line and no HTTP/2 frame header; frames use QUIC variable-length integers.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>http3</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>HTTP/3 <span class="on">// frames on QUIC streams</span></h1>
+      <p class="lead">
+        HTTP/3 keeps the semantics of HTTP but replaces TCP, TLS records and HTTP/2's
+        frame layer with QUIC streams. Requests, responses, control messages and QPACK
+        state each travel on a different stream. This page covers the frame format, the
+        SETTINGS identifiers and the QPACK field section that can be decoded.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 9114</b> · HTTP/3</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9204" target="_blank" rel="noopener">RFC 9204 · QPACK</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9000" target="_blank" rel="noopener">RFC 9000 · QUIC</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc9297" target="_blank" rel="noopener">RFC 9297 · datagrams</a>
+        <span class="badge">ALPN h3</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> application</span>
+        <span><b>transport</b> QUIC</span>
+        <span><b>framing</b> varint type + varint length</span>
+        <span><b>compression</b> QPACK</span>
+      </div>
+      <div class="stackbar" data-stack="http3"></div>
+      <ul class="toc">
+        <li><a href="#streams">streams</a></li>
+        <li><a href="#frames">frames</a></li>
+        <li><a href="#settings">settings</a></li>
+        <li><a href="#qpack">QPACK</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="streams">
+      <div class="section__head">
+        <h2><span class="num">01</span>QUIC streams</h2>
+        <span class="section__hint">single connection · multiple streams</span>
+      </div>
+      <p>
+        A QUIC connection carries independent bidirectional and unidirectional streams.
+        A request uses a client-initiated bidirectional stream. The first bytes of a
+        unidirectional stream declare its type: control, push, QPACK encoder or QPACK
+        decoder. Because streams are independent, one lost packet does not block every
+        request the way TCP head-of-line blocking does.
+      </p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Stream type</th><th>Value</th><th>Direction</th><th>Carries</th></tr></thead>
+          <tbody>
+            <tr><td>Control stream</td><td><code>0x00</code></td><td>unidirectional</td><td>SETTINGS, GOAWAY, MAX_PUSH_ID</td></tr>
+            <tr><td>Push stream</td><td><code>0x01</code></td><td>server → client</td><td>PUSH_PROMISE plus response frames</td></tr>
+            <tr><td>QPACK encoder stream</td><td><code>0x02</code></td><td>unidirectional</td><td>Dynamic table instructions</td></tr>
+            <tr><td>QPACK decoder stream</td><td><code>0x03</code></td><td>unidirectional</td><td>Section acknowledgments and cancellations</td></tr>
+            <tr><td>Request stream</td><td>—</td><td>bidirectional</td><td>HEADERS, DATA, optional trailers</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <div class="callout__title">Frames are stream-local</div>
+        <p>An HTTP/3 frame has no stream ID in its header. The QUIC stream identifies the
+        request. Two frames on different streams can have the same type and length while
+        carrying unrelated meanings.</p>
+      </div>
+    </section>
+
+    <section class="section" id="frames">
+      <div class="section__head">
+        <h2><span class="num">02</span>Frames</h2>
+        <span class="section__hint">type varint · length varint · payload</span>
+      </div>
+      <p>
+        Both the frame type and the payload length are QUIC variable-length integers. The
+        smallest encoding is one byte; larger values use two, four or eight bytes. The
+        two most significant bits of the first byte select the width.
+      </p>
+      <div id="h3-varint-lane"></div>
+      <div id="h3-frame-lane"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Frame</th><th>Payload</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x00</code></td><td><b>DATA</b></td><td>Response or request body bytes</td><td>RFC 9114 §7.2.1</td></tr>
+            <tr><td><code>0x01</code></td><td><b>HEADERS</b></td><td>QPACK field section</td><td>RFC 9114 §7.2.2</td></tr>
+            <tr><td><code>0x03</code></td><td><b>CANCEL_PUSH</b></td><td>push ID varint</td><td>RFC 9114 §7.2.3</td></tr>
+            <tr><td><code>0x04</code></td><td><b>SETTINGS</b></td><td>identifier/value varint pairs</td><td>RFC 9114 §7.2.4</td></tr>
+            <tr><td><code>0x05</code></td><td><b>PUSH_PROMISE</b></td><td>push ID + QPACK field section</td><td>RFC 9114 §7.2.5</td></tr>
+            <tr><td><code>0x07</code></td><td><b>GOAWAY</b></td><td>stream ID varint + optional debug data</td><td>RFC 9114 §7.2.6</td></tr>
+            <tr><td><code>0x0d</code></td><td><b>MAX_PUSH_ID</b></td><td>push ID varint</td><td>RFC 9114 §7.2.7</td></tr>
+            <tr><td><code>0x0e</code></td><td><b>DUPLICATE_PUSH</b></td><td>push ID varint</td><td>RFC 9114 §7.2.8</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="settings">
+      <div class="section__head">
+        <h2><span class="num">03</span>SETTINGS</h2>
+        <span class="section__hint">control stream · identifiers</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Name</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x01</code></td><td>QPACK_MAX_TABLE_CAPACITY</td><td>Maximum dynamic-table size the peer may use</td></tr>
+            <tr><td><code>0x02</code></td><td>MAX_FIELD_SECTION_SIZE</td><td>Largest field section the sender will accept</td></tr>
+            <tr><td><code>0x03</code></td><td>QPACK_BLOCKED_STREAMS</td><td>How many streams may block on QPACK</td></tr>
+            <tr><td><code>0x04</code></td><td>ENABLE_CONNECT_PROTOCOL</td><td>Extended CONNECT is supported</td></tr>
+            <tr><td><code>0x05</code></td><td>H3_DATAGRAM</td><td>HTTP Datagrams are supported (RFC 9297)</td></tr>
+            <tr><td><code>0x06</code></td><td>ENABLE_WEBTRANSPORT</td><td>WebTransport over HTTP/3</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">Unknown settings are fatal</div>
+        <p>An HTTP/3 endpoint must reject a SETTINGS frame with an unknown identifier
+        (except reserved GREASE values). This is intentionally stricter than ignoring an
+        unknown HTTP/1.1 header.</p>
+      </div>
+    </section>
+
+    <section class="section" id="qpack">
+      <div class="section__head">
+        <h2><span class="num">04</span>QPACK</h2>
+        <span class="section__hint">static table · dynamic table · field lines</span>
+      </div>
+      <p>
+        QPACK compresses header fields with a static table of 99 common entries and a
+        connection-local dynamic table. Unlike HPACK, QPACK is designed for out-of-order
+        streams: a field section can reference entries that arrive later, but the stream may
+        block until they do. The decoder on this page resolves static-table references and
+        plain literals; dynamic and post-base references are reported and are not inferred.
+      </p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Representation</th><th>First bits</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Indexed Field Line</td><td><code>1Txxxxxx</code></td><td>T=0 static, T=1 dynamic; 6-bit index prefix</td></tr>
+            <tr><td>Indexed Field Line, Post-Base</td><td><code>0001xxxx</code></td><td>4-bit post-base index</td></tr>
+            <tr><td>Literal with Name Reference</td><td><code>01NTxxxx</code></td><td>N never-indexed, T static/dynamic, 4-bit name index</td></tr>
+            <tr><td>Literal with Post-Base Name</td><td><code>0000Nxxx</code></td><td>3-bit post-base name index</td></tr>
+            <tr><td>Literal with Literal Name</td><td><code>001Nxxxx</code></td><td>N never-indexed, 3-bit name length prefix, then value</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="mt-16">
+        <summary class="small">show the QPACK static table (0–98)</summary>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Name</th><th>Value</th></tr></thead>
+            <tbody id="h3-static-table"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Encoder</h2>
+        <span class="section__hint">one frame · DATA, HEADERS or SETTINGS</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an HTTP/3 frame</h3><span class="tag" id="h3-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="h3-encode-form" onsubmit="return false">
+              <div class="field-grid">
+                <div class="form-field"><label for="h3-enc-type">frame type</label><select id="h3-enc-type"><option value="0">0x00 · DATA</option><option value="1">0x01 · HEADERS</option><option value="4">0x04 · SETTINGS</option><option value="7">0x07 · GOAWAY</option><option value="13">0x0d · MAX_PUSH_ID</option></select></div>
+                <div class="form-field"><label for="h3-enc-mode">payload mode</label><select id="h3-enc-mode"><option value="hex">hex</option><option value="text">text</option></select></div>
+                <div class="form-field span-2"><label for="h3-enc-payload">payload</label><input type="text" id="h3-enc-payload" class="hex-input" value="68 65 6c 6c 6f" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="h3-enc-settings">SETTINGS <span class="units">id = value, one per line</span></label><textarea id="h3-enc-settings" rows="3" spellcheck="false">1 = 4096
+3 = 16</textarea></div>
+              </div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="h3-build">Build frame</button><button class="btn btn--ghost" type="button" id="h3-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="h3-export">JSON</button></div>
+              <p class="form-note">HEADERS payloads are raw QPACK bytes. The encoder does not compress; it frames the supplied bytes without modification.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">HTTP/3</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="h3-encode-status" role="status" aria-live="polite">Set the fields and press Build frame.</div>
+            <div class="output"><div class="row-between"><div class="output__label">frame hex</div><button class="copy-btn" type="button" data-copy-target="#h3-enc-output">copy</button></div><pre id="h3-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="h3-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">06</span>Decoder</h2>
+        <span class="section__hint">frames + static QPACK</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 9114 · RFC 9204</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="h3-decode-input">hex input <span class="units">one or more HTTP/3 frames</span></label><textarea id="h3-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="h3-decode">Decode</button><button class="btn btn--ghost" type="button" id="h3-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="h3-decode-clear">Clear</button></div>
+          <div class="codec-status" id="h3-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="h3-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">07</span>Wire notes</h2>
+        <span class="section__hint">HTTP/3 is distinct from HTTP/2 over UDP</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>No stream IDs in frames.</strong> The QUIC stream provides identity. A frame parser that expects an HTTP/2 9-byte header will fail immediately.</li>
+        <li><strong>Varints are QUIC varints.</strong> The 2-bit prefix selects 1, 2, 4 or 8 bytes. Values need not be encoded in their shortest form except where the RFC requires it.</li>
+        <li><strong>SETTINGS is mandatory and must be first on the control stream.</strong> A connection that sends frames before SETTINGS is in error.</li>
+        <li><strong>QPACK can block.</strong> Dynamic references may not be available yet. The blocked-streams setting bounds the damage; it does not remove it.</li>
+        <li><strong>HTTP/3 does not define a reason phrase.</strong> Status is a pseudo-header value; there is no text status line.</li>
+        <li><strong>0-RTT is a QUIC feature.</strong> An HTTP/3 request can be sent in 0-RTT, but replay risk belongs to the application and the QUIC stack.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9114" target="_blank" rel="noopener">RFC 9114</a><span>HTTP/3</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9204" target="_blank" rel="noopener">RFC 9204</a><span>QPACK</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9000" target="_blank" rel="noopener">RFC 9000</a><span>QUIC</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9297" target="_blank" rel="noopener">RFC 9297</a><span>HTTP Datagrams</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9220" target="_blank" rel="noopener">RFC 9220</a><span>extended CONNECT</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="ipsec.html">IPsec AH &amp; ESP -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/http3-codec.js"></script>
+<script src="js/http3.js"></script>
+</body>
+</html>

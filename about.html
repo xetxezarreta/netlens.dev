@@ -21,7 +21,7 @@
     <div class="rail__group">
       <p class="rail__label">about</p>
       <ul>
-        <li><a href="#about">what this is</a></li>
+        <li><a href="#about">overview</a></li>
         <li><a href="#conventions">conventions</a></li>
         <li><a href="#keyboard">keyboard</a></li>
         <li><a href="#accuracy">accuracy</a></li>
@@ -38,11 +38,11 @@
     </nav>
 
     <div class="page-head">
-      <h1>About &amp; conventions <span class="on">// read me first</span></h1>
+      <h1>About &amp; conventions <span class="on">// reference and methodology</span></h1>
       <p class="lead">
-        netlens.dev is a static field guide to the wire formats that show up in packet
-        captures, kernel code and late-night incident calls. The diagrams are meant to be read
-        next to a hex dump, not instead of the RFC.
+        netlens.dev is a static field guide to the wire formats encountered in packet
+        captures, kernel code and operational incidents. The diagrams are intended to be read
+        alongside a hexadecimal dump rather than as a replacement for the RFC.
       </p>
       <div class="badges">
         <span class="badge badge--accent">static</span>
@@ -54,9 +54,14 @@
 
     <div class="prose">
       <section class="section" id="about">
-        <h2>What this is</h2>
+        <h2>Overview</h2>
         <p>
-          Thirteen protocol pages — IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP — plus a local <a href="workbench.html">packet workbench</a> for pcap/pcapng captures. Each protocol page has an interactive bit or byte
+          Twenty-five protocol pages — IPv4, ICMP, IPv6, ICMPv6/NDP, TCP, UDP, QUIC, SCTP, DNS,
+          DHCPv4, DHCPv6, HTTP/1.1, HTTP/2, HTTP/3, TLS, WebSocket, BGP, OSPF, GRE, VXLAN/Geneve,
+          WireGuard, IPsec, NTP, LLDP, Ethernet and ARP — plus a local
+          <a href="workbench.html">packet workbench</a> for pcap/pcapng captures and six
+          cross-layer tools: a subnet calculator, checksum laboratory, port registry, glossary,
+          learning paths and a quiz. Each protocol page has an interactive bit or byte
           diagram, a field reference with RFC citations, and an encoder and decoder that work
           on actual bytes. Nothing is sent to a server; the URL and the browser are enough.
         </p>
@@ -67,26 +72,36 @@
           protocol and tool page can download a JSON snapshot of its fields and outputs; the
           workbench can also copy a BPF filter or a Scapy snippet for the selected frame.
           The workbench reassembles IPv4/IPv6 fragments and TCP streams, tracks retransmissions
-          and zero windows, and can decrypt TLS 1.3 records when you paste an
+          and zero windows, and can decrypt TLS 1.3 records when an
           <code>SSLKEYLOGFILE</code> or import pcapng decryption secrets. Decryption happens
           locally with WebCrypto; without keys the records stay opaque. The workbench permalink
           carries the selected frame and filter, not the whole capture.
           Nothing is uploaded: the URL is the entire state, and a capture stays in memory until
-          you clear it or close the tab.
+          the capture is cleared or the tab is closed.
         </p>
         <p>
-          The design borrows the density and keyboard-friendly feel of a systems reference:
-          monospace type, dashed rules, compact tables, offsets visible everywhere. The content
+          The design follows the density and keyboard-oriented interaction of a systems
+          reference: monospace type, dashed rules, compact tables and consistently presented
+          offsets. The content
           is deliberately narrower than a general-purpose protocol encyclopedia. These are the
-          headers you inspect when something is broken.
+          headers examined during fault diagnosis.
         </p>
 
         <div class="about-grid">
-          <div class="about-box"><h3>For network engineers</h3><p>Check a field offset, settle the units question, or paste a header from a capture without opening five PDFs.</p></div>
-          <div class="about-box"><h3>For security researchers</h3><p>See reserved bits, flag combinations, TLV length traps and the exact bytes a scan recipe sets.</p></div>
-          <div class="about-box"><h3>For implementers</h3><p>Use the encoders as a second opinion on layout and the decoders as a sanity check on a new parser.</p></div>
-          <div class="about-box"><h3>For the 03:00 call</h3><p>Search a field name, jump to the bit range, confirm the RFC clause. Then go back to the pcap.</p></div>
+          <div class="about-box"><h3>For network engineers</h3><p>Verify a field offset, resolve the units question, or supply a header from a capture without consulting multiple documents.</p></div>
+          <div class="about-box"><h3>For security researchers</h3><p>Examine reserved bits, flag combinations, TLV length constraints and the exact bytes a scan recipe sets.</p></div>
+          <div class="about-box"><h3>For implementers</h3><p>The encoders provide an independent reference for layout, and the decoders provide a consistency check for a new parser.</p></div>
+          <div class="about-box"><h3>For incident response</h3><p>Search a field name, locate the bit range and confirm the RFC clause. The capture analysis can then continue.</p></div>
         </div>
+
+        <h3>Pages &amp; tools</h3>
+        <p>
+          Protocol pages are grouped by TCP/IP layer on the <a href="index.html#protocols">homepage</a>.
+          The cross-layer tools are <a href="workbench.html">workbench</a>,
+          <a href="subnet.html">subnet calculator</a>, <a href="checksum.html">checksum laboratory</a>,
+          <a href="ports.html">port registry</a>, <a href="glossary.html">glossary</a>,
+          <a href="learn.html">learning paths</a> and <a href="quiz.html">quiz</a>.
+        </p>
       </section>
 
       <section class="section" id="conventions">
@@ -115,9 +130,7 @@
 
         <h3>Byte order</h3>
         <p>
-          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP/2, TLS, QUIC and BGP. HTTP/1.1 is text.
-          Bytes inside a field are always written in transmission order; only the interpretation
-          of multi-byte integers changes.
+          Network byte order is big-endian for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCPv4/v6, HTTP/2, HTTP/3, TLS, QUIC, SCTP, BGP, OSPF, GRE, VXLAN, WireGuard, IPsec, NTP, LLDP and the WebSocket length fields. HTTP/1.1 text is not a multi-byte integer format. Bytes inside a field are always written in transmission order; only the interpretation of multi-byte integers changes.
         </p>
 
         <h3>Layer grouping</h3>
@@ -129,17 +142,17 @@
           delivery; IPv4, ICMP and IPv6 cover addressing and control; Ethernet and ARP cover the
           link. The stack path at the top of each protocol page shows the actual encapsulation
           instead of forcing a single layer. The homepage renders an interactive stack map:
-          click a layer to filter the field sheets, or a protocol to open its page.
+          select a layer to filter the field sheets, or select a protocol to open its page.
         </p>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr><th>Group</th><th>TCP/IP layer</th><th>Protocols</th><th>Why</th></tr></thead>
             <tbody>
-              <tr><td><b>Application</b></td><td><code>4</code></td><td>BGP, DNS, DHCP, HTTP, TLS</td><td>Routing policy, name resolution, address configuration, request/response semantics and the record layer that protects them. DHCP carries BOOTP fields and TLV options over UDP; HTTP/2 adds binary framing and TLS sits between TCP and application bytes.</td></tr>
-              <tr><td><b>Transport</b></td><td><code>3</code></td><td>TCP, UDP, QUIC</td><td>Process-to-process delivery: streams over TCP, datagrams over UDP, and encrypted transport with QUIC.</td></tr>
-              <tr><td><b>Internet</b></td><td><code>2</code></td><td>IPv4, ICMP, IPv6</td><td>Addressing, fragmentation, checksums, errors, extension chains and path-MTU signalling.</td></tr>
-              <tr><td><b>Link</b></td><td><code>1</code></td><td>Ethernet, ARP</td><td>Frames, MAC addressing, VLAN tags, FCS and IPv4-to-MAC resolution.</td></tr>
-              <tr><td><b>Cross-layer</b></td><td><code>—</code></td><td>Dissector</td><td>One frame, every layer: layer tree, offset-linked hex, warnings, structured export and copyable filter snippets.</td></tr>
+              <tr><td><b>Application</b></td><td><code>4</code></td><td>BGP, DNS, DHCPv4/v6, HTTP/1.1, HTTP/2, HTTP/3, TLS, WebSocket, NTP</td><td>Routing policy, name resolution, address/prefix configuration, request/response semantics, time sync and the records that protect them. DHCPv6 is a separate protocol; HTTP/3 runs over QUIC streams with QPACK.</td></tr>
+              <tr><td><b>Transport</b></td><td><code>3</code></td><td>TCP, UDP, QUIC, SCTP</td><td>Streams, datagrams, encrypted transport and message-oriented multistream delivery with CRC-32c.</td></tr>
+              <tr><td><b>Internet</b></td><td><code>2</code></td><td>IPv4, ICMP, IPv6, ICMPv6/NDP, OSPF, GRE, VXLAN/Geneve, WireGuard, IPsec</td><td>Addressing, fragmentation, control messages, link-state routing, tunnels, overlays and network-layer security.</td></tr>
+              <tr><td><b>Link</b></td><td><code>1</code></td><td>Ethernet, ARP, LLDP</td><td>Frames, MAC addressing, VLAN tags, FCS, IPv4-to-MAC resolution and one-way neighbour discovery.</td></tr>
+              <tr><td><b>Cross-layer</b></td><td><code>—</code></td><td>Workbench, subnet, checksum, ports, glossary, learn, quiz</td><td>Capture dissection plus the calculations and references that sit beside a packet: CIDR, checksums, service ports, vocabulary and practice.</td></tr>
             </tbody>
           </table>
         </div>
@@ -174,8 +187,8 @@
           <kbd>Esc</kbd><span>Close the search dialog or clear a pinned diagram field.</span>
           <kbd>Tab</kbd><span>Move through diagram fields and controls; diagrams are buttons.</span>
           <kbd>↑ ↓</kbd><span>Move through the workbench packet list when it has focus.</span>
-          <kbd>Home End</kbd><span>Jump to the first or last packet in the current workbench filter.</span>
-          <kbd>↵</kbd><span>Jump from the workbench packet list to packet detail.</span>
+          <kbd>Home End</kbd><span>Move to the first or last packet in the current workbench filter.</span>
+          <kbd>↵</kbd><span>Move from the workbench packet list to the packet detail view.</span>
         </div>
         <p class="mt-16">
           The search index covers protocol names, field names, option kinds, RFC numbers and
@@ -329,14 +342,53 @@
           <li><a href="https://www.rfc-editor.org/rfc/rfc894" target="_blank" rel="noopener">RFC 894</a><span>IPv4 over Ethernet</span></li>
         </ul>
 
-        <h3>Privacy &amp; tech</h3>
+        <h3>ICMPv6, NDP &amp; IPv6 configuration</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4443" target="_blank" rel="noopener">RFC 4443</a><span>ICMPv6</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4861" target="_blank" rel="noopener">RFC 4861</a><span>Neighbor Discovery</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4862" target="_blank" rel="noopener">RFC 4862</a><span>SLAAC</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8415" target="_blank" rel="noopener">RFC 8415</a><span>DHCPv6</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8106" target="_blank" rel="noopener">RFC 8106</a><span>RA DNS options</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8781" target="_blank" rel="noopener">RFC 8781</a><span>PREF64</span></li>
+        </ul>
+        <h3>Routing &amp; overlays</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2328" target="_blank" rel="noopener">RFC 2328</a><span>OSPFv2</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc5340" target="_blank" rel="noopener">RFC 5340</a><span>OSPFv3</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2784" target="_blank" rel="noopener">RFC 2784</a><span>GRE</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc2890" target="_blank" rel="noopener">RFC 2890</a><span>GRE key/sequence</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7348" target="_blank" rel="noopener">RFC 7348</a><span>VXLAN</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8926" target="_blank" rel="noopener">RFC 8926</a><span>Geneve</span></li>
+        </ul>
+        <h3>Security &amp; VPN</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4302" target="_blank" rel="noopener">RFC 4302</a><span>IPsec AH</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc4303" target="_blank" rel="noopener">RFC 4303</a><span>IPsec ESP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7296" target="_blank" rel="noopener">RFC 7296</a><span>IKEv2</span></li>
+          <li><a href="https://www.wireguard.com/protocol/" target="_blank" rel="noopener">WireGuard</a><span>protocol specification</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc7748" target="_blank" rel="noopener">RFC 7748</a><span>X25519</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc8439" target="_blank" rel="noopener">RFC 8439</a><span>ChaCha20-Poly1305</span></li>
+        </ul>
+        <h3>Modern transports &amp; discovery</h3>
+        <ul class="rfc-list">
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9260" target="_blank" rel="noopener">RFC 9260</a><span>SCTP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc3309" target="_blank" rel="noopener">RFC 3309</a><span>CRC-32c for SCTP</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9114" target="_blank" rel="noopener">RFC 9114</a><span>HTTP/3</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9204" target="_blank" rel="noopener">RFC 9204</a><span>QPACK</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc6455" target="_blank" rel="noopener">RFC 6455</a><span>WebSocket</span></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc5905" target="_blank" rel="noopener">RFC 5905</a><span>NTPv4</span></li>
+          <li><a href="https://standards.ieee.org/ieee/802.1AB/6202/" target="_blank" rel="noopener">IEEE 802.1AB</a><span>LLDP</span></li>
+        </ul>
+
+        <h3>Privacy and technology</h3>
         <p>
           No cookies, analytics, fonts from third parties or background requests. The only
-          client-side storage is a theme preference in <code>localStorage</code>. The workbench
-          reads a capture with the File API, parses it in memory and never uploads or stores it.
+          client-side storage is a theme preference and the optional learning-path checklist
+          in <code>localStorage</code>; both stay in this browser. The workbench reads a capture
+          with the File API, parses it in memory and never uploads or stores it.
           The typeface is
           JetBrains Mono (SIL Open Font License); the license text is in <a href="fonts/OFL.txt">fonts/OFL.txt</a>. Everything else is hand-written HTML, CSS and
-          JavaScript. External RFC links open only when you click them.
+          JavaScript. External RFC links open only when selected.
         </p>
       </section>
 
@@ -349,7 +401,7 @@
           <a href="mailto:contact@netlens.dev">contact@netlens.dev</a>.
         </p>
         <p class="small dim">
-          Please include the page, the bytes or field values involved, and what you expected to happen.
+          Include the page, the bytes or field values involved, and the expected behaviour.
           Do not send secrets or live credentials.
         </p>
       </section>

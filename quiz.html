@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Packet quiz — field offsets, flags &amp; RFCs · netlens.dev</title>
+<meta name="description" content="A short interactive networking quiz on header offsets, TCP flags, IP protocol numbers, ports, RFCs, TLS, IPv6, DNS and common capture-analysis errors. Keyboard accessible and offline.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">tools</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#tools">all tools</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#quiz">quiz</a></li>
+        <li><a href="#how">method</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Keyboard:</b> press <b>1–4</b> to answer, <b>Enter</b> or <b>N</b> for the next question. No score is uploaded; it lasts for this tab.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#tools">tools</a><span class="sep">/</span><span>quiz</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Packet quiz <span class="on">// field interpretation</span></h1>
+      <p class="lead">
+        Short questions about offsets, flags, header sizes, protocol numbers, ports and
+        common errors that lead to incorrect decoding. Every answer provides an
+        explanation and a reference to the relevant page.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent">offline</span>
+        <span class="badge">keyboard</span>
+        <span class="badge">no account</span>
+      </div>
+      <div class="stackbar" data-stack="quiz"></div>
+    </div>
+
+    <section class="section" id="quiz">
+      <div class="section__head">
+        <h2><span class="num">01</span>Question</h2>
+        <span class="section__hint">1–4 to answer</span>
+      </div>
+      <div class="quiz-shell">
+        <div class="quiz-head"><span id="quiz-topic">topic</span><span><b id="quiz-score">0</b> correct · streak <b id="quiz-streak">0</b></span></div>
+        <div class="quiz-body">
+          <div class="quiz-meta"><span id="quiz-number">question 1</span><span id="quiz-progress-label">0 answered</span></div>
+          <p class="quiz-question" id="quiz-question">Loading…</p>
+          <div class="quiz-options" id="quiz-options"></div>
+          <p class="quiz-explain" id="quiz-explain" hidden></p>
+        </div>
+        <div class="quiz-foot">
+          <div class="quiz-progress"><span id="quiz-progress-bar"></span></div>
+          <button class="btn btn--primary" type="button" id="quiz-next" disabled>Next question</button>
+        </div>
+      </div>
+      <div class="quiz-stats">
+        <div><b id="quiz-stat-score">0</b><span>correct</span></div>
+        <div><b id="quiz-stat-answered">0</b><span>answered</span></div>
+        <div><b id="quiz-stat-streak">0</b><span>best streak</span></div>
+        <div><b id="quiz-stat-accuracy">—</b><span>accuracy</span></div>
+      </div>
+      <div class="btn-row mt-16"><button class="btn btn--ghost" type="button" id="quiz-reset">Reset quiz</button><button class="btn btn--ghost" type="button" id="quiz-shuffle">Shuffle order</button></div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="section__head">
+        <h2><span class="num">02</span>Method</h2>
+        <span class="section__hint">no time limit</span>
+      </div>
+      <p>
+        The question bank is a static array in <code>js/quiz.js</code>. There is no timer,
+        no leaderboard and no network request. Incorrect answers are the most informative:
+        the explanation identifies the page to consult.
+      </p>
+      <div class="callout callout--tip">
+        <div class="callout__title">A quiz is not a certification</div>
+        <p>Knowledge of the TCP flag byte offset is useful; understanding why the checksum
+        requires a pseudo-header is more valuable. If an answer is unexpected, consult the
+        referenced page and decode the bytes.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/quiz.js"></script>
+</body>
+</html>

@@ -201,7 +201,7 @@ window.PH_SEARCH = [
   {kind:"field", p:"dhcp", name:"DHCP op / htype / hlen / hops", meta:"offsets 0–3 · DHCP", href:"dhcp.html#layout", text:"bootrequest bootreply operation hardware type length hops relay bootp fixed header", popular:true},
   {kind:"field", p:"dhcp", name:"DHCP transaction ID (xid)", meta:"offset 4 · 32 bits · DHCP", href:"dhcp.html#layout", text:"xid transaction identifier match request reply", popular:true},
   {kind:"field", p:"dhcp", name:"DHCP flags / broadcast bit", meta:"offset 10 · DHCP", href:"dhcp.html#layout", text:"flags broadcast 0x8000 reserved unicast reply", popular:true},
-  {kind:"field", p:"dhcp", name:"ciaddr / yiaddr / siaddr / giaddr", meta:"offsets 12–27 · DHCP", href:"dhcp.html#layout", text:"client your server relay agent address assigned offered next server", popular:true},
+  {kind:"field", p:"dhcp", name:"ciaddr / yiaddr / siaddr / giaddr", meta:"offsets 12–27 · DHCP", href:"dhcp.html#layout", text:"client server relay agent address assigned offered next server", popular:true},
   {kind:"field", p:"dhcp", name:"chaddr", meta:"offset 28 · 16 B · DHCP", href:"dhcp.html#layout", text:"client hardware address mac padded"},
   {kind:"field", p:"dhcp", name:"DHCP magic cookie", meta:"offset 236 · DHCP", href:"dhcp.html#layout", text:"63 82 53 63 0x63825363 options marker bootp", popular:true},
   {kind:"field", p:"dhcp", name:"DHCP message type (option 53)", meta:"option 53 · DHCP", href:"dhcp.html#types", text:"discover offer request decline ack nak release inform message type", popular:true},
@@ -338,4 +338,117 @@ window.PH_SEARCH = [
   {kind:"tool", p:"tls", name:"TLS record decoder", meta:"tool · TLS", href:"tls.html#decode", text:"tls decode records handshake clienthello serverhello extensions"},
   {kind:"tool", p:"tls", name:"TLS key schedule", meta:"tool · TLS", href:"tls.html#keyschedule", text:"tls key schedule hkdf traffic secret"},
   {kind:"tool", p:"about", name:"Contact", meta:"GitHub Issues · email", href:"about.html#contact", text:"contact email github issues bug reports corrections feature requests security"},
+
+  /* extended protocol index */
+  {kind:"protocol", p:"icmpv6", name:"ICMPv6, NDP & SLAAC", meta:"internet · RFC 4443/4861 · 4 B header", href:"icmpv6.html", text:"ipv6 control message neighbor discovery ndp router solicitation advertisement neighbor solicitation advertisement redirect echo packet too big parameter problem mld slaac dad prefix information rdnss checksum pseudo-header", popular:true},
+  {kind:"protocol", p:"ospf", name:"OSPFv2 & LSAs", meta:"internet · routing · RFC 2328", href:"ospf.html", text:"routing link state hello database description link state request update ack router network summary asbr external nssa area router id dr bdr lsa spf protocol 89"},
+  {kind:"protocol", p:"gre", name:"GRE tunnels", meta:"internet · RFC 2784/2890", href:"gre.html", text:"generic routing encapsulation tunnel checksum key sequence protocol 47 pptp erspan mpls inner ipv4 ipv6 ethernet"},
+  {kind:"protocol", p:"ipsec", name:"IPsec AH, ESP & IKEv2", meta:"internet · RFC 4302/4303/7296", href:"ipsec.html", text:"ipsec ah esp ikev2 spi sequence icv authentication encryption transport tunnel nat traversal sa payload chain"},
+  {kind:"protocol", p:"vxlan", name:"VXLAN & Geneve", meta:"overlay · RFC 7348/8926", href:"vxlan.html", text:"vxlan geneve overlay vni udp 4789 6081 inner ethernet tunnel geneve options oam critical"},
+  {kind:"protocol", p:"wireguard", name:"WireGuard messages", meta:"internet · VPN · UDP 51820", href:"wireguard.html", text:"wireguard noise handshake initiation response cookie reply transport data sender receiver index counter mac1 mac2 chacha20 poly1305 x25519"},
+  {kind:"protocol", p:"sctp", name:"SCTP chunks & streams", meta:"transport · RFC 9260", href:"sctp.html", text:"stream control transmission protocol chunk init sack data heartbeat abort shutdown error cookie echo auth crc32c verification tag streams multihoming protocol 132"},
+  {kind:"protocol", p:"ntp", name:"NTPv4 timestamps", meta:"application · RFC 5905 · UDP 123", href:"ntp.html", text:"network time protocol ntp leap indicator version mode stratum poll precision root delay dispersion reference id reference timestamp origin receive transmit 1900 epoch kiss-o-death"},
+  {kind:"protocol", p:"dhcpv6", name:"DHCPv6 messages", meta:"application · RFC 8415", href:"dhcpv6.html", text:"dhcpv6 solicit advertise request renew rebind reply release decline information request relay duid ia_na ia_pd ia address ia prefix oro dns search option transaction id"},
+  {kind:"protocol", p:"http3", name:"HTTP/3 frames & QPACK", meta:"application · RFC 9114/9204", href:"http3.html", text:"http3 quic streams data headers settings goaway push promise qpack static table varint frame type length alpn h3"},
+  {kind:"protocol", p:"websocket", name:"WebSocket frames", meta:"application · RFC 6455", href:"websocket.html", text:"websocket upgrade sec-websocket-key accept fin rsv opcode mask payload length text binary close ping pong fragmentation utf-8"},
+  {kind:"protocol", p:"lldp", name:"LLDP neighbours", meta:"link · IEEE 802.1AB", href:"lldp.html", text:"link layer discovery protocol lldp chassis id port id ttl system name description capabilities management address organizationally specific vlan ethertype 88cc"},
+
+  /* tool index */
+  {kind:"tool", p:"subnet", name:"Subnet & CIDR calculator", meta:"tool · IPv4/IPv6 · VLSM", href:"subnet.html", text:"subnet cidr calculator network mask wildcard broadcast range usable hosts prefix split vlsm ipv4 ipv6 rfc 3021", popular:true},
+  {kind:"tool", p:"checksum", name:"Checksum & CRC laboratory", meta:"tool · RFC 1071 · CRC-32c", href:"checksum.html", text:"checksum crc crc32 crc32c castagnoli internet checksum fnv adler lrc xor sum8 verify pseudo-header sctp ethernet", popular:true},
+  {kind:"tool", p:"ports", name:"Port registry", meta:"tool · TCP/UDP · IANA", href:"ports.html", text:"port registry service names tcp udp well-known registered dynamic ephemeral 443 53 123 179 4789 51820", popular:true},
+  {kind:"tool", p:"glossary", name:"Networking glossary", meta:"tool · terms · acronyms", href:"glossary.html", text:"glossary terms acronyms definitions tcp ip dns bgp quic tls vxlan wireguard sctp", popular:true},
+  {kind:"tool", p:"learn", name:"Learning paths", meta:"tool · guided reading", href:"learn.html", text:"learning paths guided study capture analysis ipv6 tls http routing security verification progress checklist", popular:true},
+  {kind:"tool", p:"quiz", name:"Packet quiz", meta:"tool · practice · offline", href:"quiz.html", text:"quiz questions offsets flags header sizes protocol numbers ports rfc answers explanations practice", popular:true},
+
+  /* ICMPv6 */
+  {kind:"field", p:"icmpv6", name:"ICMPv6 Type", meta:"bits 0–7 · ICMPv6", href:"icmpv6.html#layout", text:"type 1 unreachable 2 packet too big 3 time exceeded 4 parameter problem 128 echo request 129 reply 133 rs 134 ra 135 ns 136 na 137 redirect", popular:true},
+  {kind:"field", p:"icmpv6", name:"ICMPv6 Code", meta:"bits 8–15 · ICMPv6", href:"icmpv6.html#types", text:"code no route admin prohibited beyond scope address unreachable port unreachable pmtud", popular:true},
+  {kind:"field", p:"icmpv6", name:"ICMPv6 checksum", meta:"bits 16–31 · ICMPv6", href:"icmpv6.html#layout", text:"checksum ipv6 pseudo-header mandatory next header 58", popular:true},
+  {kind:"field", p:"icmpv6", name:"Router Advertisement", meta:"type 134 · ICMPv6", href:"icmpv6.html#ndp", text:"router advertisement cur hop limit m o flags router lifetime reachable time retrans timer prefix information", popular:true},
+  {kind:"field", p:"icmpv6", name:"Neighbor Solicitation", meta:"type 135 · ICMPv6", href:"icmpv6.html#ndp", text:"neighbor solicitation target address solicited-node multicast dad", popular:true},
+  {kind:"field", p:"icmpv6", name:"Neighbor Advertisement", meta:"type 136 · ICMPv6", href:"icmpv6.html#ndp", text:"neighbor advertisement r s o flags target link-layer address"},
+  {kind:"field", p:"icmpv6", name:"ND options", meta:"type 1–38 · ICMPv6", href:"icmpv6.html#ndp", text:"source link-layer address target link-layer prefix information mtu route information rdnss dnssl pref64", popular:true},
+  {kind:"field", p:"icmpv6", name:"SLAAC", meta:"RFC 4862 · ICMPv6", href:"icmpv6.html#slaac", text:"slaac prefix interface identifier autonomous on-link dad duplicate address detection", popular:true},
+  {kind:"field", p:"icmpv6", name:"PREF64", meta:"option 38 · RFC 8781", href:"icmpv6.html#ndp", text:"pref64 nat64 prefix scaled lifetime"},
+
+  /* OSPF */
+  {kind:"field", p:"ospf", name:"OSPF header", meta:"24 B · OSPFv2", href:"ospf.html#layout", text:"version type packet length router id area id checksum auth type authentication", popular:true},
+  {kind:"field", p:"ospf", name:"OSPF Hello", meta:"type 1 · OSPF", href:"ospf.html#types", text:"hello network mask hello interval options priority dead interval designated router backup dr neighbors", popular:true},
+  {kind:"field", p:"ospf", name:"LSA header", meta:"20 B · OSPF", href:"ospf.html#lsa", text:"ls age options ls type link state id advertising router sequence checksum length", popular:true},
+  {kind:"field", p:"ospf", name:"Router LSA", meta:"type 1 · OSPF", href:"ospf.html#lsa", text:"router lsa flags links stub transit point-to-point virtual metric"},
+  {kind:"field", p:"ospf", name:"Network LSA", meta:"type 2 · OSPF", href:"ospf.html#lsa", text:"network lsa mask attached routers dr"},
+  {kind:"field", p:"ospf", name:"AS External LSA", meta:"type 5 · OSPF", href:"ospf.html#lsa", text:"external lsa mask forwarding address tag metric e bit"},
+  {kind:"field", p:"ospf", name:"DR/BDR election", meta:"OSPF", href:"ospf.html#types", text:"designated router backup priority election non-preemptive"},
+
+  /* GRE */
+  {kind:"field", p:"gre", name:"GRE flags", meta:"16 bits · GRE", href:"gre.html#flags", text:"c checksum r routing k key s sequence recur version", popular:true},
+  {kind:"field", p:"gre", name:"GRE protocol type", meta:"16 bits · GRE", href:"gre.html#flags", text:"0x0800 ipv4 0x86dd ipv6 0x6558 ethernet 0x8847 mpls 0x880b ppp erspan", popular:true},
+  {kind:"field", p:"gre", name:"GRE key", meta:"optional 32 bits · GRE", href:"gre.html#layout", text:"key tunnel identifier rfc 2890"},
+  {kind:"field", p:"gre", name:"GRE sequence", meta:"optional 32 bits · GRE", href:"gre.html#layout", text:"sequence ordering rfc 2890"},
+
+  /* VXLAN */
+  {kind:"field", p:"vxlan", name:"VXLAN header", meta:"8 B · RFC 7348", href:"vxlan.html#vxlan", text:"flags i bit reserved vni 24 bit", popular:true},
+  {kind:"field", p:"vxlan", name:"VNI", meta:"24 bits · VXLAN", href:"vxlan.html#vxlan", text:"vxlan network identifier vni segment 16777215", popular:true},
+  {kind:"field", p:"vxlan", name:"Geneve header", meta:"8 B + options · RFC 8926", href:"vxlan.html#geneve", text:"geneve version opt len oam critical protocol type vni options tlv", popular:true},
+  {kind:"field", p:"vxlan", name:"Geneve options", meta:"4-byte units · Geneve", href:"vxlan.html#geneve", text:"class type length value critical oui"},
+
+  /* WireGuard */
+  {kind:"field", p:"wireguard", name:"WireGuard message type", meta:"4 B · WireGuard", href:"wireguard.html#messages", text:"1 initiation 2 response 3 cookie 4 transport little-endian", popular:true},
+  {kind:"field", p:"wireguard", name:"Handshake Initiation", meta:"148 B · WireGuard", href:"wireguard.html#handshake", text:"sender index ephemeral encrypted static encrypted timestamp mac1 mac2", popular:true},
+  {kind:"field", p:"wireguard", name:"Transport Data", meta:"type 4 · WireGuard", href:"wireguard.html#transport", text:"receiver index counter 64-bit encrypted payload aead tag", popular:true},
+  {kind:"field", p:"wireguard", name:"WireGuard counter", meta:"64 bits · WireGuard", href:"wireguard.html#transport", text:"nonce counter little-endian replay"},
+
+  /* SCTP */
+  {kind:"field", p:"sctp", name:"SCTP common header", meta:"12 B · RFC 9260", href:"sctp.html#layout", text:"source port destination port verification tag checksum crc32c", popular:true},
+  {kind:"field", p:"sctp", name:"SCTP chunk", meta:"4 B header · RFC 9260", href:"sctp.html#chunks", text:"chunk type flags length value padding", popular:true},
+  {kind:"field", p:"sctp", name:"DATA chunk", meta:"type 0 · SCTP", href:"sctp.html#chunks", text:"data tsn stream id stream sequence ppid payload i u b e flags", popular:true},
+  {kind:"field", p:"sctp", name:"SACK chunk", meta:"type 3 · SCTP", href:"sctp.html#types", text:"sack cumulative tsn a_rwnd gap blocks duplicate tsns"},
+  {kind:"field", p:"sctp", name:"CRC32c", meta:"checksum · SCTP", href:"sctp.html#layout", text:"crc32c castagnoli checksum sctp"},
+
+  /* NTP */
+  {kind:"field", p:"ntp", name:"NTP header", meta:"48 B · RFC 5905", href:"ntp.html#layout", text:"leap version mode stratum poll precision root delay root dispersion reference id", popular:true},
+  {kind:"field", p:"ntp", name:"NTP timestamp", meta:"64 bits · NTP", href:"ntp.html#time", text:"1900 epoch seconds fraction 32 32", popular:true},
+  {kind:"field", p:"ntp", name:"NTP mode", meta:"3 bits · NTP", href:"ntp.html#time", text:"client server symmetric broadcast control private", popular:true},
+  {kind:"field", p:"ntp", name:"Reference ID", meta:"32 bits · NTP", href:"ntp.html#time", text:"gps pps locl kiss-o-death deny rstr rate ipv4"},
+
+  /* DHCPv6 */
+  {kind:"field", p:"dhcpv6", name:"DHCPv6 message header", meta:"4 B · RFC 8415", href:"dhcpv6.html#layout", text:"message type transaction id solicit advertise request reply", popular:true},
+  {kind:"field", p:"dhcpv6", name:"DHCPv6 option TLV", meta:"code 16 · length 16", href:"dhcpv6.html#options", text:"option code length value client id server id ia_na ia address oro dns", popular:true},
+  {kind:"field", p:"dhcpv6", name:"IA_NA", meta:"option 3 · DHCPv6", href:"dhcpv6.html#options", text:"ia_na iaid t1 t2 nested ia address", popular:true},
+  {kind:"field", p:"dhcpv6", name:"DUID", meta:"DHCPv6 identity", href:"dhcpv6.html#options", text:"duid llt en ll uuid client identifier server identifier", popular:true},
+  {kind:"field", p:"dhcpv6", name:"IA_PD / IA Prefix", meta:"options 25/26 · DHCPv6", href:"dhcpv6.html#options", text:"ia_pd ia prefix prefix length preferred valid"},
+
+  /* HTTP/3 */
+  {kind:"field", p:"http3", name:"HTTP/3 frame", meta:"varint type + length", href:"http3.html#frames", text:"data headers settings goaway push promise max push id frame type length", popular:true},
+  {kind:"field", p:"http3", name:"HTTP/3 SETTINGS", meta:"frame 0x04 · HTTP/3", href:"http3.html#settings", text:"settings qpack max table capacity max field section blocked streams connect datagram webtransport", popular:true},
+  {kind:"field", p:"http3", name:"QPACK", meta:"RFC 9204 · HTTP/3", href:"http3.html#qpack", text:"qpack static table dynamic table indexed literal field line huffman post-base", popular:true},
+  {kind:"field", p:"http3", name:"QUIC varint", meta:"RFC 9000 · HTTP/3", href:"http3.html#frames", text:"varint prefix 1 2 4 8 bytes frame type length"},
+
+  /* WebSocket */
+  {kind:"field", p:"websocket", name:"WebSocket handshake", meta:"HTTP Upgrade · RFC 6455", href:"websocket.html#handshake", text:"sec-websocket-key accept upgrade connection version protocol", popular:true},
+  {kind:"field", p:"websocket", name:"WebSocket frame", meta:"2 B + length", href:"websocket.html#frame", text:"fin rsv opcode mask payload length extended masking key", popular:true},
+  {kind:"field", p:"websocket", name:"WebSocket opcode", meta:"4 bits · RFC 6455", href:"websocket.html#opcodes", text:"continuation text binary close ping pong control", popular:true},
+  {kind:"field", p:"websocket", name:"Close code", meta:"2 B · WebSocket", href:"websocket.html#opcodes", text:"1000 normal 1001 going away 1002 protocol 1006 abnormal 1008 policy 1011 server"},
+
+  /* IPsec */
+  {kind:"field", p:"ipsec", name:"AH header", meta:"RFC 4302 · protocol 51", href:"ipsec.html#ah", text:"ah next header payload length reserved spi sequence icv authentication", popular:true},
+  {kind:"field", p:"ipsec", name:"ESP header", meta:"RFC 4303 · protocol 50", href:"ipsec.html#esp", text:"esp spi sequence ciphertext trailer pad length next header icv", popular:true},
+  {kind:"field", p:"ipsec", name:"IKEv2 header", meta:"28 B · RFC 7296", href:"ipsec.html#ikev2", text:"ikev2 initiator spi responder spi next payload version exchange flags message id length", popular:true},
+  {kind:"field", p:"ipsec", name:"IPsec SPI", meta:"32 bits · AH/ESP", href:"ipsec.html#ah", text:"security parameter index sa"},
+
+  /* LLDP */
+  {kind:"field", p:"lldp", name:"LLDP TLV", meta:"7-bit type · 9-bit length", href:"lldp.html#layout", text:"lldp tlv type length value chassis port ttl end", popular:true},
+  {kind:"field", p:"lldp", name:"Chassis ID", meta:"TLV 1 · LLDP", href:"lldp.html#tlvs", text:"chassis id subtype mac network address locally assigned", popular:true},
+  {kind:"field", p:"lldp", name:"Port ID", meta:"TLV 2 · LLDP", href:"lldp.html#tlvs", text:"port id subtype interface name mac agent circuit"},
+  {kind:"field", p:"lldp", name:"System Capabilities", meta:"TLV 7 · LLDP", href:"lldp.html#capabilities", text:"capabilities bridge router wlan ap telephone station repeater"},
+  {kind:"field", p:"lldp", name:"Organizationally Specific", meta:"TLV 127 · LLDP", href:"lldp.html#tlvs", text:"oui ieee 802.1 vlan id 802.3 lldp-med"},
+
+  /* Tools fields */
+  {kind:"field", p:"subnet", name:"VLSM planner", meta:"tool · IPv4", href:"subnet.html#vlsm", text:"vlsm variable length subnet mask plan hosts largest first aligned", popular:true},
+  {kind:"field", p:"subnet", name:"Prefix splitting", meta:"tool · IPv4/IPv6", href:"subnet.html#split", text:"split prefix subnet equal size 4096", popular:true},
+  {kind:"field", p:"checksum", name:"Internet checksum", meta:"RFC 1071 · tool", href:"checksum.html#lab", text:"internet checksum one's complement rfc 1071 ipv4 tcp udp icmp", popular:true},
+  {kind:"field", p:"checksum", name:"CRC-32c", meta:"Castagnoli · tool", href:"checksum.html#lab", text:"crc32c castagnoli sctp iscsi checksum", popular:true},
+  {kind:"field", p:"ports", name:"Port ranges", meta:"IANA · tool", href:"ports.html#ranges", text:"well-known registered dynamic ephemeral 1024 49151 65535", popular:true},
+  {kind:"field", p:"quiz", name:"Packet quiz", meta:"tool · practice", href:"quiz.html", text:"quiz offsets flags protocol numbers ports rfc explanations", popular:true},
 ];

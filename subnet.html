@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subnet &amp; CIDR calculator — IPv4, IPv6, VLSM · netlens.dev</title>
+<meta name="description" content="Offline IPv4 and IPv6 subnet calculator: CIDR ranges, usable hosts, broadcast, wildcard mask, binary view, prefix splitting and a greedy VLSM planner.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">tools</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#tools">all tools</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#calc">calculator</a></li>
+        <li><a href="#split">split prefixes</a></li>
+        <li><a href="#vlsm">VLSM planner</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Offline:</b> all arithmetic runs in this tab. No address is sent anywhere. IPv6 prefixes use BigInt so /0 and /128 are exact.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#tools">tools</a><span class="sep">/</span><span>subnet</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Subnet &amp; CIDR calculator <span class="on">// IPv4 + IPv6</span></h1>
+      <p class="lead">
+        Enter an address or prefix to obtain the network, mask, wildcard, address range,
+        usable host count, binary representation and address type. The prefix can then be
+        divided into equal subnets or used to plan a VLSM allocation from host requirements.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent">offline</span>
+        <span class="badge">IPv4</span>
+        <span class="badge">IPv6</span>
+        <span class="badge">VLSM</span>
+        <span class="badge">RFC 3021 /31</span>
+      </div>
+      <div class="stackbar" data-stack="subnet"></div>
+    </div>
+
+    <section class="section" id="calc">
+      <div class="section__head">
+        <h2><span class="num">01</span>Prefix calculator</h2>
+        <span class="section__hint">address, mask or CIDR</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__head"><h3>input</h3><span>IPv4 or IPv6</span></div>
+        <div class="tool-card__body">
+          <div class="tool-row">
+            <input type="text" id="subnet-input" value="192.168.1.130/25" spellcheck="false" aria-label="IPv4 or IPv6 address and prefix">
+            <button class="btn btn--primary" type="button" id="subnet-calc">Calculate</button>
+          </div>
+          <div class="presets">
+            <button type="button" data-subnet="10.0.0.0/8">10.0.0.0/8</button>
+            <button type="button" data-subnet="172.16.0.0/12">172.16/12</button>
+            <button type="button" data-subnet="192.168.1.130/25">192.168.1.130/25</button>
+            <button type="button" data-subnet="100.64.0.0/10">100.64/10</button>
+            <button type="button" data-subnet="2001:db8::1/64">2001:db8::1/64</button>
+            <button type="button" data-subnet="2001:db8:abcd::/48">2001:db8:abcd::/48</button>
+            <button type="button" data-subnet="::/0">::/0</button>
+          </div>
+          <div class="codec-status" id="subnet-status" role="status" aria-live="polite">Enter a prefix and press Calculate.</div>
+          <div id="subnet-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="split">
+      <div class="section__head">
+        <h2><span class="num">02</span>Split into equal prefixes</h2>
+        <span class="section__hint">up to 4096 results</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__head"><h3>split</h3><span>same parent, new prefix</span></div>
+        <div class="tool-card__body">
+          <div class="tool-row">
+            <input type="text" id="subnet-split-input" value="192.168.1.0/24" spellcheck="false" aria-label="Parent prefix">
+            <input type="number" id="subnet-split-prefix" value="26" min="0" max="128" inputmode="numeric" aria-label="New prefix length">
+            <button class="btn btn--primary" type="button" id="subnet-split">Split</button>
+          </div>
+          <div class="codec-status" id="subnet-split-status" role="status" aria-live="polite">Choose a parent and a longer prefix.</div>
+          <div id="subnet-split-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="vlsm">
+      <div class="section__head">
+        <h2><span class="num">03</span>VLSM planner</h2>
+        <span class="section__hint">IPv4 · largest requirement first</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__head"><h3>plan</h3><span>name, hosts</span></div>
+        <div class="tool-card__body">
+          <div class="field-grid">
+            <div class="form-field"><label for="vlsm-parent">parent prefix</label><input type="text" id="vlsm-parent" value="192.168.0.0/23" spellcheck="false"></div>
+            <div class="form-field"><label for="vlsm-requirements">requirements <span class="units">name = hosts, one per line</span></label><textarea id="vlsm-requirements" rows="4" spellcheck="false">core = 100
+staff = 50
+guest = 10</textarea></div>
+          </div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="vlsm-plan">Plan</button><button class="btn btn--ghost" type="button" id="vlsm-example">Load example</button></div>
+          <div class="codec-status" id="vlsm-status" role="status" aria-live="polite">Enter a parent and one requirement per line.</div>
+          <div id="vlsm-result"></div>
+          <p class="form-note">The planner allocates the smallest standard block that fits each requirement, largest first, aligned to its size. It leaves free space but does not attempt to minimise fragmentation beyond that point.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">04</span>Notes</h2>
+        <span class="section__hint">what the numbers mean</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>/31 point-to-point links have two usable addresses.</strong> RFC 3021 allows both ends of a /31 without a network or broadcast address.</li>
+        <li><strong>/32 is a single host route.</strong> It has one address and no broadcast. On a point-to-point link it is sometimes used with an explicit peer.</li>
+        <li><strong>IPv6 has no broadcast.</strong> The all-zeros subnet-router anycast address is reserved, and the all-ones interface identifier is not a broadcast address.</li>
+        <li><strong>A mask must be contiguous.</strong> This calculator rejects non-contiguous IPv4 masks rather than inferring the intended bits.</li>
+        <li><strong>Private ranges are conventions, not guarantees.</strong> RFC 1918 space is not routed on the public Internet, but nothing in the packet stops an operator from using it internally.</li>
+      </ul>
+      <p class="small dim">The binary view shows the address split into octets. For IPv6, the binary view groups 16-bit words.</p>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ipv6-codec.js"></script>
+<script src="js/subnet-codec.js"></script>
+<script src="js/subnet.js"></script>
+</body>
+</html>

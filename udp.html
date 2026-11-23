@@ -46,10 +46,10 @@
     <div class="page-head">
       <h1>UDP <span class="on">// RFC 768</span></h1>
       <p class="lead">
-        The minimal transport protocol: two ports, a length and a checksum. UDP adds
-        multiplexing and error detection, then gets out of the way. It is the substrate for
-        DNS, DHCP, NTP, QUIC and most of the traffic that would rather have
-        low latency than a handshake.
+        The minimal transport protocol: two ports, a length and a checksum. UDP provides
+        multiplexing and error detection with no connection state. It is the transport for
+        DNS, DHCP, NTP, QUIC and other traffic that requires low latency rather than a
+        connection handshake.
       </p>
       <div class="badges">
         <span class="badge badge--accent"><b>RFC 768</b> · UDP</span>
@@ -151,7 +151,7 @@
             <tr><td><code>137/138</code></td><td><b>NetBIOS</b></td><td>Name and datagram service</td><td>Legacy Windows local-network discovery.</td></tr>
             <tr><td><code>161/162</code></td><td><b>SNMP</b></td><td>Poll / trap</td><td>Agents listen on 161, managers receive traps on 162.</td></tr>
             <tr><td><code>500/4500</code></td><td><b>IKE / IPsec NAT-T</b></td><td>Key exchange</td><td>4500 is used when NAT-T encapsulation is active.</td></tr>
-            <tr><td><code>514</code></td><td><b>syslog</b></td><td>Log transport</td><td>UDP syslog is fire-and-forget; TCP/TLS add reliability.</td></tr>
+            <tr><td><code>514</code></td><td><b>syslog</b></td><td>Log transport</td><td>UDP syslog is connectionless and unreliable; TCP or TLS adds reliability.</td></tr>
             <tr><td><code>520</code></td><td><b>RIP</b></td><td>Routing updates</td><td>Distance-vector routing over UDP/520.</td></tr>
             <tr><td><code>546/547</code></td><td><b>DHCPv6</b></td><td>Client / server</td><td>IPv6 configuration; link-local multicast is common.</td></tr>
             <tr><td><code>1900</code></td><td><b>SSDP</b></td><td>UPnP discovery</td><td>Multicast discovery on the local network.</td></tr>
@@ -332,9 +332,10 @@
             </div>
             <div class="callout" style="margin:0">
               <div class="callout__title">a checksum needs a context</div>
-              <p>The UDP header does not contain IP addresses. If you copy the raw datagram
-              without its source and destination, a receiver cannot recompute the checksum
-              from the bytes alone. Keep the IP context when you paste it into a lab tool.</p>
+              <p>The UDP header does not contain IP addresses. If the raw datagram is copied
+              without its source and destination addresses, a receiver cannot recompute the
+              checksum from the datagram alone. The IP context must be retained when the
+              datagram is supplied to a laboratory tool.</p>
             </div>
           </div>
         </div>
@@ -349,7 +350,7 @@
       <p>
         Paste a raw UDP datagram, an IPv4 packet with Protocol <code>17</code>, an IPv6 packet
         whose terminal Next Header is <code>17</code>, or an Ethernet frame carrying either.
-        The decoder validates the UDP checksum when it can see the IP context. Raw UDP is parsed
+        The decoder validates the UDP checksum when the IP context is available. Raw UDP is parsed
         but its checksum is marked as not checkable.
       </p>
 
@@ -402,7 +403,7 @@
         <li><strong>The checksum includes a pseudo-header.</strong> IPv4 uses a 12-byte pseudo-header; IPv6 uses 40 bytes. The UDP Length field participates, so rewriting lengths without updating the checksum breaks it.</li>
         <li><strong>Zero checksum is context-dependent.</strong> In IPv4 it means “not computed.” In IPv6 it is invalid. A computed checksum of zero is transmitted as <code>0xFFFF</code>.</li>
         <li><strong>NAT rewrites checksums.</strong> A NAT that changes an address or port must recompute the UDP checksum. Captures taken at different points on the path can legitimately disagree.</li>
-        <li><strong>Fragmentation is an IP concern.</strong> UDP has no fragment fields. IPv4 may fragment at routers; IPv6 uses a Fragment extension header and source-based fragmentation. A decoder needs the first fragment to see the UDP header.</li>
+        <li><strong>Fragmentation is an IP concern.</strong> UDP has no fragment fields. IPv4 may fragment at routers; IPv6 uses a Fragment extension header and source-based fragmentation. A decoder requires the first fragment to expose the UDP header.</li>
         <li><strong>Port numbers are not authentication.</strong> A source port is a claim, not an identity. UDP reflection and spoofing are common because there is no handshake.</li>
         <li><strong>UDP-Lite is different.</strong> UDP-Lite changes the length field semantics and allows partial checksum coverage. It uses IP protocol <code>136</code>, not UDP protocol <code>17</code>; do not parse it with a UDP assumption.</li>
       </ul>

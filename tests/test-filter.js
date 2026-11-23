@@ -96,6 +96,32 @@ run("filter", (test, assert) => {
     assert.throws(() => Filter.parse("tcp and"), /Expected a protocol or field|Expected an expression/);
   });
 
+  test("extended protocol fields", () => {
+    const extended = {
+      protos: ["eth", "ip", "ospf", "gre", "ntp", "dhcpv6", "wireguard", "ipsec", "lldp", "sctp", "vxlan"],
+      frame: { number: 20, len: 200, time: 4 },
+      ipv4: { src: "192.0.2.1", dst: "198.51.100.2", proto: 89, ttl: 64, len: 200 },
+      ospf: { type: 1, area: "0.0.0.0", router: "192.0.2.1" },
+      gre: { protocol: 0x0800, key: 42, sequence: 1 },
+      ntp: { mode: 4, stratum: 1 },
+      dhcpv6: { type: 1, xid: 0x123456 },
+      wireguard: { type: 4 },
+      ipsec: { spi: 0x1000, sequence: 1 },
+      lldp: { ttl: 120, chassis: "02:00:00:00:00:01", port: "eth0" },
+      sctp: { sport: 5000, dport: 5001, tag: 0x11223344, chunks: 1 },
+      vxlan: { vni: 100 }
+    };
+    assert.strictEqual(evaluate("ospf and ospf.type == 1", extended), true);
+    assert.strictEqual(evaluate("gre.key == 42", extended), true);
+    assert.strictEqual(evaluate("ntp.stratum == 1", extended), true);
+    assert.strictEqual(evaluate("dhcpv6.xid == 0x123456", extended), true);
+    assert.strictEqual(evaluate("wireguard.type == 4", extended), true);
+    assert.strictEqual(evaluate("ipsec.spi == 0x1000", extended), true);
+    assert.strictEqual(evaluate("lldp.port == eth0", extended), true);
+    assert.strictEqual(evaluate("sctp.dstport == 5001", extended), true);
+    assert.strictEqual(evaluate("vxlan.vni == 100", extended), true);
+  });
+
   test("IPv6 parsing", () => {
     assert.strictEqual(Filter.parseIPv6("2001:db8::1").length, 16);
     assert.strictEqual(Filter.parseIPv6("::1").length, 16);

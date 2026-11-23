@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSPFv2 packets, Hello &amp; LSAs — bit diagrams, encoder, decoder · netlens.dev</title>
+<meta name="description" content="OSPFv2 header, Hello, Database Description, Link State Update and LSA layouts with area IDs, authentication, checksum, Router and Network LSAs, an encoder and a decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">header layout</a></li>
+        <li><a href="#types">packet types</a></li>
+        <li><a href="#lsa">LSAs</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>OSPFv2</b> runs directly over IP protocol <b>89</b>, not TCP or UDP. Its checksum excludes the 64-bit authentication field. OSPFv3 is a different packet layout.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>ospf</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>OSPFv2 <span class="on">// Hello, LSAs &amp; areas</span></h1>
+      <p class="lead">
+        OSPF is a link-state routing protocol that runs directly over IP. Every router
+        floods Link State Advertisements, builds the same link-state database and runs
+        Dijkstra's algorithm. This page covers the 24-byte header, the five packet types,
+        the LSA header and the Router and Network LSA bodies observed in a capture.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 2328</b> · OSPFv2</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc5709" target="_blank" rel="noopener">RFC 5709 · auth</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc5340" target="_blank" rel="noopener">RFC 5340 · OSPFv3</a>
+        <span class="badge">IP protocol 89</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> internet / routing</span>
+        <span><b>header</b> 24 B</span>
+        <span><b>checksum</b> Internet checksum</span>
+        <span><b>transport</b> none · protocol 89</span>
+      </div>
+      <div class="stackbar" data-stack="ospf"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#types">types</a></li>
+        <li><a href="#lsa">LSAs</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Header layout</h2>
+        <span class="section__hint">24 bytes · every packet type</span>
+      </div>
+      <p>
+        All OSPFv2 packets share the same header. <strong>Router ID</strong> and
+        <strong>Area ID</strong> are 32-bit values written in dotted-quad form;
+        <strong>Packet Length</strong> covers the header, body and any LSAs. The
+        <strong>Checksum</strong> is an Internet checksum over the packet with the
+        authentication field excluded.
+      </p>
+      <div id="ospf-diagram"></div>
+      <div class="field-detail" id="ospf-inspector"></div>
+      <div id="ospf-fields"></div>
+
+      <div class="callout">
+        <div class="callout__title">Authentication is part of the header</div>
+        <p>AuType 0 is null, 1 is an eight-byte cleartext password and 2 is a cryptographic
+        digest. The checksum calculation zeroes the eight-byte authentication field, so a
+        capture with authentication type 2 still has a readable checksum.</p>
+      </div>
+    </section>
+
+    <section class="section" id="types">
+      <div class="section__head">
+        <h2><span class="num">02</span>Packet types</h2>
+        <span class="section__hint">type 1–5</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Packet</th><th>Purpose</th><th>Body highlights</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>Hello</b></td><td>Discover neighbours and elect DR/BDR</td><td>network mask, hello/dead intervals, options, priority, DR, BDR, neighbour list</td></tr>
+            <tr><td><code>2</code></td><td><b>Database Description</b></td><td>Summarise the link-state database</td><td>interface MTU, options, I/M/MS flags, DD sequence, LSA headers</td></tr>
+            <tr><td><code>3</code></td><td><b>Link State Request</b></td><td>Ask for full LSAs</td><td>LS type, Link State ID, Advertising Router per request</td></tr>
+            <tr><td><code>4</code></td><td><b>Link State Update</b></td><td>Flood LSAs</td><td>LSA count, then complete LSAs</td></tr>
+            <tr><td><code>5</code></td><td><b>Link State Ack</b></td><td>Acknowledge flooded LSAs</td><td>LSA headers</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="ospf-hello-lane"></div>
+
+      <datalist id="ospf-options-list"></datalist>
+      <div class="callout callout--tip">
+        <div class="callout__title">Options are a bit field, not a list</div>
+        <p><code>E</code> (0x02) is external routing, <code>MC</code> (0x04) multicast,
+        <code>NP</code> (0x08) NSSA, <code>EA</code> (0x10) external attributes,
+        <code>DC</code> (0x20) demand circuits, <code>O</code> (0x40) opaque LSAs and
+        <code>DN</code> (0x80) down-bit handling. The same octet appears in Hello, DD and
+        every LSA header.</p>
+      </div>
+    </section>
+
+    <section class="section" id="lsa">
+      <div class="section__head">
+        <h2><span class="num">03</span>Link State Advertisements</h2>
+        <span class="section__hint">20-byte header + body</span>
+      </div>
+      <p>
+        Every LSA starts with a 20-byte header. The <strong>LS Type</strong> and
+        <strong>Link State ID</strong> identify the object, and <strong>Advertising
+        Router</strong> identifies the origin. <strong>LS Sequence Number</strong> is a
+        signed 32-bit value that starts at <code>0x80000001</code>; a larger value is newer.
+        <strong>LS Age</strong> is capped at 3600 seconds.
+      </p>
+      <div id="ospf-lsa-lane"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>LS type</th><th>Name</th><th>Link State ID</th><th>Body</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>Router</b></td><td>Router ID</td><td>V/E/B flags, link count, link descriptors (stub, transit, point-to-point, virtual)</td></tr>
+            <tr><td><code>2</code></td><td><b>Network</b></td><td>DR interface IP</td><td>network mask, attached routers</td></tr>
+            <tr><td><code>3</code></td><td><b>Summary Network</b></td><td>network address</td><td>mask, metric</td></tr>
+            <tr><td><code>4</code></td><td><b>Summary ASBR</b></td><td>ASBR router ID</td><td>mask, metric</td></tr>
+            <tr><td><code>5</code></td><td><b>AS External</b></td><td>external network</td><td>mask, forwarding address, tag, metric, E bit</td></tr>
+            <tr><td><code>7</code></td><td><b>NSSA External</b></td><td>external network</td><td>same as type 5, flooded only in the NSSA</td></tr>
+            <tr><td><code>9/10/11</code></td><td><b>Opaque</b></td><td>type-specific</td><td>opaque application data</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">LS checksum is not the packet checksum</div>
+        <p>The 16-bit value in an LSA header is a Fletcher-like checksum over that LSA
+        only. The packet checksum in the OSPF header covers the whole packet. Do not
+        compare them or use one to validate the other.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">Hello or one-LSA Update</span>
+      </div>
+      <p>
+        Build a structurally valid OSPFv2 packet and compute the header checksum. Hello
+        packets take neighbour router IDs. Link State Update takes one LSA header and an
+        opaque body so that the framing can be inspected without constructing a complete routing table.
+      </p>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an OSPFv2 packet</h3><span class="tag" id="ospf-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="ospf-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="ospf-enc-type">packet type</label><select id="ospf-enc-type"><option value="1">1 · Hello</option><option value="2">2 · Database Description</option><option value="3">3 · Link State Request</option><option value="4">4 · Link State Update</option><option value="5">5 · Link State Ack</option></select></div>
+                <div class="form-field"><label for="ospf-enc-router">router ID</label><input type="text" id="ospf-enc-router" value="192.0.2.1" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-area">area ID</label><input type="text" id="ospf-enc-area" value="0.0.0.0" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-auth">authentication type</label><select id="ospf-enc-auth"><option value="0">0 · null</option><option value="1">1 · simple password</option><option value="2">2 · cryptographic</option></select></div>
+                <div class="form-field"><label for="ospf-enc-password">simple password <span class="units">8 bytes max</span></label><input type="text" id="ospf-enc-password" value="" maxlength="8" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-mask">network mask</label><input type="text" id="ospf-enc-mask" value="255.255.255.0" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-hello">hello interval <span class="units">s</span></label><input type="number" id="ospf-enc-hello" value="10" min="1" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="ospf-enc-dead">dead interval <span class="units">s</span></label><input type="number" id="ospf-enc-dead" value="40" min="1" max="4294967295" inputmode="numeric"></div>
+                <div class="form-field"><label for="ospf-enc-options">options <span class="units">0–255</span></label><input type="number" id="ospf-enc-options" value="2" min="0" max="255" inputmode="numeric"></div>
+                <div class="form-field"><label for="ospf-enc-priority">router priority</label><input type="number" id="ospf-enc-priority" value="1" min="0" max="255" inputmode="numeric"></div>
+                <div class="form-field"><label for="ospf-enc-dr">designated router</label><input type="text" id="ospf-enc-dr" value="192.0.2.1" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-bdr">backup designated router</label><input type="text" id="ospf-enc-bdr" value="0.0.0.0" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="ospf-enc-neighbors">neighbours <span class="units">comma-separated router IDs</span></label><input type="text" id="ospf-enc-neighbors" value="192.0.2.2" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-lsa-type">LSA type <span class="units">update</span></label><input type="number" id="ospf-enc-lsa-type" value="1" min="1" max="11" inputmode="numeric"></div>
+                <div class="form-field"><label for="ospf-enc-lsa-id">link state ID</label><input type="text" id="ospf-enc-lsa-id" value="192.0.2.1" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-lsa-router">advertising router</label><input type="text" id="ospf-enc-lsa-router" value="192.0.2.1" spellcheck="false"></div>
+                <div class="form-field"><label for="ospf-enc-lsa-seq">LS sequence</label><input type="text" id="ospf-enc-lsa-seq" value="0x80000001" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="ospf-enc-lsa-body">LSA body <span class="units">hex · optional</span></label><input type="text" id="ospf-enc-lsa-body" class="hex-input" value="00 01 00 00" spellcheck="false"></div>
+              </div>
+              <div class="btn-row" style="margin-top:12px">
+                <button class="btn btn--primary" type="button" id="ospf-build">Build packet</button>
+                <button class="btn btn--ghost" type="button" id="ospf-example">Load Hello</button>
+                <button class="btn btn--ghost" type="button" id="ospf-permalink">Permalink</button>
+                <button class="btn btn--ghost" type="button" id="ospf-export">JSON</button>
+              </div>
+              <p class="form-note">The checksum excludes the 64-bit authentication field. A valid checksum does not mean the packet is authorised, and it does not validate any LSA.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">OSPFv2</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="ospf-encode-status" role="status" aria-live="polite">Choose a packet type and press Build packet.</div>
+            <div class="output"><div class="row-between"><div class="output__label">packet hex</div><button class="copy-btn" type="button" data-copy-target="#ospf-enc-output">copy</button></div><pre id="ospf-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="ospf-enc-summary"></div>
+            <div class="callout" style="margin:0"><div class="callout__title">Routing is state, not merely framing</div><p>A well-formed Hello does not create an adjacency. Neighbours must agree on area, network mask, hello/dead timers, authentication and MTU; the DR election and database exchange follow.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">raw OSPF packet</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 2328</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field">
+            <label for="ospf-decode-input">hex input <span class="units">OSPFv2 packet</span></label>
+            <textarea id="ospf-decode-input" class="hex-input" rows="5" spellcheck="false" placeholder="02 01 00 2c ..."></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="ospf-decode">Decode</button>
+            <button class="btn btn--ghost" type="button" id="ospf-decode-example">Load example</button>
+            <button class="btn btn--ghost" type="button" id="ospf-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="ospf-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="ospf-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">what breaks an adjacency</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>It is not TCP or UDP.</strong> OSPF is IP protocol 89. A display filter for <code>tcp.port == 89</code> will never match OSPF.</li>
+        <li><strong>Hello timers must match.</strong> The dead interval is normally four times the hello interval; a mismatch prevents the adjacency from forming.</li>
+        <li><strong>Area 0 is the backbone.</strong> All other areas must connect to it directly or through a virtual link. Area IDs are 32-bit values, displayed like IPv4 addresses.</li>
+        <li><strong>DR/BDR election is not preemption.</strong> A new router with a higher priority does not displace the existing DR until the DR fails.</li>
+        <li><strong>LS age is not an operator-set timer.</strong> It increments in the database and is capped at 3600 seconds; MaxAge flooding removes an LSA.</li>
+        <li><strong>OSPFv3 is a different format.</strong> OSPFv3 runs over IPv6 next header 89, has no in-header authentication field and uses redesigned LSAs. Do not decode one as the other.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2328" target="_blank" rel="noopener">RFC 2328</a><span>OSPFv2</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5340" target="_blank" rel="noopener">RFC 5340</a><span>OSPFv3</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5709" target="_blank" rel="noopener">RFC 5709</a><span>HMAC-SHA authentication</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3101" target="_blank" rel="noopener">RFC 3101</a><span>NSSA</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3630" target="_blank" rel="noopener">RFC 3630</a><span>traffic engineering</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5250" target="_blank" rel="noopener">RFC 5250</a><span>opaque LSAs</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="gre.html">GRE tunnels -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ospf-codec.js"></script>
+<script src="js/ospf.js"></script>
+</body>
+</html>

@@ -186,10 +186,10 @@
     <section class="section" id="types">
       <div class="section__head">
         <h2><span class="num">03</span>Attribute types</h2>
-        <span class="section__hint">the ones that matter at 03:00</span>
+        <span class="section__hint">selected operational attributes</span>
       </div>
       <p>
-        Click a row to load its standard flags into the editor above. Values on the wire are
+        Select a row to load its standard flags into the editor above. Values on the wire are
         big-endian; the AS width is not encoded in AS_PATH and must be known from the session
         capability.
       </p>
@@ -297,7 +297,7 @@
         <span class="section__hint">attributes · UPDATE · full message</span>
       </div>
       <p>
-        Paste bytes from a pcap, a lab session or the encoder. A full BGP message is detected
+        Supply bytes from a capture, a laboratory session or the encoder. A full BGP message is detected
         by its 16-byte all-ones marker. Raw input is parsed as a sequence of path attributes.
         The AS width selector applies to AS_PATH and AGGREGATOR; AS4_PATH is always 4-byte.
       </p>
@@ -344,7 +344,7 @@
         <li><strong>Length includes the 19-byte header.</strong> The default maximum message size is 4096 bytes; extended messages (RFC 8654) can reach 65535 with capability negotiation.</li>
         <li><strong>Attribute length is bytes, not elements.</strong> Communities are 4 bytes each; extended communities 8; large communities 12. A length not divisible by the element size is a parse error.</li>
         <li><strong>Segment length is AS count.</strong> For AS_PATH, the second byte of a segment counts ASNs, not bytes. Multiply by the AS width when walking the value.</li>
-        <li><strong>Partial means “I did not understand this”.</strong> It is only valid on optional transitive attributes and should make the receiver forward the attribute even though it ignored the semantics.</li>
+        <li><strong>Partial indicates that the receiver did not understand the attribute.</strong> It is valid only on optional transitive attributes and should cause the receiver to forward the attribute even though its semantics were not interpreted.</li>
         <li><strong>RFC 7606 changed error handling.</strong> Many malformed attributes are now treated as withdraw-with-error rather than session reset. Do not assume an old “treat-as-withdraw” path.</li>
         <li><strong>Path attributes are policy, not truth.</strong> ORIGIN, AS_PATH, MED and communities are inputs to decision processes; RPKI and route-leak detection live outside the attribute encoding.</li>
       </ul>

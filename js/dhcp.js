@@ -187,7 +187,7 @@
       ]
     },
     {
-      caption: "<b>OFFER.</b> A server picks <code>192.0.2.50</code> from its pool and returns DHCPOFFER with <code>yiaddr</code>, option 54 (server identifier), the mask, router, DNS and a 3600-second lease. The reply goes to the client's MAC; a client that sets the broadcast flag gets it broadcast instead.",
+      caption: "<b>OFFER.</b> A server selects <code>192.0.2.50</code> from its pool and returns DHCPOFFER with <code>yiaddr</code>, option 54 (server identifier), the mask, router, DNS and a 3600-second lease. The reply goes to the client's MAC; a client that sets the broadcast flag gets it broadcast instead.",
       state: "offer received",
       stateClass: "warn-text",
       mode: "is-unicast",

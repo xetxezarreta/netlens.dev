@@ -16,25 +16,27 @@ Source repository: <https://github.com/xetxezarreta/netlens.dev>
 
 Contact: <contact@netlens.dev> · [GitHub Issues](https://github.com/xetxezarreta/netlens.dev/issues)
 
-## Run it
+## Run locally
 
 ```sh
 python3 -m http.server 8000
 # open http://localhost:8000/
 ```
 
-Opening `index.html` directly from disk also works, but a local server is the least surprising
+Opening `index.html` directly from disk also works, but a local server is the recommended
 option.
 
-## What is inside
+## Contents
 
-- **13 protocol pages:** BGP, DNS, DHCP, HTTP, TLS, TCP, UDP, QUIC, IPv4, IPv6, ICMP, Ethernet, ARP
+- **25 protocol pages:** BGP, DNS, DHCPv4, DHCPv6, HTTP/1.1, HTTP/2, HTTP/3, TLS, WebSocket, TCP, UDP, QUIC, SCTP, IPv4, IPv6, ICMP, ICMPv6/NDP, OSPF, GRE, VXLAN/Geneve, WireGuard, IPsec, NTP, LLDP, Ethernet, ARP
+- **7 cross-layer tools:** packet workbench, subnet calculator, checksum/CRC laboratory, port registry, glossary, learning paths, packet quiz
 - **Packet workbench:** open a pcap/pcapng capture locally, browse a virtualized packet list, filter by field or byte slice, reassemble IP fragments and TCP streams, follow a stream, inspect conversations, expert findings and a timeline, decrypt TLS 1.3 with a key log, and export pcap/CSV/JSON/HAR/report
 - **Interactive diagrams:** bit and byte layouts with offsets, ranges and RFC citations
 - **Animated exchange storyboards:** ARP resolution, DHCP DORA, TCP lifecycle, TLS 1.3 handshake, DNS resolution and ICMP traceroute, with play and step controls
-- **Encoders and decoders:** structural checks, checksums and copyable output
-- **Search:** protocols, fields, flags, RFCs and hex
+- **Encoders and decoders:** structural checks, checksums, CRC-32c and copyable output
+- **Search:** 389 static entries across protocols, fields, flags, tools, RFCs and hex
 - **Shareable state:** permalinks and JSON export for page inputs and outputs
+- **Learning paths:** six ordered routes with a local checklist; no account, no upload
 - **Mobile navigation:** protocol menu and “on this page” sections
 - **Custom 404 page:** `404.html`
 
@@ -49,7 +51,15 @@ index.html              homepage, TCP/IP model, protocol index and search
 404.html                not-found page
 about.html              conventions, shortcuts and RFC sources
 workbench.html          local pcap/pcapng capture workbench
+subnet.html             IPv4/IPv6 CIDR calculator, splitting and VLSM
+checksum.html           Internet checksum, CRC-32/CRC-32c and hash laboratory
+ports.html              searchable TCP/UDP port registry
+glossary.html           networking terms and acronyms
+learn.html              guided learning paths with local progress
+quiz.html               offline packet quiz
 *.html                  one flat-URL page per protocol
+sitemap.xml             generated-by-hand page list for crawlers
+robots.txt              crawler policy and sitemap pointer
 css/styles.css          design system and layout
 js/core.js              shared utilities, diagrams, search, theme and chrome
 js/protocol-meta.js     TCP/IP taxonomy and stack model
@@ -63,6 +73,23 @@ js/flows.js             5-tuple flows, IP reassembly, TCP state and app reassemb
 js/index-builder.js     shared per-packet index builder (main thread + worker)
 js/tls-keys.js          TLS 1.3 key-log decryption with WebCrypto
 js/workbench-worker.js  optional parser worker (HTTP only; file:// falls back)
+js/icmpv6-codec.js      ICMPv6, NDP, SLAAC and MLD codec
+js/ospf-codec.js        OSPFv2 header, Hello, DD and LSA codec
+js/gre-codec.js         GRE and PPTP-GRE codec
+js/vxlan-codec.js       VXLAN and Geneve codec
+js/wireguard-codec.js   WireGuard message framing (structural)
+js/sctp-codec.js        SCTP chunks and CRC-32c
+js/ntp-codec.js         NTPv4 timestamps and extensions
+js/websocket-codec.js   WebSocket handshake and frames
+js/dhcpv6-codec.js      DHCPv6 messages, relay and options
+js/http3-codec.js       HTTP/3 frames, SETTINGS and static QPACK
+js/ipsec-codec.js       IPsec AH/ESP and IKEv2 framing
+js/lldp-codec.js        LLDP TLVs and capabilities
+js/subnet-codec.js      IPv4/IPv6 prefix arithmetic and VLSM
+js/checksum-codec.js    Internet checksum, CRC-32, CRC-32c, FNV, Adler
+js/ports-data.js        curated service-port registry
+js/glossary-data.js     networking glossary data
+js/quiz.js              static quiz bank and UI
 js/*-codec.js           shared protocol codecs
 js/*.js                 page wiring and page-local codecs
 fonts/                  JetBrains Mono (SIL OFL) + license
@@ -75,9 +102,11 @@ fonts/                  JetBrains Mono (SIL OFL) + license
 - URLs stay flat (`icmp.html`, not `/icmp`). Clean URLs require server rewrites.
 - The workbench reads classic pcap and pcapng (SHB/IDB/EPB/SPB, multiple sections, DSB/NRB/ISB)
   and supports Ethernet, raw IP, IPv4, IPv6, Linux SLL/SLL2, null/loopback, Radiotap/802.11,
-  PPPoE, MPLS, VXLAN/Geneve and SCTP. Captures are never uploaded or stored. The optional
-  parser worker is skipped on `file://` and falls back to the main thread.
+  PPPoE, MPLS, VXLAN/Geneve and SCTP. The dissector also recognises ICMPv6/NDP, DHCPv6,
+  OSPF, GRE, NTP, WireGuard, IPsec AH/ESP, IKEv2 and LLDP. Captures are never uploaded or
+  stored. The optional parser worker is skipped on `file://` and falls back to the main
+  thread.
 - Serve `404.html` with a 404 status for missing paths. For nginx:
   `error_page 404 /404.html;`
-- RFCs are the source of truth. Verify against the current RFC, errata and your implementation
+- RFCs are the source of truth. Verify against the current RFC, errata and the implementation
   before putting anything on the wire.

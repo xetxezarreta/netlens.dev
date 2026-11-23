@@ -17,7 +17,16 @@
     if (index.dns && index.dns.summary) return index.dns.summary;
     if (index.tls && index.tls.summary) return index.tls.summary;
     if (index.dhcp && index.dhcp.summary) return index.dhcp.summary;
+    if (index.dhcpv6 && index.dhcpv6.summary) return index.dhcpv6.summary;
     if (index.bgp && index.bgp.summary) return index.bgp.summary;
+    if (index.ospf && index.ospf.summary) return index.ospf.summary;
+    if (index.ntp && index.ntp.summary) return index.ntp.summary;
+    if (index.wireguard && index.wireguard.summary) return index.wireguard.summary;
+    if (index.ipsec && index.ipsec.summary) return index.ipsec.summary;
+    if (index.lldp && index.lldp.summary) return index.lldp.summary;
+    if (index.gre) return "GRE · protocol 0x" + (index.gre.protocol || 0).toString(16).padStart(4, "0") + (index.gre.key != null ? " · key " + index.gre.key : "");
+    if (index.vxlan) return "VXLAN · VNI " + (index.vxlan.vni == null ? "—" : index.vxlan.vni);
+    if (index.sctp) return index.sctp.sport + " → " + index.sctp.dport + " · SCTP · " + (index.sctp.chunks || 0) + " chunk(s)";
     if (index.tcp) return index.tcp.sport + " → " + index.tcp.dport + " [" + flags(index.tcp.flags) + "] Seq=" + index.tcp.seq + " Len=" + index.tcp.payloadLen;
     if (index.udp) return index.udp.sport + " → " + index.udp.dport + " Len=" + index.udp.len;
     if (index.icmp) return "ICMP type " + index.icmp.type + " code " + index.icmp.code;
@@ -116,6 +125,53 @@
       index.icmpv6 = {
         type: bytes[icmpv6.offset] == null ? 0 : bytes[icmpv6.offset],
         code: bytes[icmpv6.offset + 1] == null ? 0 : bytes[icmpv6.offset + 1]
+      };
+    }
+    const ospf = find(result.layers, "ospf");
+    if (ospf && ospf.meta && ospf.meta.parsed) {
+      const value = ospf.meta.parsed;
+      index.ospf = { type: value.type, area: value.areaId, router: value.routerId, summary: ospf.summary };
+    }
+    const gre = find(result.layers, "gre");
+    if (gre && gre.meta && gre.meta.parsed) {
+      const value = gre.meta.parsed;
+      index.gre = { protocol: value.protocol, key: value.key, sequence: value.sequence, headerLen: value.headerLength };
+    }
+    const vxlan = find(result.layers, "vxlan") || find(result.layers, "geneve");
+    if (vxlan) {
+      const vni = vxlan.fields.find((field) => field.name === "VNI");
+      index.vxlan = { vni: vni ? Number(vni.value) : null };
+    }
+    const sctp = find(result.layers, "sctp");
+    if (sctp && sctp.meta && sctp.meta.parsed) {
+      const value = sctp.meta.parsed;
+      index.sctp = { sport: value.srcPort, dport: value.dstPort, tag: value.verificationTag, chunks: value.chunks.length };
+    }
+    const ntp = find(result.layers, "ntp");
+    if (ntp && ntp.meta && ntp.meta.ntp) {
+      const value = ntp.meta.ntp;
+      index.ntp = { mode: value.mode, stratum: value.stratum, summary: ntp.summary };
+    }
+    const dhcpv6 = find(result.layers, "dhcpv6");
+    if (dhcpv6 && dhcpv6.meta && dhcpv6.meta.dhcp6) {
+      const value = dhcpv6.meta.dhcp6;
+      index.dhcpv6 = { type: value.type, xid: value.transactionId, summary: dhcpv6.summary };
+    }
+    const wireguard = find(result.layers, "wireguard");
+    if (wireguard && wireguard.meta && wireguard.meta.wg) {
+      index.wireguard = { type: wireguard.meta.wg.type, summary: wireguard.summary };
+    }
+    const ipsec = find(result.layers, "ipsec");
+    if (ipsec && ipsec.meta && ipsec.meta.parsed) {
+      const value = ipsec.meta.parsed;
+      index.ipsec = { spi: value.spi, sequence: value.sequence, summary: ipsec.summary };
+    }
+    const lldp = find(result.layers, "lldp");
+    if (lldp && lldp.meta && lldp.meta.lldp) {
+      const value = lldp.meta.lldp;
+      index.lldp = {
+        ttl: value.ttl, chassis: value.chassis && value.chassis.address,
+        port: value.port && value.port.address, summary: lldp.summary
       };
     }
     const dns = find(result.layers, "dns");

@@ -207,7 +207,7 @@
       <p>
         Build an Ethernet II frame and optionally insert an 802.1Q tag, pad the payload to the
         minimum and append the CRC-32 FCS. A real NIC normally adds the FCS in hardware; the
-        checkbox exists so you can produce a complete on-wire frame for a lab tool.
+        checkbox permits construction of a complete on-wire frame for laboratory use.
       </p>
 
       <div class="codec">
@@ -278,7 +278,7 @@
             <div class="callout" style="margin:0">
               <div class="callout__title">the FCS is not authentication</div>
               <p>CRC-32 detects accidental corruption. It does not stop a sender from forging a
-              frame; use MACsec, IPsec or higher-layer authentication when you need integrity
+              frame; MACsec, IPsec or higher-layer authentication is required for integrity
               against an attacker.</p>
             </div>
           </div>
@@ -293,9 +293,9 @@
       </div>
       <p>
         Paste a frame starting at the destination MAC. An optional 7×<code>55</code> preamble
-        plus <code>D5</code> SFD is detected and skipped. Set the FCS mode if your capture is
-        known to include or exclude the trailing CRC; automatic mode strips it only when the
-        CRC validates.
+        plus <code>D5</code> SFD is detected and skipped. The FCS mode should be selected when
+        the capture is known to include or exclude the trailing CRC; automatic mode removes it
+        only when the CRC validates.
       </p>
 
       <div class="codec-panel codec-panel--wide">

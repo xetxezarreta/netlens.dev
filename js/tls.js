@@ -15,7 +15,7 @@
 
   const TLS_STEPS = [
     {
-      caption: "<b>ClientHello.</b> The client offers TLS 1.3, cipher suites, a key share and extensions. This is a plaintext Handshake record: a capture can read it.",
+      caption: "<b>ClientHello.</b> The client offers TLS 1.3, cipher suites, a key share and extensions. This is a plaintext Handshake record and is readable in a capture.",
       client: "ClientHello sent", server: "listening", record: "Handshake", keys: "plaintext", capture: "readable",
       state: "plaintext", stateClass: "warn-text", active: ["client"], match: ["server"]
     },

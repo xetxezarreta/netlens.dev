@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WireGuard messages — handshake and transport data · netlens.dev</title>
+<meta name="description" content="WireGuard message types, Handshake Initiation and Response fields, Cookie Reply, Transport Data, indices, counters, MAC1/MAC2, UDP 51820, structural encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#messages">message types</a></li>
+        <li><a href="#handshake">handshake</a></li>
+        <li><a href="#transport">transport data</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>WireGuard</b> runs over UDP, default port <b>51820</b>. Message types 1–4 are little-endian 32-bit values with the upper 24 bits reserved.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>wireguard</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>WireGuard <span class="on">// Noise handshake on UDP</span></h1>
+      <p class="lead">
+        WireGuard is a compact VPN protocol built on the Noise protocol framework.
+        Four message types define the protocol: two handshake messages, a cookie reply for
+        load mitigation and the transport-data message. There are no options, no cipher
+        negotiation and no version field beyond the message type.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>WireGuard</b> · protocol paper</span>
+        <a class="badge" href="https://www.wireguard.com/protocol/" target="_blank" rel="noopener">protocol specification</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7748" target="_blank" rel="noopener">RFC 7748 · X25519</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8439" target="_blank" rel="noopener">RFC 8439 · ChaCha20-Poly1305</a>
+        <span class="badge">UDP 51820</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> internet / VPN</span>
+        <span><b>transport</b> UDP</span>
+        <span><b>crypto</b> Noise_IKpsk2 · ChaCha20-Poly1305</span>
+        <span><b>messages</b> 4 types</span>
+      </div>
+      <div class="stackbar" data-stack="wireguard"></div>
+      <ul class="toc">
+        <li><a href="#messages">types</a></li>
+        <li><a href="#handshake">handshake</a></li>
+        <li><a href="#transport">transport</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="messages">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message types</h2>
+        <span class="section__hint">4-byte little-endian type</span>
+      </div>
+      <p>
+        The first 32 bits are a little-endian message type. The low byte is 1–4; the other
+        three bytes are reserved and must be zero. Unlike TLS, there is no record layer and
+        no plaintext alert channel. A malformed message is discarded.
+      </p>
+      <div id="wg-type-lane"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Message</th><th>Size</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>Handshake Initiation</b></td><td>148 B</td><td>Sender index, ephemeral public key, encrypted static key, encrypted timestamp, MAC1, MAC2</td></tr>
+            <tr><td><code>2</code></td><td><b>Handshake Response</b></td><td>92 B</td><td>Sender and receiver indices, ephemeral public key, encrypted empty, MAC1, MAC2</td></tr>
+            <tr><td><code>3</code></td><td><b>Cookie Reply</b></td><td>64 B</td><td>Receiver index, nonce, encrypted cookie; used under load</td></tr>
+            <tr><td><code>4</code></td><td><b>Transport Data</b></td><td>≥ 32 B</td><td>Receiver index, 64-bit counter, encrypted inner packet and AEAD tag</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">This page is structural, not a crypto implementation</div>
+        <p>The codec reads the fields and lengths. It does not perform X25519, ChaCha20-Poly1305,
+        BLAKE2s, MAC1/MAC2 verification or key derivation. A “valid” parse means the bytes
+        match the message shape, not that the peer is authenticated.</p>
+      </div>
+    </section>
+
+    <section class="section" id="handshake">
+      <div class="section__head">
+        <h2><span class="num">02</span>Handshake</h2>
+        <span class="section__hint">initiation · response · cookie</span>
+      </div>
+      <div id="wg-init-lane"></div>
+      <div id="wg-response-lane"></div>
+      <p>
+        The handshake is a Noise IKpsk2 exchange. The initiator knows the responder's static
+        public key; the responder learns the initiator's static key from the encrypted field.
+        The ephemeral keys provide forward secrecy. A cookie reply is a stateless
+        proof-of-address mechanism, not a session message.
+      </p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Step</th><th>Message</th><th>Direction</th><th>What it establishes</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Handshake Initiation</td><td>initiator → responder</td><td>Initiator ephemeral, encrypted static identity, timestamp, MACs</td></tr>
+            <tr><td>2</td><td>Handshake Response</td><td>responder → initiator</td><td>Responder ephemeral, confirmation, derived transport keys</td></tr>
+            <tr><td>3</td><td>Transport Data</td><td>both directions</td><td>Encrypted inner IP packets with per-message counter</td></tr>
+            <tr><td>4</td><td>Cookie Reply</td><td>responder → initiator</td><td>Under load only; binds the source address to a cookie</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="transport">
+      <div class="section__head">
+        <h2><span class="num">03</span>Transport data</h2>
+        <span class="section__hint">the message type most frequently observed</span>
+      </div>
+      <div id="wg-data-lane"></div>
+      <p>
+        Transport data is 16 bytes of header followed by ciphertext. The 64-bit counter is
+        little-endian, starts at zero for each key and must never repeat under the same key.
+        The first 16 bytes of the encrypted payload are the Poly1305 tag; the inner packet
+        follows. Without keys the inner IPv4/IPv6 packet is opaque.
+      </p>
+      <div class="callout">
+        <div class="callout__title">The receiver index is not an IP address</div>
+        <p>It is a local handle the receiver chose for this session. It changes when the
+        session is rekeyed and is not routable. It should not be mapped to a peer without the
+        WireGuard state.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Structural encoder</h2>
+        <span class="section__hint">transport data or zero-filled handshake</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build a WireGuard message</h3><span class="tag" id="wg-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="wg-encode-form" onsubmit="return false">
+              <div class="field-grid">
+                <div class="form-field"><label for="wg-enc-type">message type</label><select id="wg-enc-type"><option value="4">4 · Transport Data</option><option value="1">1 · Handshake Initiation</option><option value="2">2 · Handshake Response</option><option value="3">3 · Cookie Reply</option></select></div>
+                <div class="form-field"><label for="wg-enc-sender">sender index <span class="units">handshake</span></label><input type="text" id="wg-enc-sender" value="1" spellcheck="false"></div>
+                <div class="form-field"><label for="wg-enc-receiver">receiver index <span class="units">transport / response</span></label><input type="text" id="wg-enc-receiver" value="1" spellcheck="false"></div>
+                <div class="form-field"><label for="wg-enc-counter">counter <span class="units">64-bit</span></label><input type="text" id="wg-enc-counter" value="0" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="wg-enc-payload">encrypted payload <span class="units">hex · must include a 16-byte tag</span></label><input type="text" id="wg-enc-payload" class="hex-input" value="00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 45 00 00 14" spellcheck="false"></div>
+                <div class="form-field"><label for="wg-enc-nonce">cookie nonce <span class="units">24 B · type 3</span></label><input type="text" id="wg-enc-nonce" class="hex-input" value="" placeholder="24 bytes" spellcheck="false"></div>
+              </div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="wg-build">Build message</button><button class="btn btn--ghost" type="button" id="wg-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="wg-export">JSON</button></div>
+              <p class="form-note">Handshake messages are built with zero-filled cryptographic fields. They are diagrams of the layout, not usable handshakes.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">WireGuard</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="wg-encode-status" role="status" aria-live="polite">Choose a type and press Build message.</div>
+            <div class="output"><div class="row-between"><div class="output__label">message hex</div><button class="copy-btn" type="button" data-copy-target="#wg-enc-output">copy</button></div><pre id="wg-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="wg-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">message framing only</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">4 message types</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="wg-decode-input">hex input <span class="units">WireGuard message</span></label><textarea id="wg-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="wg-decode">Decode</button><button class="btn btn--ghost" type="button" id="wg-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="wg-decode-clear">Clear</button></div>
+          <div class="codec-status" id="wg-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="wg-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">design characteristics</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>No cipher negotiation.</strong> The protocol fixes Curve25519, ChaCha20-Poly1305, BLAKE2s and HKDF. A capture cannot show a downgrade because there is nothing to downgrade to.</li>
+        <li><strong>No version in the packet.</strong> The message type and the protocol itself are the version. A future incompatible design would need a different framing.</li>
+        <li><strong>Stateless until authenticated.</strong> The responder does not keep per-initiator state before it validates the handshake, which is why cookie replies exist.</li>
+        <li><strong>Roaming is a feature.</strong> The peer's source address can change; the session is identified by indices and keys, not by the outer 5-tuple.</li>
+        <li><strong>Keepalives are empty transport packets.</strong> They are encrypted like any other transport message; the inner payload is zero length.</li>
+        <li><strong>Capture visibility is limited.</strong> Endpoints, timing, sizes and indices are visible. Inner addresses, ports and payload are not visible without keys.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.wireguard.com/protocol/" target="_blank" rel="noopener">WireGuard protocol</a><span>specification</span></li>
+        <li><a href="https://www.wireguard.com/papers/wireguard.pdf" target="_blank" rel="noopener">WireGuard paper</a><span>design and cryptography</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7748" target="_blank" rel="noopener">RFC 7748</a><span>X25519</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8439" target="_blank" rel="noopener">RFC 8439</a><span>ChaCha20-Poly1305</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7693" target="_blank" rel="noopener">RFC 7693</a><span>BLAKE2</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="sctp.html">SCTP chunks -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/wireguard-codec.js"></script>
+<script src="js/wireguard.js"></script>
+</body>
+</html>

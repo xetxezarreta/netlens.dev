@@ -55,7 +55,7 @@
       answer: "—", ttl: "—", cache: ".com + example.com NS"
     },
     {
-      caption: "<b>Answer.</b> The authoritative server returns the A record <code>192.0.2.80</code> with TTL 300. This is authoritative data, not a cached guess.",
+      caption: "<b>Answer.</b> The authoritative server returns the A record <code>192.0.2.80</code> with TTL 300. This is authoritative data rather than a cached inference.",
       state: "answer", stateClass: "good-text", mode: "is-answer",
       active: ["auth"], match: ["resolver"], link: "resolver-auth",
       stubNote: "waiting", resolverNote: "answer received",
@@ -121,7 +121,7 @@
     { id: "rd", name: "RD", bits: 1, range: "0 / 1", rfc: "RFC 1035", rfcUrl: RFC.base, desc: "Recursion Desired. A client asks the server to resolve the name recursively. Copies of this bit appear in the response for correlation." },
     { id: "ra", name: "RA", bits: 1, range: "0 / 1", rfc: "RFC 1035", rfcUrl: RFC.base, desc: "Recursion Available. The server is willing to perform recursion. A stub resolver should not expect recursion from a server that clears RA." },
     { id: "z", name: "Z", bits: 1, range: "0", rfc: "RFC 1035", rfcUrl: RFC.base, desc: "Reserved. Must be zero. Historically part of a three-bit Z field; AD and CD now occupy two of those bits." },
-    { id: "ad", name: "AD", bits: 1, range: "0 / 1", rfc: "RFC 4035", rfcUrl: "https://www.rfc-editor.org/rfc/rfc4035", desc: "Authentic Data. Set by a validating resolver when all data in the answer was DNSSEC-validated. It is a claim, not a signature you can verify from this message alone." },
+    { id: "ad", name: "AD", bits: 1, range: "0 / 1", rfc: "RFC 4035", rfcUrl: "https://www.rfc-editor.org/rfc/rfc4035", desc: "Authentic Data. Set by a validating resolver when all data in the answer was DNSSEC-validated. It is an assertion that cannot be verified from this message alone." },
     { id: "cd", name: "CD", bits: 1, range: "0 / 1", rfc: "RFC 4035", rfcUrl: "https://www.rfc-editor.org/rfc/rfc4035", desc: "Checking Disabled. A client asks a validating resolver not to reject data that fails DNSSEC validation, usually for debugging." },
     { id: "rcode", name: "RCODE", bits: 4, range: "0–15", rfc: "RFC 1035 · RFC 6891", rfcUrl: RFC.edns, desc: "Response code. 0 is NOERROR, 3 is NXDOMAIN. EDNS extends this to 12 bits using the OPT record's extended RCODE field." }
   ];

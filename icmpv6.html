@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICMPv6, NDP &amp; SLAAC — bit diagrams, encoder, decoder · netlens.dev</title>
+<meta name="description" content="ICMPv6 message layout, Neighbor Discovery options, Router Advertisement and Prefix Information fields, DAD and SLAAC, with a checksum-aware encoder and decoder for echo, NS, NA, RA, RS and error messages.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">message layout</a></li>
+        <li><a href="#types">types &amp; codes</a></li>
+        <li><a href="#ndp">neighbor discovery</a></li>
+        <li><a href="#slaac">SLAAC &amp; DAD</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Checksum:</b> ICMPv6 covers an IPv6 pseudo-header in addition to the message. A message copied without its addresses cannot be verified. Next Header is <b>58</b>.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>icmpv6</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>ICMPv6 <span class="on">// NDP, SLAAC &amp; MLD</span></h1>
+      <p class="lead">
+        IPv6 has no ARP and no broadcast. Neighbor Discovery replaces both with ICMPv6
+        messages over link-local multicast. This page covers the common header, the
+        message types commonly encountered in a capture, the ND option TLVs and the
+        checksum used to validate a message.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 4443</b> · ICMPv6</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4861" target="_blank" rel="noopener">RFC 4861 · NDP</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4862" target="_blank" rel="noopener">RFC 4862 · SLAAC</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8200" target="_blank" rel="noopener">RFC 8200 · IPv6</a>
+        <span class="badge">next header 58</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> internet / control</span>
+        <span><b>header</b> 4 B + type-specific body</span>
+        <span><b>checksum</b> IPv6 pseudo-header</span>
+        <span><b>carrier</b> IPv6 only</span>
+      </div>
+      <div class="stackbar" data-stack="icmpv6"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#types">types</a></li>
+        <li><a href="#ndp">NDP</a></li>
+        <li><a href="#slaac">SLAAC</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message layout</h2>
+        <span class="section__hint">select a field to pin it; Escape clears the selection</span>
+      </div>
+      <p>
+        Every ICMPv6 message starts with <strong>Type</strong>, <strong>Code</strong> and a
+        16-bit <strong>Checksum</strong>. The next 32 bits are type-specific: an echo
+        identifier and sequence, an MTU, a pointer, or the reserved field before a target
+        address. The checksum is computed over the IPv6 pseudo-header, the ICMPv6 header
+        and the entire ICMPv6 body.
+      </p>
+
+      <div id="icmpv6-diagram"></div>
+      <div class="field-detail" id="icmpv6-inspector"></div>
+      <div id="icmpv6-fields"></div>
+
+      <div class="callout">
+        <div class="callout__title">ICMPv6 is not ICMPv4 with a different number</div>
+        <p>The type space, the error codes and the checksum pseudo-header are different.
+        Router Solicitation, Router Advertisement, Neighbor Solicitation, Neighbor
+        Advertisement and Redirect live only in ICMPv6. MLD uses types 130–132 and 143.</p>
+      </div>
+    </section>
+
+    <section class="section" id="types">
+      <div class="section__head">
+        <h2><span class="num">02</span>Types &amp; codes</h2>
+        <span class="section__hint">8-bit type · 8-bit code</span>
+      </div>
+      <p>
+        The type determines the body layout. Error messages carry the beginning of the
+        invoking packet for diagnosis; informational messages are usually self-contained.
+        The code refines the meaning but does not change the body in most cases.
+      </p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Name</th><th>Common codes</th><th>Body after checksum</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>Destination Unreachable</b></td><td>0 no route, 1 admin prohibited, 3 address unreachable, 4 port unreachable</td><td>unused 32 bits + invoking packet</td><td>RFC 4443 §3.1</td></tr>
+            <tr><td><code>2</code></td><td><b>Packet Too Big</b></td><td>0</td><td>MTU 32 bits + invoking packet</td><td>RFC 4443 §3.2</td></tr>
+            <tr><td><code>3</code></td><td><b>Time Exceeded</b></td><td>0 hop limit, 1 reassembly</td><td>unused 32 bits + invoking packet</td><td>RFC 4443 §3.3</td></tr>
+            <tr><td><code>4</code></td><td><b>Parameter Problem</b></td><td>0 bad header field, 1 unknown next header, 2 unknown option</td><td>pointer 32 bits + invoking packet</td><td>RFC 4443 §3.4</td></tr>
+            <tr><td><code>128</code></td><td><b>Echo Request</b></td><td>0</td><td>identifier 16 + sequence 16 + data</td><td>RFC 4443 §4.1</td></tr>
+            <tr><td><code>129</code></td><td><b>Echo Reply</b></td><td>0</td><td>identifier 16 + sequence 16 + data</td><td>RFC 4443 §4.2</td></tr>
+            <tr><td><code>133</code></td><td><b>Router Solicitation</b></td><td>0</td><td>reserved 32 bits + ND options</td><td>RFC 4861 §4.1</td></tr>
+            <tr><td><code>134</code></td><td><b>Router Advertisement</b></td><td>0</td><td>hop limit, flags, lifetimes + options</td><td>RFC 4861 §4.2</td></tr>
+            <tr><td><code>135</code></td><td><b>Neighbor Solicitation</b></td><td>0</td><td>reserved 32 + target 128 + options</td><td>RFC 4861 §4.3</td></tr>
+            <tr><td><code>136</code></td><td><b>Neighbor Advertisement</b></td><td>0</td><td>flags 32 + target 128 + options</td><td>RFC 4861 §4.4</td></tr>
+            <tr><td><code>137</code></td><td><b>Redirect</b></td><td>0</td><td>reserved 32 + target 128 + destination 128 + options</td><td>RFC 4861 §4.5</td></tr>
+            <tr><td><code>130–132</code></td><td><b>MLD query / report / done</b></td><td>0</td><td>multicast address + flags</td><td>RFC 3810</td></tr>
+            <tr><td><code>143</code></td><td><b>MLDv2 Report</b></td><td>0</td><td>record list</td><td>RFC 3810</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">Type 2 is Packet Too Big, not Fragmentation Needed</div>
+        <p>ICMPv4 uses type 3 code 4 for “fragmentation needed and DF set”. IPv6 routers
+        never fragment, so the equivalent is ICMPv6 type 2 with the next-hop MTU. Treating
+        the two as the same breaks path-MTU discovery.</p>
+      </div>
+    </section>
+
+    <section class="section" id="ndp">
+      <div class="section__head">
+        <h2><span class="num">03</span>Neighbor Discovery</h2>
+        <span class="section__hint">RS · RA · NS · NA · Redirect</span>
+      </div>
+      <p>
+        Neighbor Discovery is a set of ICMPv6 messages plus a TLV option space. A host
+        discovers routers with RS/RA, resolves a link-layer address with NS/NA, detects
+        duplicate addresses with DAD, and learns prefixes for stateless address
+        autoconfiguration from Prefix Information options.
+      </p>
+
+      <div id="icmpv6-nd-lane"></div>
+
+      <h3 class="mt-24">Common ND options</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Option</th><th>Length</th><th>Fields</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>Source Link-Layer Address</b></td><td>8 B for Ethernet</td><td>type, length, MAC address</td><td>RFC 4861 §4.6.1</td></tr>
+            <tr><td><code>2</code></td><td><b>Target Link-Layer Address</b></td><td>8 B for Ethernet</td><td>type, length, MAC address</td><td>RFC 4861 §4.6.1</td></tr>
+            <tr><td><code>3</code></td><td><b>Prefix Information</b></td><td>32 B</td><td>prefix length, L/A/R flags, valid and preferred lifetimes, prefix</td><td>RFC 4861 §4.6.2</td></tr>
+            <tr><td><code>4</code></td><td><b>Redirected Header</b></td><td>var</td><td>reserved, original packet</td><td>RFC 4861 §4.6.3</td></tr>
+            <tr><td><code>5</code></td><td><b>MTU</b></td><td>8 B</td><td>reserved, MTU</td><td>RFC 4861 §4.6.4</td></tr>
+            <tr><td><code>24</code></td><td><b>Route Information</b></td><td>var</td><td>prefix length, preference, lifetime, prefix</td><td>RFC 4191</td></tr>
+            <tr><td><code>25</code></td><td><b>Recursive DNS Server</b></td><td>var</td><td>lifetime, IPv6 addresses</td><td>RFC 8106</td></tr>
+            <tr><td><code>31</code></td><td><b>DNS Search List</b></td><td>var</td><td>lifetime, encoded domain names</td><td>RFC 8106</td></tr>
+            <tr><td><code>38</code></td><td><b>PREF64</b></td><td>16 B</td><td>scaled lifetime, prefix length, NAT64 prefix</td><td>RFC 8781</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mt-24">Router Advertisement in detail</h3>
+      <div id="icmpv6-ra-lane"></div>
+
+      <div class="callout">
+        <div class="callout__title">The M and O flags are not “DHCP on/off”</div>
+        <p><strong>M</strong> tells hosts to use DHCPv6 for addresses; <strong>O</strong> tells
+        them to use DHCPv6 for other configuration such as DNS. A network can use SLAAC for
+        addresses and DHCPv6 only for DNS. A router can also advertise both and let the host
+        choose. Read the flags with the prefix's A and L bits, not in isolation.</p>
+      </div>
+    </section>
+
+    <section class="section" id="slaac">
+      <div class="section__head">
+        <h2><span class="num">04</span>SLAAC &amp; DAD</h2>
+        <span class="section__hint">from prefix to usable address</span>
+      </div>
+      <p>
+        Stateless Address Autoconfiguration combines an advertised prefix with an interface
+        identifier. The host first forms a tentative address, runs Duplicate Address Detection
+        with a Neighbor Solicitation to the solicited-node multicast address, and only then
+        assigns the address. Privacy extensions (RFC 8981) change the interface identifier
+        over time; they do not change the prefix.
+      </p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Step</th><th>Packet</th><th>Destination</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Router Solicitation</td><td><code>ff02::2</code></td><td>Ask for a Router Advertisement now</td></tr>
+            <tr><td>2</td><td>Router Advertisement</td><td><code>ff02::1</code> or unicast</td><td>Prefix, default router, MTU, DNS options</td></tr>
+            <tr><td>3</td><td>Neighbor Solicitation (DAD)</td><td>solicited-node multicast</td><td>Probe the tentative address</td></tr>
+            <tr><td>4</td><td>Neighbor Advertisement</td><td>all-nodes multicast</td><td>Someone already owns it; do not assign</td></tr>
+            <tr><td>5</td><td>Neighbor Solicitation</td><td>solicited-node multicast</td><td>Resolve the router's link-layer address</td></tr>
+            <tr><td>6</td><td>Neighbor Advertisement</td><td>unicast</td><td>Router MAC learned; traffic can flow</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">DAD is not authenticated</div>
+        <p>Any host on the link can answer a DAD probe and block an address. First-hop
+        security, RA Guard and ND inspection exist because Neighbor Discovery trusts the
+        link. A clean DAD result indicates that no response was received within the
+        detection window; it does not establish ownership of the address.</p>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Encoder</h2>
+        <span class="section__hint">checksum uses the IPv6 pseudo-header</span>
+      </div>
+      <p>
+        Select a message type, complete the fields and supply the IPv6 source and destination
+        so that the checksum can be computed. Echo, RS, RA, NS, NA and the four error types have
+        dedicated bodies. The encoder builds structurally valid bytes; it does not sign,
+        encrypt or claim that a Neighbor Advertisement is trustworthy.
+      </p>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an ICMPv6 message</h3><span class="tag" id="icmpv6-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="icmpv6-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="icmpv6-enc-type">type <span class="units">0–255</span></label><select id="icmpv6-enc-type"></select></div>
+                <div class="form-field"><label for="icmpv6-enc-code">code <span class="units">0–255</span></label><input type="number" id="icmpv6-enc-code" value="0" min="0" max="255" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-dst">IPv6 destination <span class="units">checksum</span></label><input type="text" id="icmpv6-enc-dst" value="2001:db8::2" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="icmpv6-enc-src">IPv6 source <span class="units">checksum</span></label><input type="text" id="icmpv6-enc-src" value="2001:db8::1" spellcheck="false"></div>
+                <div class="form-field"><label for="icmpv6-enc-id">identifier <span class="units">echo only</span></label><input type="number" id="icmpv6-enc-id" value="4660" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-seq">sequence <span class="units">echo only</span></label><input type="number" id="icmpv6-enc-seq" value="1" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-mtu">MTU <span class="units">packet too big</span></label><input type="number" id="icmpv6-enc-mtu" value="1280" min="0" max="4294967295" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-pointer">pointer <span class="units">parameter problem</span></label><input type="number" id="icmpv6-enc-pointer" value="6" min="0" max="4294967295" inputmode="numeric"></div>
+                <div class="form-field span-2" id="icmpv6-enc-target-group"><label for="icmpv6-enc-target">target address <span class="units">NS / NA</span></label><input type="text" id="icmpv6-enc-target" value="2001:db8::2" spellcheck="false"></div>
+                <div class="form-field"><label for="icmpv6-enc-curhop">current hop limit <span class="units">RA</span></label><input type="number" id="icmpv6-enc-curhop" value="64" min="0" max="255" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-router-life">router lifetime <span class="units">seconds</span></label><input type="number" id="icmpv6-enc-router-life" value="1800" min="0" max="65535" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-reach">reachable time <span class="units">ms</span></label><input type="number" id="icmpv6-enc-reach" value="0" min="0" max="4294967295" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-retrans">retrans timer <span class="units">ms</span></label><input type="number" id="icmpv6-enc-retrans" value="0" min="0" max="4294967295" inputmode="numeric"></div>
+                <div class="form-field"><label for="icmpv6-enc-prefix">prefix <span class="units">prefix option</span></label><input type="text" id="icmpv6-enc-prefix" value="2001:db8::" spellcheck="false"></div>
+                <div class="form-field"><label for="icmpv6-enc-prefixlen">prefix length</label><input type="number" id="icmpv6-enc-prefixlen" value="64" min="0" max="128" inputmode="numeric"></div>
+                <div class="form-field span-2"><label for="icmpv6-enc-data">body / quoted data <span class="units">hex · optional</span></label><input type="text" id="icmpv6-enc-data" class="hex-input" value="" placeholder="de ad be ef" spellcheck="false"></div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px">
+                <label><input type="checkbox" id="icmpv6-enc-managed"> M flag</label>
+                <label><input type="checkbox" id="icmpv6-enc-other"> O flag</label>
+                <label><input type="checkbox" id="icmpv6-enc-router" checked> R flag (NA)</label>
+                <label><input type="checkbox" id="icmpv6-enc-solicited" checked> S flag (NA)</label>
+                <label><input type="checkbox" id="icmpv6-enc-override" checked> O flag (NA)</label>
+                <label><input type="checkbox" id="icmpv6-enc-opt-slla" checked> source link-layer option</label>
+                <label><input type="checkbox" id="icmpv6-enc-opt-prefix"> prefix information option</label>
+                <label><input type="checkbox" id="icmpv6-enc-opt-mtu"> MTU option</label>
+              </div>
+              <div class="btn-row" style="margin-top:12px">
+                <button class="btn btn--primary" type="button" id="icmpv6-build">Build message</button>
+                <button class="btn btn--ghost" type="button" id="icmpv6-example">Load echo request</button>
+                <button class="btn btn--ghost" type="button" id="icmpv6-permalink">Permalink</button>
+                <button class="btn btn--ghost" type="button" id="icmpv6-export">JSON</button>
+              </div>
+              <p class="form-note">The checksum is computed over a 40-byte IPv6 pseudo-header (source, destination, 32-bit length, zeroes, Next Header 58) followed by the message. It is not an IPv4 pseudo-header.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">ICMPv6</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="icmpv6-encode-status" role="status" aria-live="polite">Choose a type and press Build message.</div>
+            <div class="output">
+              <div class="row-between"><div class="output__label">message hex · header + body</div><button class="copy-btn" type="button" data-copy-target="#icmpv6-enc-output">copy</button></div>
+              <pre id="icmpv6-enc-output" class="placeholder">no bytes built yet</pre>
+            </div>
+            <div class="decode-summary" id="icmpv6-enc-summary"></div>
+            <div class="callout" style="margin:0">
+              <div class="callout__title">what the checksum proves</div>
+              <p>It proves the message and pseudo-header survived the path without a bit error. It does not prove the sender, the neighbour or the prefix. ND spoofing is a separate problem.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">06</span>Decoder</h2>
+        <span class="section__hint">raw ICMPv6 · checksum optional</span>
+      </div>
+      <p>
+        Paste an ICMPv6 message. Supply the IPv6 source and destination to verify the
+        checksum; leave them blank to decode the structure and mark the checksum as
+        unverified. ND options, RA flags, prefixes and quoted packets are shown when present.
+      </p>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 4443 · RFC 4861</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field span-2"><label for="icmpv6-decode-input">hex input <span class="units">ICMPv6 message</span></label><textarea id="icmpv6-decode-input" class="hex-input" rows="5" spellcheck="false" placeholder="80 00 00 00 12 34 00 01"></textarea></div>
+            <div class="form-field"><label for="icmpv6-decode-src">IPv6 source <span class="units">for checksum</span></label><input type="text" id="icmpv6-decode-src" value="" spellcheck="false" placeholder="2001:db8::1"></div>
+            <div class="form-field"><label for="icmpv6-decode-dst">IPv6 destination <span class="units">for checksum</span></label><input type="text" id="icmpv6-decode-dst" value="" spellcheck="false" placeholder="2001:db8::2"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="icmpv6-decode">Decode</button>
+            <button class="btn btn--ghost" type="button" id="icmpv6-decode-example">Load example</button>
+            <button class="btn btn--ghost" type="button" id="icmpv6-decode-clear">Clear</button>
+          </div>
+          <div class="codec-status" id="icmpv6-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="icmpv6-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">07</span>Wire notes</h2>
+        <span class="section__hint">operational considerations</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>The checksum is mandatory.</strong> IPv6 has no “checksum not computed” option for ICMPv6. A zero checksum is wrong, not a wildcard.</li>
+        <li><strong>Neighbor Solicitation targets a solicited-node multicast address.</strong> For <code>2001:db8::1</code>, the destination is <code>ff02::1:ff00:1</code>; the last 24 bits come from the target address.</li>
+        <li><strong>DAD probes use the unspecified source.</strong> The NS is sent from <code>::</code> to the solicited-node group, with the tentative address in the Target Address field.</li>
+        <li><strong>RA lifetimes are 16-bit units and a zero router lifetime means “not a default router”.</strong> It does not mean the advertisement is invalid.</li>
+        <li><strong>Prefix Information L and A bits.</strong> L means on-link; A means autonomous (usable for SLAAC). A prefix can be on-link without being used for autoconfiguration.</li>
+        <li><strong>MLD is ICMPv6.</strong> MLDv1 types 130–132 and MLDv2 type 143 share the ICMPv6 header. They are not IGMP with a new name.</li>
+        <li><strong>ND has no authentication by default.</strong> SEND (RFC 3971) exists but is rarely deployed; RA Guard and ND inspection are operational mitigations.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4443" target="_blank" rel="noopener">RFC 4443</a><span>ICMPv6</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4861" target="_blank" rel="noopener">RFC 4861</a><span>Neighbor Discovery</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4862" target="_blank" rel="noopener">RFC 4862</a><span>SLAAC</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8200" target="_blank" rel="noopener">RFC 8200</a><span>IPv6</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3810" target="_blank" rel="noopener">RFC 3810</a><span>MLDv2</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8106" target="_blank" rel="noopener">RFC 8106</a><span>RA DNS options</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8781" target="_blank" rel="noopener">RFC 8781</a><span>PREF64</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8981" target="_blank" rel="noopener">RFC 8981</a><span>temporary addresses</span></li>
+      </ul>
+      <div class="next-protocol">
+        <span>next protocol</span>
+        <a href="ospf.html">OSPF routing packets -&gt;</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ipv6-codec.js"></script>
+<script src="js/icmpv6-codec.js"></script>
+<script src="js/icmpv6.js"></script>
+</body>
+</html>

@@ -47,7 +47,7 @@
       <h1>QUIC headers &amp; frames <span class="on">// RFC 9000</span></h1>
       <p class="lead">
         QUIC runs over UDP but its wire format is a stack of varints, protected headers and
-        typed frames. This page separates the parts you can see on the wire from the parts
+        typed frames. This page separates the parts observable on the wire from the parts
         that only exist after header protection and packet decryption.
       </p>
       <div class="badges">
@@ -128,7 +128,7 @@
         <p>Header protection masks the low bits of the first byte and the packet number field with
         a header-protection key derived from the same traffic secret. The first byte shown here is the logical,
         unprotected value. On the wire, the reserved bits, key phase and packet-number length
-        may appear different until you remove protection (RFC 9001 §5.4).</p>
+        may appear different until protection is removed (RFC 9001 §5.4).</p>
       </div>
     </section>
 
@@ -159,7 +159,7 @@
 
       <div class="codec">
         <div class="codec-panel">
-          <div class="codec-panel__head"><h3>varint playground</h3><span class="tag">0 to 2⁶²−1</span></div>
+          <div class="codec-panel__head"><h3>varint calculator</h3><span class="tag">0 to 2⁶²−1</span></div>
           <div class="codec-panel__body">
             <div class="form-field">
               <label for="quic-varint-input">value or bytes</label>
@@ -169,7 +169,7 @@
               <button class="btn btn--primary" type="button" id="quic-varint-encode">Encode value</button>
               <button class="btn" type="button" id="quic-varint-decode">Decode bytes</button>
             </div>
-            <div class="codec-status" id="quic-varint-status" role="status" aria-live="polite">Try a decimal value or a hex byte string.</div>
+            <div class="codec-status" id="quic-varint-status" role="status" aria-live="polite">Enter a decimal value or a hexadecimal byte string.</div>
             <div class="output">
               <div class="output__label">result</div>
               <pre id="quic-varint-out">no result yet</pre>
@@ -177,7 +177,7 @@
           </div>
         </div>
         <div class="codec-panel">
-          <div class="codec-panel__head"><h3>why not protobuf varints?</h3><span class="tag">different trade-off</span></div>
+          <div class="codec-panel__head"><h3>comparison with protobuf varints</h3><span class="tag">different trade-off</span></div>
           <div class="codec-panel__body">
             <ul class="dashed">
               <li>QUIC's prefix is at the <strong>front</strong>, so the decoder knows the length before reading the value.</li>
@@ -288,7 +288,7 @@
             <div class="decode-summary" id="quic-build-summary"></div>
             <div class="callout" style="margin:0">
               <div class="callout__title">decode it below</div>
-              <p>The decoder accepts a sequence of frames, so you can paste this output and see the
+              <p>The decoder accepts a sequence of frames, so the output can be supplied directly and the
               parsed fields. A frame is only valid inside the packet number space and encryption
               level where it was sent.</p>
             </div>
@@ -329,14 +329,14 @@
     <section class="section" id="notes">
       <div class="section__head">
         <h2><span class="num">06</span>Wire notes</h2>
-        <span class="section__hint">before you trust a frame dump</span>
+        <span class="section__hint">before relying on a frame dump</span>
       </div>
       <div class="callout callout--warn">
-        <div class="callout__title">you cannot parse a protected packet by hand</div>
+        <div class="callout__title">a protected packet cannot be parsed manually</div>
         <p>The long/short headers and frame list are logical views. On the wire, header protection
         masks bits and the payload is AEAD-protected. A “QUIC parser” that ignores keys can only
         decode the invariant portion of the connection ID and version. Wireshark shows decrypted
-        frames only when you supply the TLS secrets.</p>
+        frames only when the TLS secrets are supplied.</p>
       </div>
       <ul class="dashed">
         <li><strong>Version Negotiation has version 0.</strong> Its long header has no length field and the connection IDs are followed by a list of supported versions.</li>

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GRE tunnels — header bits, checksum, key, sequence · netlens.dev</title>
+<meta name="description" content="GRE (RFC 2784/2890) header diagram: C, R, K and S flags, protocol type, checksum, key, sequence, PPTP variant, inner IPv4/IPv6/Ethernet payload, encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">header layout</a></li>
+        <li><a href="#flags">flags &amp; protocols</a></li>
+        <li><a href="#inner">inner payload</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>GRE</b> is IP protocol <b>47</b>. The base header is four bytes; checksum, key, sequence and routing fields are optional and change the header length.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>gre</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>GRE <span class="on">// generic encapsulation</span></h1>
+      <p class="lead">
+        GRE encapsulates one network-layer protocol within another. It is widely used for
+        IP-in-IP tunnels, PPTP, some SD-WAN overlays, ERSPAN and experimental topologies.
+        The base header is short; the optional fields determine the full header length and
+        are therefore significant in capture analysis.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 2784</b> · GRE</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc2890" target="_blank" rel="noopener">RFC 2890 · key/seq</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc1701" target="_blank" rel="noopener">RFC 1701 · historic</a>
+        <span class="badge">IP protocol 47</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> internet / tunnel</span>
+        <span><b>base header</b> 4 B</span>
+        <span><b>optional</b> checksum · key · sequence · routing</span>
+        <span><b>carrier</b> IPv4 / IPv6</span>
+      </div>
+      <div class="stackbar" data-stack="gre"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#flags">flags</a></li>
+        <li><a href="#inner">inner</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Header layout</h2>
+        <span class="section__hint">optional fields follow the flags</span>
+      </div>
+      <p>
+        The first two octets are flags and version. The next two are the
+        <strong>Protocol Type</strong>, which describes the inner payload. If C or R is
+        set, a checksum and reserved word follow; if K is set, a 32-bit key follows; if S
+        is set, a 32-bit sequence number follows. Version 0 is GRE; version 1 is the PPTP
+        variant with a different optional-field layout.
+      </p>
+      <div id="gre-diagram"></div>
+      <div class="field-detail" id="gre-inspector"></div>
+      <div id="gre-fields"></div>
+      <div class="callout">
+        <div class="callout__title">The header is not self-describing</div>
+        <p>The flags must be read to determine whether the next four bytes are a checksum and
+        reserved pair, a key, or a sequence number. A parser that assumes a fixed four-byte
+        header will misplace the payload.</p>
+      </div>
+    </section>
+
+    <section class="section" id="flags">
+      <div class="section__head">
+        <h2><span class="num">02</span>Flags &amp; protocol types</h2>
+        <span class="section__hint">first 16 bits</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Bit</th><th>Flag</th><th>Meaning</th><th>Effect on header</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td><b>C</b></td><td>Checksum present</td><td>adds checksum (2 B) + reserved1 (2 B)</td></tr>
+            <tr><td><code>1</code></td><td><b>R</b></td><td>Routing present</td><td>adds checksum/reserved and routing information</td></tr>
+            <tr><td><code>2</code></td><td><b>K</b></td><td>Key present</td><td>adds a 32-bit key</td></tr>
+            <tr><td><code>3</code></td><td><b>S</b></td><td>Sequence present</td><td>adds a 32-bit sequence number</td></tr>
+            <tr><td><code>4</code></td><td><b>s</b></td><td>Strict source route</td><td>historic; source routing is obsolete</td></tr>
+            <tr><td><code>5–7</code></td><td><b>Recur</b></td><td>Recursion control</td><td>must be zero in modern GRE</td></tr>
+            <tr><td><code>8–12</code></td><td><b>Flags</b></td><td>Reserved</td><td>must be zero</td></tr>
+            <tr><td><code>13–15</code></td><td><b>Version</b></td><td>GRE version</td><td>0 = GRE, 1 = PPTP, others reserved</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Protocol Type</th><th>Inner payload</th><th>Typical use</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x0800</code></td><td>IPv4</td><td>IP-in-GRE tunnel</td></tr>
+            <tr><td><code>0x86DD</code></td><td>IPv6</td><td>IPv6-in-GRE tunnel</td></tr>
+            <tr><td><code>0x6558</code></td><td>Transparent Ethernet Bridging</td><td>L2 overlay / ERSPAN-style capture</td></tr>
+            <tr><td><code>0x8847</code></td><td>MPLS unicast</td><td>MPLS over GRE</td></tr>
+            <tr><td><code>0x880B</code></td><td>PPP</td><td>PPTP and PPP tunnels</td></tr>
+            <tr><td><code>0x88BE</code></td><td>ERSPAN Type II</td><td>remote packet capture</td></tr>
+            <tr><td><code>0x22EB</code></td><td>ERSPAN Type III</td><td>remote packet capture with metadata</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout--warn">
+        <div class="callout__title">GRE is not encrypted</div>
+        <p>GRE provides encapsulation, not confidentiality or authentication. IPsec or another layer must protect it if the path is untrusted. A GRE key is an identifier, not a secret.</p>
+      </div>
+    </section>
+
+    <section class="section" id="inner">
+      <div class="section__head">
+        <h2><span class="num">03</span>Inner payload</h2>
+        <span class="section__hint">what the tunnel carries</span>
+      </div>
+      <div id="gre-frame-lane"></div>
+      <p>
+        The outer IP header routes the packet between tunnel endpoints. The GRE header
+        identifies the payload. The inner packet is untouched by GRE; its TTL, addresses
+        and checksums belong to the inner network. Recursive tunnels can exceed the MTU and
+        cause fragmentation or PMTUD black holes.
+      </p>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">checksum over GRE header + payload</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build a GRE header</h3><span class="tag" id="gre-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="gre-encode-form" onsubmit="return false">
+              <div class="field-grid">
+                <div class="form-field"><label for="gre-enc-proto">protocol type</label><select id="gre-enc-proto"><option value="2048">0x0800 · IPv4</option><option value="34525">0x86DD · IPv6</option><option value="25944">0x6558 · Ethernet</option><option value="34887">0x8847 · MPLS</option><option value="34827">0x880B · PPP</option><option value="35006">0x88BE · ERSPAN II</option><option value="8939">0x22EB · ERSPAN III</option></select></div>
+                <div class="form-field"><label for="gre-enc-version">version</label><select id="gre-enc-version"><option value="0">0 · GRE</option><option value="1">1 · PPTP</option></select></div>
+                <div class="form-field"><label for="gre-enc-key">key <span class="units">32-bit · optional</span></label><input type="text" id="gre-enc-key" value="42" spellcheck="false"></div>
+                <div class="form-field"><label for="gre-enc-seq">sequence <span class="units">32-bit · optional</span></label><input type="text" id="gre-enc-seq" value="1" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="gre-enc-payload">inner payload <span class="units">hex</span></label><input type="text" id="gre-enc-payload" class="hex-input" value="45 00 00 14 00 01 00 00 40 01 00 00 c0 00 02 01 c0 00 02 02" spellcheck="false"></div>
+                <div class="form-field"><label for="gre-enc-callid">PPTP call ID <span class="units">version 1</span></label><input type="text" id="gre-enc-callid" value="1" spellcheck="false"></div>
+                <div class="form-field"><label for="gre-enc-ack">PPTP acknowledgment <span class="units">optional</span></label><input type="text" id="gre-enc-ack" value="" spellcheck="false"></div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px">
+                <label><input type="checkbox" id="gre-enc-csum" checked> checksum</label>
+                <label><input type="checkbox" id="gre-enc-routing"> routing present</label>
+              </div>
+              <div class="btn-row" style="margin-top:12px">
+                <button class="btn btn--primary" type="button" id="gre-build">Build GRE</button>
+                <button class="btn btn--ghost" type="button" id="gre-permalink">Permalink</button>
+                <button class="btn btn--ghost" type="button" id="gre-export">JSON</button>
+              </div>
+              <p class="form-note">Version 1 uses the PPTP field layout. The codec builds it structurally but does not implement PPTP call control.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">GRE</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="gre-encode-status" role="status" aria-live="polite">Set the fields and press Build GRE.</div>
+            <div class="output"><div class="row-between"><div class="output__label">header + payload</div><button class="copy-btn" type="button" data-copy-target="#gre-enc-output">copy</button></div><pre id="gre-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="gre-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">raw GRE header or full IP packet</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 2784 · RFC 2890</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="gre-decode-input">hex input <span class="units">GRE header + payload</span></label><textarea id="gre-decode-input" class="hex-input" rows="5" spellcheck="false" placeholder="30 00 08 00 00 00 00 2a ..."></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="gre-decode">Decode</button><button class="btn btn--ghost" type="button" id="gre-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="gre-decode-clear">Clear</button></div>
+          <div class="codec-status" id="gre-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="gre-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">tunnel failure modes</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>MTU is the classic problem.</strong> GRE adds at least four bytes, more with key/sequence; encapsulation inside IPv4 or IPv6 adds another outer header. Inner DF can create PMTUD black holes.</li>
+        <li><strong>Checksum is optional and often absent.</strong> When present, it covers the GRE header and payload, with the checksum field zeroed. A bad checksum may be silently ignored by some implementations.</li>
+        <li><strong>The key is not a cryptographic key.</strong> It identifies a tunnel or flow. It does not authenticate the sender.</li>
+        <li><strong>Sequence numbers are per tunnel direction.</strong> They can help reorder detection, but GRE does not retransmit.</li>
+        <li><strong>PPTP is version 1.</strong> The same protocol number carries a different header. Do not decode PPTP GRE as RFC 2784 GRE.</li>
+        <li><strong>GRE and IPsec.</strong> GRE over IPsec is common; the outer ESP protects the GRE header and inner packet. Without keys the capture shows only ESP.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2784" target="_blank" rel="noopener">RFC 2784</a><span>GRE</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2890" target="_blank" rel="noopener">RFC 2890</a><span>key and sequence</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc1701" target="_blank" rel="noopener">RFC 1701</a><span>historic GRE</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc2637" target="_blank" rel="noopener">RFC 2637</a><span>PPTP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8086" target="_blank" rel="noopener">RFC 8086</a><span>GRE-in-UDP</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="vxlan.html">VXLAN overlays -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/gre-codec.js"></script>
+<script src="js/gre.js"></script>
+</body>
+</html>

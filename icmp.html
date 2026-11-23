@@ -47,10 +47,10 @@
     <div class="page-head">
       <h1>ICMP <span class="on">// RFC 792</span></h1>
       <p class="lead">
-        The control and error plane of IPv4. ICMP has an eight-byte common header and a
-        type-specific body: echo requests keep latency probes simple, while unreachable and
-        time-exceeded messages quote the packet that caused them. No ports, no pseudo-header,
-        and no security beyond the checksum.
+        The control and error protocol of IPv4. ICMP has an eight-byte common header and a
+        type-specific body: echo messages support latency measurement, while unreachable and
+        time-exceeded messages quote the packet that caused them. ICMP has no ports, no
+        pseudo-header and no security beyond the checksum.
       </p>
       <div class="badges">
         <span class="badge badge--accent"><b>RFC 792</b> · ICMPv4</span>
@@ -214,7 +214,7 @@
         <div class="callout__title">ICMP is unauthenticated control traffic</div>
         <p>Any host that can reach the path can send an ICMP error. The checksum protects
         against accidental corruption, not forgery. Validate quoted datagrams before changing
-        connection state, rate-limit ICMP generation, and do not blanket-drop all ICMP: path-MTU
+        connection state, rate-limit ICMP generation and avoid indiscriminate ICMP filtering: path-MTU
         discovery and IPv6 depend on it.</p>
       </div>
     </section>
@@ -225,7 +225,7 @@
         <span class="section__hint">TTL 1, 2, 3… · Time Exceeded · Echo Reply</span>
       </div>
       <p>
-        Traceroute abuses the IPv4 TTL field deliberately. Each probe starts with a larger TTL;
+        Traceroute deliberately exploits the IPv4 TTL field. Each probe starts with an increasing TTL;
         the router that decrements it to zero reports <strong>Time Exceeded</strong> and quotes
         the original datagram. The final probe reaches the destination and gets an Echo Reply.
       </p>
@@ -236,7 +236,7 @@
           <span class="tag" id="icmp-flow-counter" data-flow-counter>step 1 / 8</span>
         </div>
 
-        <div class="flow__scroll" tabindex="0" role="group" aria-label="ICMP traceroute diagram, scroll horizontally to see the path">
+        <div class="flow__scroll" tabindex="0" role="group" aria-label="ICMP traceroute diagram; scroll horizontally to inspect the path">
           <div class="flow__inner">
             <svg class="flow__svg" viewBox="0 0 720 240" role="img" aria-labelledby="icmp-flow-svg-title icmp-flow-svg-desc">
               <title id="icmp-flow-svg-title">ICMP traceroute with TTL expiry</title>
@@ -423,7 +423,7 @@
       <p>
         Build an ICMPv4 message with the type-specific rest-of-header. The checksum is calculated
         after the header and body are assembled. Optionally wrap the message in a minimal IPv4
-        packet so you can paste a complete on-wire unit into a lab tool or capture.
+        packet so that a complete on-wire unit can be supplied to a laboratory tool or capture.
       </p>
 
       <div class="codec">
@@ -562,7 +562,7 @@
         Paste an ICMP message, an IPv4 packet with Protocol <code>1</code>, or an Ethernet II
         frame carrying IPv4. The decoder validates both checksums, follows the type-specific
         rest-of-header, and parses quoted original datagrams and RFC 4884 extensions. Raw ICMP
-        is accepted directly, which is useful when your capture tool strips the IP header.
+        is accepted directly, which is useful when the capture tool removes the IP header.
       </p>
 
       <div class="codec-panel codec-panel--wide">
@@ -587,7 +587,7 @@
     <section class="section" id="notes">
       <div class="section__head">
         <h2><span class="num">07</span>Wire notes</h2>
-        <span class="section__hint">what the pcap does not tell you</span>
+        <span class="section__hint">limitations of capture data</span>
       </div>
       <div class="callout">
         <div class="callout__title">ICMPv6 is not ICMPv4</div>
@@ -603,7 +603,7 @@
         <li><strong>TTL expiry is not an error in the transport sense.</strong> Time Exceeded is normal traceroute behavior. The quoted datagram is how the sender knows which probe expired.</li>
         <li><strong>Redirects are a security liability.</strong> A host that accepts ICMP redirects can be steered through an attacker. Most modern stacks ignore redirects by default or require strict source/interface checks.</li>
         <li><strong>No authentication.</strong> ICMP has no signature, nonce or source authentication. The checksum detects accidental corruption only. ICMP filtering, rate limiting and quoted-packet validation are operational controls, not protocol guarantees.</li>
-        <li><strong>Deprecated does not mean absent.</strong> RFC 6633 deprecates Source Quench; RFC 6918 deprecates types 6, 15, 16, 17, 18 and 30–39. Old devices and lab traffic still emit them.</li>
+        <li><strong>Deprecated does not mean absent.</strong> RFC 6633 deprecates Source Quench; RFC 6918 deprecates types 6, 15, 16, 17, 18 and 30–39. Older devices and laboratory traffic may still emit them.</li>
       </ul>
 
       <h2 class="mt-24">References</h2>

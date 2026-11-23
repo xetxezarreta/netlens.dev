@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Packet workbench — open a capture, follow the stack · netlens.dev</title>
-<meta name="description" content="Open a pcap or pcapng capture in your browser: virtualized packet list, display filters, IP/TCP reassembly, expert info, TLS 1.3 key-log decryption, HAR/report export and field-level dissection. Parsed locally, never uploaded.">
+<title>Packet workbench — local capture analysis and dissection · netlens.dev</title>
+<meta name="description" content="Open a pcap or pcapng capture in the browser: virtualized packet list, display filters, IP/TCP reassembly, expert information, TLS 1.3 key-log decryption, HAR/report export and field-level dissection. Parsed locally and never uploaded.">
 <meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/styles.css">
@@ -45,13 +45,13 @@
     <div class="page-head">
       <h1>Packet workbench <span class="on">// pcap + pcapng</span></h1>
       <p class="lead">
-        Drop a capture and read it like a packet list: every frame, every layer, every offset.
+        Load a capture to inspect a packet list, every layer and every field offset.
         Filter by protocol or field, follow an unencrypted TCP stream, inspect conversations,
-        then read every field in the packet detail. The file is parsed in this tab
-        and never leaves your browser.
+        then inspect every field in the packet detail. The file is parsed in this tab
+        and never leaves the browser.
       </p>
       <div class="badges">
-        <span class="badge badge--accent"><b>local-only</b> · nothing uploaded</span>
+        <span class="badge badge--accent"><b>local-only</b> · no upload</span>
         <span class="badge">pcap</span>
         <span class="badge">pcapng</span>
         <span class="badge">display filters</span>
@@ -85,15 +85,15 @@
         <div class="codec-panel__body">
           <label class="wb-drop" id="wb-drop" for="wb-file" tabindex="0">
             <span class="wb-drop__icon" aria-hidden="true">[ + ]</span>
-            <span class="wb-drop__title">Drop a pcap or pcapng file</span>
-            <span class="wb-drop__hint">or click to choose · parsed locally · nothing uploaded</span>
+            <span class="wb-drop__title">Drag a pcap or pcapng file here</span>
+            <span class="wb-drop__hint">or select a file · parsed locally · no upload</span>
             <input id="wb-file" type="file" accept=".pcap,.pcapng,.cap,application/vnd.tcpdump.pcap,application/octet-stream" hidden>
           </label>
 
           <div class="wb-load-row">
             <button class="btn btn--ghost" type="button" id="wb-example">Load example capture</button>
             <button class="btn btn--ghost" type="button" id="wb-clear">Clear capture</button>
-            <button class="btn btn--ghost" type="button" id="wb-watch">Watch file for growth</button>
+            <button class="btn btn--ghost" type="button" id="wb-watch">Monitor file for changes</button>
             <span class="wb-load-note">250,000 packets / 500 MB per capture in this build.</span>
           </div>
 
@@ -154,7 +154,7 @@
             <option value="delta">delta</option>
             <option value="absolute">absolute UTC</option>
           </select>
-          <label for="wb-find">find</label>
+          <label for="wb-find">search</label>
           <input type="search" id="wb-find" placeholder="packet info, host, port" autocomplete="off" spellcheck="false">
           <button class="btn btn--ghost" type="button" id="wb-find-next">Next</button>
           <label for="wb-goto">go to</label>
@@ -184,7 +184,7 @@
         <div class="wb-list" id="wb-list" role="listbox" aria-label="Packets" tabindex="0">
           <div id="wb-list-spacer"></div>
         </div>
-        <div class="wb-empty" id="wb-empty">Open a capture to see packets here.</div>
+        <div class="wb-empty" id="wb-empty">Open a capture to display packets here.</div>
       </div>
       <div class="wb-list-foot">
         <button class="btn btn--ghost" type="button" id="wb-more" hidden>Show more packets</button>
@@ -204,7 +204,7 @@
     <section class="section" id="detail">
       <div class="section__head">
         <h2><span class="num">03</span>Packet detail</h2>
-        <span class="section__hint">click a packet · hover a layer · read every byte</span>
+        <span class="section__hint">select a packet · point to a layer · inspect every byte</span>
       </div>
 
       <div class="codec-panel codec-panel--wide">
@@ -267,14 +267,16 @@
     <section class="section" id="limits">
       <div class="section__head">
         <h2><span class="num">05</span>Formats, filters &amp; limits</h2>
-        <span class="section__hint">what this build deliberately does not do</span>
+        <span class="section__hint">scope and limitations</span>
       </div>
 
       <p>
         The workbench reads classic pcap and a practical subset of pcapng. It follows the same
         encapsulation chain as the protocol pages: Ethernet,
         VLAN, Linux SLL/SLL2, null/loopback, raw IP, IPv4/IPv6, TCP/UDP/ICMP, then DNS, DHCP,
-        HTTP, TLS and opaque payloads.
+        HTTP, TLS and opaque payloads. The extended decoders cover ICMPv6/NDP, DHCPv6, OSPF,
+        GRE, VXLAN/Geneve, SCTP, NTP, WireGuard, IPsec AH/ESP, IKEv2 and LLDP when those
+        codecs are present.
       </p>
 
       <div class="table-wrap">
@@ -299,7 +301,7 @@
       </ul>
 
       <div class="callout callout--warn">
-        <div class="callout__title">captures can be hostile</div>
+        <div class="callout__title">Captures must be treated as untrusted input</div>
         <p>Treat every capture as untrusted input. Every block and record is bounds-checked, decoded strings are escaped, and parsing is bounded. Clean parsing is not a security guarantee.</p>
       </div>
 
@@ -327,6 +329,16 @@
 <script src="js/icmp-codec.js"></script>
 <script src="js/dns-codec.js"></script>
 <script src="js/dhcp-codec.js"></script>
+<script src="js/dhcpv6-codec.js"></script>
+<script src="js/icmpv6-codec.js"></script>
+<script src="js/ospf-codec.js"></script>
+<script src="js/gre-codec.js"></script>
+<script src="js/vxlan-codec.js"></script>
+<script src="js/wireguard-codec.js"></script>
+<script src="js/sctp-codec.js"></script>
+<script src="js/ntp-codec.js"></script>
+<script src="js/ipsec-codec.js"></script>
+<script src="js/lldp-codec.js"></script>
 <script src="js/tls-codec.js"></script>
 <script src="js/http-codec.js"></script>
 <script src="js/dissect-codec.js"></script>

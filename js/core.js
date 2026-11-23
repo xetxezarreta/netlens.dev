@@ -231,9 +231,9 @@
       el.innerHTML =
         '<div><div class="field-detail__eyebrow">field inspector</div>' +
         '<p class="field-detail__name">Select a field</p>' +
-        '<p class="field-detail__desc">Hover or click any block in the diagram, or a row in the field table. ' +
+        '<p class="field-detail__desc">Point to or select any block in the diagram, or a row in the field table. ' +
         'The inspector shows the exact bit range, allowed values and the RFC that defines it.</p></div>' +
-        '<div class="field-detail__side"><span class="field-detail__hint">click to pin · esc to clear</span></div>';
+        '<div class="field-detail__side"><span class="field-detail__hint">select to pin · Escape to clear</span></div>';
       return;
     }
     const start = meta.start;
@@ -258,7 +258,7 @@
       '<div><div class="field-detail__eyebrow">field inspector · ' + esc(field.name) + "</div>" +
       `<p class="field-detail__name">${esc(field.name)}</p>` +
       `<p class="field-detail__desc">${field.desc || "No description."}</p>` +
-      '<span class="field-detail__hint">click to pin · esc to clear</span></div>' +
+      '<span class="field-detail__hint">select to pin · Escape to clear</span></div>' +
       '<div class="field-detail__side">' +
       `<div class="field-detail__bits">${units}s ${start}–${end - 1}<small>${bitLabel}${(field.variable || field.bits === "var") ? " · variable offset" : ""}</small></div>` +
       bitRange + range + value + rfc +
@@ -299,7 +299,7 @@
       (spec.title ? spec.title : "bit layout") +
       (spec.badge ? ' <span class="badge">' + spec.badge + "</span>" : "") +
       "</div>" +
-      '<div class="legend"><span><i style="background:var(--accent)"></i> click a field</span>' +
+      '<div class="legend"><span><i style="background:var(--accent)"></i> select a field</span>' +
       '<span>MSB first</span></div></div>';
     html += '<div class="diagram__scroll"><div class="diagram__inner">';
 
@@ -539,7 +539,7 @@
     let html = '<div class="byte-lane' + (spec.compact ? " byte-lane--compact" : "") + '">';
     html += '<div class="byte-lane__head"><div class="byte-lane__title">' + (spec.title || "byte layout") +
       (spec.badge ? ' <span class="badge">' + spec.badge + "</span>" : "") +
-      '</div><div class="byte-lane__legend"><span><i></i> click a field</span><span>byte offsets</span></div></div>';
+      '</div><div class="byte-lane__legend"><span><i></i> select a field</span><span>byte offsets</span></div></div>';
     html += `<div class="byte-lane__scroll"><div class="byte-lane__inner" style="--cols:${columns}"><div class="byte-lane__track">`;
     fields.forEach((f) => {
       const size = f.variable ? "var" : f._displayBytes + " B";
@@ -727,8 +727,8 @@
       `<div class="stack-model__head"><span>TCP/IP model</span><span data-stack-model-status>${entries.length} protocol pages · ${layers.length} layers</span></div>` +
       rows +
       `<div class="stack-model__foot"><span class="layer-code">ALL</span>` +
-      `<div><b>Packet workbench</b><small>capture · filters · streams</small></div>` +
-      `<a href="workbench.html">open workbench →</a></div>`;
+      `<div><b>Cross-layer tools</b><small>capture · subnet · checksum · ports · glossary · learn · quiz</small></div>` +
+      `<a href="#tools">browse tools →</a></div>`;
   }
 
   function initProtocolFilter() {
@@ -736,7 +736,7 @@
     if (!bar) return;
     const buttons = $$("[data-layer-filter]");
     const chips = $$(".layer-chip[data-layer-filter]", bar);
-    const cards = $$("#protocol-grid .protocol-card");
+    const cards = $$("#protocol-grid .protocol-card, #tool-grid .protocol-card");
     const rows = $$("[data-layer-row]");
     const status = $(".protocol-filter__status", bar);
     const modelStatus = $("[data-stack-model-status]");
@@ -813,8 +813,8 @@
     const entries = searchEntries();
     const q = query.trim().toLowerCase();
     if (!q) {
-      return entries.filter((e) => e.kind === "protocol").slice(0, 8)
-        .concat(entries.filter((e) => e.kind !== "protocol" && e.popular).slice(0, 6));
+      return entries.filter((e) => e.kind === "protocol").slice(0, 12)
+        .concat(entries.filter((e) => e.kind !== "protocol" && e.popular).slice(0, 8));
     }
     const terms = q.split(/\s+/).filter(Boolean);
     return entries
@@ -835,8 +835,8 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>' +
       '<input type="search" id="ph-search-input" placeholder="search fields, flags, RFCs, hex…" autocomplete="off" spellcheck="false" aria-label="Search">' +
       '<kbd>esc</kbd></div>' +
-      '<div class="search-dialog__body"><div class="search-dialog__group">jump to</div><ul class="search-dialog__list" role="listbox" aria-label="Search results"></ul><div class="search-dialog__empty" hidden>No matches. Try <code>SACK</code>, <code>0x94</code>, <code>fragment</code>, or <code>RFC 9000</code>.</div></div>' +
-      '<div class="search-dialog__foot"><span><kbd>↑</kbd><kbd>↓</kbd> navigate</span><span><kbd>↵</kbd> open</span><span><kbd>/</kbd> search anywhere</span><span>no network requests</span></div>';
+      '<div class="search-dialog__body"><div class="search-dialog__group">navigate to</div><ul class="search-dialog__list" role="listbox" aria-label="Search results"></ul><div class="search-dialog__empty" hidden>No matches. Examples: <code>SACK</code>, <code>0x94</code>, <code>fragment</code> or <code>RFC 9000</code>.</div></div>' +
+      '<div class="search-dialog__foot"><span><kbd>↑</kbd><kbd>↓</kbd> navigate</span><span><kbd>↵</kbd> open</span><span><kbd>/</kbd> search from any page</span><span>no network requests</span></div>';
     document.body.appendChild(searchDialog);
     searchInput = $("#ph-search-input", searchDialog);
     searchList = $(".search-dialog__list", searchDialog);
@@ -936,7 +936,7 @@
         return;
       }
       if (!list.length) {
-        results.innerHTML = '<li class="empty">No match. Try “SACK”, “fragment”, “varint”, or “0x94”.</li>';
+        results.innerHTML = '<li class="empty">No match. Examples: “SACK”, “fragment”, “varint” or “0x94”.</li>';
         if (meta) meta.textContent = "0 results";
         return;
       }
@@ -955,15 +955,15 @@
   }
 
   /* ---------- theme ---------- */
-  const THEMES = ["green", "amber", "ice", "pink", "bone"];
+  const THEMES = ["green", "amber", "ice", "pink", "bone", "paper"];
   function applyTheme(name, persist) {
     const theme = THEMES.includes(name) ? name : "green";
     if (theme === "green") document.documentElement.removeAttribute("data-theme");
     else document.documentElement.setAttribute("data-theme", theme);
     $$("[data-theme-name]").forEach((el) => { el.textContent = theme; });
     $$("[data-theme-toggle]").forEach((el) => {
-      el.setAttribute("title", "Theme: " + theme + " — click to cycle");
-      el.setAttribute("aria-label", "Theme: " + theme + ". Click to cycle.");
+      el.setAttribute("title", "Theme: " + theme + " — select to cycle");
+      el.setAttribute("aria-label", "Theme: " + theme + ". Select to cycle.");
     });
     const meta = $('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#0b0e14");
@@ -1050,7 +1050,7 @@
     const html =
       '<div class="site-footer__inner">' +
       '<div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit<br>© <span data-year>2026</span> · static field guide · no trackers</div>' +
-      '<div class="foot-note">RFCs are the source of truth. Diagrams are educational; check the current RFC, errata and your implementation before putting anything on the wire.</div>' +
+      '<div class="foot-note">RFCs are the source of truth. Diagrams are educational; verify against the current RFC, errata and the implementation before transmitting data.</div>' +
       `<div class="foot-links">${links.join("")}</div>` +
       '</div>';
     hosts.forEach((host) => { host.innerHTML = html; });
@@ -1540,6 +1540,84 @@
     return { go, pause, current: () => step };
   }
 
+  /* ---------- search-engine metadata, generated so every page stays in sync ---------- */
+  function pageType() {
+    const file = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "");
+    if (file === "" || file === "index") return "website";
+    if (file === "about" || file === "glossary" || file === "learn" || file === "ports" || file === "quiz") return "article";
+    return "article";
+  }
+
+  function canonicalBase() {
+    if (location.protocol === "http:" || location.protocol === "https:") {
+      return location.origin + location.pathname.replace(/index\.html$/, "");
+    }
+    return "";
+  }
+
+  function initSocialMeta() {
+    const description = document.querySelector('meta[name="description"]');
+    const title = document.title;
+    const desc = description ? description.getAttribute("content") : "";
+    const pairs = [
+      ["property", "og:title", title],
+      ["property", "og:description", desc],
+      ["property", "og:type", pageType()],
+      ["property", "og:site_name", "netlens.dev"],
+      ["name", "twitter:card", "summary"],
+      ["name", "twitter:title", title],
+      ["name", "twitter:description", desc]
+    ];
+    const canonical = canonicalBase();
+    if (canonical) pairs.push(["property", "og:url", canonical]);
+    pairs.forEach(([attr, key, value]) => {
+      if (!value || document.head.querySelector(`meta[${attr}="${key}"]`)) return;
+      const meta = document.createElement("meta");
+      meta.setAttribute(attr, key);
+      meta.setAttribute("content", value);
+      document.head.appendChild(meta);
+    });
+  }
+
+  function initStructuredData() {
+    if (document.querySelector('script[data-ph-jsonld]')) return;
+    const base = canonicalBase() || "https://netlens.dev/";
+    const root = base.replace(/[^/]*\.html$/, "");
+    const isHome = pageType() === "website";
+    const name = document.title.split("—")[0].split("·")[0].trim() || "netlens.dev";
+    const description = document.querySelector('meta[name="description"]');
+    const graph = [
+      {
+        "@type": "WebSite",
+        "@id": root + "#website",
+        name: "netlens.dev",
+        url: root,
+        description: "An interactive, RFC-cited field guide to network wire formats with byte-accurate encoders, decoders and a local pcap/pcapng workbench.",
+        inLanguage: "en",
+        publisher: { "@type": "Organization", name: "netlens.dev", url: root }
+      }
+    ];
+    if (!isHome) {
+      graph.push({
+        "@type": "TechArticle",
+        "@id": base + "#article",
+        headline: name,
+        name,
+        description: description ? description.getAttribute("content") : "",
+        url: base,
+        isPartOf: { "@id": root + "#website" },
+        inLanguage: "en",
+        author: { "@type": "Organization", name: "netlens.dev" },
+        publisher: { "@type": "Organization", name: "netlens.dev" }
+      });
+    }
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.setAttribute("data-ph-jsonld", "");
+    script.textContent = JSON.stringify({ "@context": "https://schema.org", "@graph": graph });
+    document.head.appendChild(script);
+  }
+
   function init() {
     initSiteHeader();
     initTheme();
@@ -1560,6 +1638,8 @@
     initPermalink();
     initHeroGrid();
     initScrollRegions();
+    initSocialMeta();
+    initStructuredData();
   }
 
   Object.assign(PH, {

@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>netlens.dev — Interactive packet field guide</title>
-<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for IPv4, ICMP, IPv6, TCP, UDP, DNS, DHCP, HTTP, TLS, QUIC, BGP, Ethernet and ARP, plus a local pcap/pcapng packet workbench with flow reassembly, expert info and optional TLS 1.3 key-log decryption, grouped by TCP/IP layer. A field guide for network engineers, security researchers and protocol implementers.">
+<meta name="description" content="Interactive bit diagrams, RFC citations and byte-accurate encoders/decoders for 25 protocols — IPv4, IPv6, ICMPv6, TCP, UDP, QUIC, SCTP, DNS, DHCPv6, HTTP/3, TLS, WebSocket, BGP, OSPF, GRE, VXLAN, WireGuard, IPsec, NTP, LLDP and more — plus a local pcap/pcapng workbench, subnet calculator, checksum laboratory, port registry and learning paths.">
 <meta name="theme-color" content="#0b0e14">
 <meta property="og:type" content="website">
 <meta property="og:title" content="netlens.dev — Interactive packet field guide">
-<meta property="og:description" content="Interactive bit diagrams, RFC citations and byte-accurate codecs for the protocols you debug.">
+<meta property="og:description" content="Interactive bit diagrams, RFC citations and byte-accurate codecs for commonly debugged network protocols.">
 <meta property="og:site_name" content="netlens.dev">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/styles.css">
@@ -25,21 +25,23 @@
     <div class="shell hero__inner">
       <div>
         <p class="eyebrow">// interactive wire-format field guide</p>
-        <h1>Packets are just bits.<br><em>Read them precisely.</em></h1>
+        <h1>Network protocols consist of structured bit fields.<br><em>Interpret them precisely.</em></h1>
         <p class="hero__lead">
           Bit diagrams with exact offsets, reserved bits, valid ranges and RFC citations for
-          every field. Build a header from its fields, or paste raw hex to inspect and validate
-          it in the browser. <strong>No capture file required.</strong>
+          every field. Construct a header from its fields, or supply raw hexadecimal bytes for
+          inspection and validation in the browser. <strong>No capture file is required.</strong>
         </p>
         <div class="hero__actions">
           <a class="btn btn--primary" href="workbench.html">Packet workbench <span aria-hidden="true">-&gt;</span></a>
-          <a class="btn" href="#stack">TCP/IP map</a>
+          <a class="btn" href="#paths">Learning paths</a>
           <a class="btn" href="#protocols">All protocols</a>
+          <a class="btn" href="#tools">Tools</a>
         </div>
         <div class="hero__stats">
-          <span><b>13</b> protocols</span>
-          <span><b>30+</b> diagrams</span>
-          <span><b>30+</b> RFCs cited</span>
+          <span><b>25</b> protocols</span>
+          <span><b>7</b> tools</span>
+          <span><b>60+</b> diagrams</span>
+          <span><b>70+</b> RFCs cited</span>
           <span><b>0</b> trackers</span>
         </div>
       </div>
@@ -71,7 +73,7 @@
           </div>
           <div class="hero-art__foot">
             <span>header 40 B · 20 B options</span>
-            <span>hover a field in the explorer -&gt;</span>
+            <span>select a field in the explorer →</span>
           </div>
         </div>
       </div>
@@ -88,13 +90,67 @@
   </div>
 
   <div class="shell">
+    <section class="home-section" id="paths">
+      <div class="home-section__head">
+        <div>
+          <p class="kicker">// structured learning</p>
+          <h2>Select a structured learning path.</h2>
+        </div>
+        <p>guided reading · construction · capture analysis</p>
+      </div>
+      <div class="path-grid">
+        <a class="path-card" href="learn.html#capture">
+          <span class="path-card__step">path 01 · introductory</span>
+          <h3>Analyse a capture</h3>
+          <p>Follow the encapsulation order used by a dissector, from Ethernet to DNS. Load a capture, trace a TCP handshake and decode a query.</p>
+          <ul class="path-card__list"><li>workbench</li><li>ethernet</li><li>ipv4</li><li>tcp</li><li>dns</li></ul>
+          <span class="path-card__foot">open the path -&gt;</span>
+        </a>
+        <a class="path-card" href="learn.html#ipv6">
+          <span class="path-card__step">path 02 · IPv6</span>
+          <h3>IPv6 without broadcast or ARP</h3>
+          <p>Fixed headers, extension chains, Neighbor Discovery, SLAAC, duplicate address detection and DHCPv6, without translating IPv4 concepts directly.</p>
+          <ul class="path-card__list"><li>ipv6</li><li>icmpv6</li><li>dhcpv6</li><li>subnet</li></ul>
+          <span class="path-card__foot">open the path -&gt;</span>
+        </a>
+        <a class="path-card" href="learn.html#web">
+          <span class="path-card__step">path 03 · web</span>
+          <h3>TLS, QUIC and HTTP/3</h3>
+          <p>Operations after the TCP or UDP handshake: records, streams, QPACK and the encrypted boundary.</p>
+          <ul class="path-card__list"><li>http</li><li>tls</li><li>quic</li><li>http3</li><li>websocket</li></ul>
+          <span class="path-card__foot">open the path -&gt;</span>
+        </a>
+        <a class="path-card" href="learn.html#routing">
+          <span class="path-card__step">path 04 · routing</span>
+          <h3>Routing &amp; overlays</h3>
+          <p>OSPF LSAs, BGP attributes, GRE, VXLAN and WireGuard: how reachability and tunnels are built.</p>
+          <ul class="path-card__list"><li>ospf</li><li>bgp</li><li>gre</li><li>vxlan</li><li>wireguard</li></ul>
+          <span class="path-card__foot">open the path -&gt;</span>
+        </a>
+        <a class="path-card" href="learn.html#security">
+          <span class="path-card__step">path 05 · security</span>
+          <h3>Observable security metadata</h3>
+          <p>AH compared with ESP, TLS key schedules, key-log decryption and the metadata that remains visible after encryption.</p>
+          <ul class="path-card__list"><li>ipsec</li><li>tls</li><li>wireguard</li><li>dns</li></ul>
+          <span class="path-card__foot">open the path -&gt;</span>
+        </a>
+        <a class="path-card" href="learn.html#verify">
+          <span class="path-card__step">path 06 · verify</span>
+          <h3>Measurement and verification</h3>
+          <p>Internet checksums, CRC-32c, VLSM, port ranges and terminology. Reproduce the calculations independently.</p>
+          <ul class="path-card__list"><li>checksum</li><li>subnet</li><li>ports</li><li>glossary</li><li>quiz</li></ul>
+          <span class="path-card__foot">open the path -&gt;</span>
+        </a>
+      </div>
+    </section>
+
     <section class="home-section" id="stack">
       <div class="home-section__head">
         <div>
           <p class="kicker">// the tcp/ip model</p>
-          <h2>Where every protocol lives.</h2>
+          <h2>Protocol placement in the TCP/IP model.</h2>
         </div>
-        <p>click a layer to filter · click a protocol to open</p>
+        <p>Select a layer to filter; select a protocol to open its page.</p>
       </div>
       <div class="stack-model" data-stack-model role="group" aria-label="Interactive TCP/IP protocol map"></div>
       <noscript><div class="callout"><div class="callout__title">JavaScript is off</div><p>The interactive stack map needs JavaScript. The protocol index below still lists every available page.</p></div></noscript>
@@ -104,29 +160,29 @@
       <div class="home-section__head">
         <div>
           <p class="kicker">// protocol index</p>
-          <h2>Pick a header. See every bit.</h2>
+          <h2>Select a protocol header to inspect its bit layout.</h2>
         </div>
-        <p>13 protocols · 17 pages<br>field sheets by layer</p>
+        <p>25 protocols · 7 tools · 32 entries<br>field sheets by layer</p>
       </div>
 
       <div class="protocol-filter" data-protocol-filter>
         <span class="protocol-filter__label">browse by layer</span>
         <div class="protocol-filter__chips" role="group" aria-label="Filter protocols by layer">
-          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>14</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="application" aria-pressed="false">application <b>5</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="transport" aria-pressed="false">transport <b>3</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="internet" aria-pressed="false">internet <b>3</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="link" aria-pressed="false">link <b>2</b></button>
-          <button type="button" class="layer-chip" data-layer-filter="tools" aria-pressed="false">cross-layer <b>1</b></button>
+          <button type="button" class="layer-chip is-active" data-layer-filter="all" aria-pressed="true">all <b>32</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="application" aria-pressed="false">application <b>9</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="transport" aria-pressed="false">transport <b>4</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="internet" aria-pressed="false">internet <b>9</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="link" aria-pressed="false">link <b>3</b></button>
+          <button type="button" class="layer-chip" data-layer-filter="tools" aria-pressed="false">cross-layer <b>7</b></button>
         </div>
-        <span class="protocol-filter__status" role="status" aria-live="polite">14 entries</span>
+        <span class="protocol-filter__status" role="status" aria-live="polite">32 entries</span>
       </div>
 
       <div class="protocol-grid" id="protocol-grid">
         <a class="protocol-card" href="ipv4.html" data-layer="internet">
           <div class="protocol-card__top"><span class="protocol-card__num">01</span><span class="protocol-card__rfc">RFC 791</span></div>
           <h3>IPv4 &amp; options</h3>
-          <p>The 20-byte workhorse, fragmentation flags, DSCP/ECN, checksum, and the TLV option space everyone forgets.</p>
+          <p>The 20-byte base header, fragmentation flags, DSCP/ECN, checksum and the TLV option space.</p>
           <div class="protocol-card__bits" aria-hidden="true">
             <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:16;--tone:var(--tone-c)"></i>
             <i style="--span:16;--tone:var(--tone-d)"></i><i style="--span:3;--tone:var(--tone-e)"></i><i style="--span:13;--tone:var(--tone-f)"></i>
@@ -160,8 +216,74 @@
           <div class="protocol-card__meta"><span class="layer">internet</span><span>40 B header</span><span>128-bit</span><span>extensions</span></div>
         </a>
 
+        <a class="protocol-card" href="icmpv6.html" data-layer="internet">
+          <div class="protocol-card__top"><span class="protocol-card__num">04</span><span class="protocol-card__rfc">RFC 4443 · 4861</span></div>
+          <h3>ICMPv6 &amp; NDP</h3>
+          <p>Errors, echo, Router Advertisement, Neighbor Solicitation/Advertisement, Prefix Information, SLAAC and DAD — the control plane IPv6 never had in IPv4.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:16;--tone:var(--tone-c)"></i>
+            <i style="--span:6;--tone:var(--tone-d)"></i><i style="--span:5;--tone:var(--tone-e)"></i><i style="--span:5;--tone:var(--tone-f)"></i><i style="--span:16;--tone:var(--tone-g)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">internet control</span><span>4 B + body</span><span>ND options</span><span>checksum</span></div>
+        </a>
+
+        <a class="protocol-card" href="ospf.html" data-layer="internet">
+          <div class="protocol-card__top"><span class="protocol-card__num">05</span><span class="protocol-card__rfc">RFC 2328</span></div>
+          <h3>OSPFv2 &amp; LSAs</h3>
+          <p>Hello, Database Description, Link State Update, Router and Network LSAs, areas, DR/BDR election and the checksum that excludes authentication.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:16;--tone:var(--tone-c)"></i>
+            <i style="--span:32;--tone:var(--tone-d)"></i><i style="--span:32;--tone:var(--tone-e)"></i><i style="--span:32;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">internet / routing</span><span>24 B header</span><span>LSAs</span><span>protocol 89</span></div>
+        </a>
+
+        <a class="protocol-card" href="gre.html" data-layer="internet">
+          <div class="protocol-card__top"><span class="protocol-card__num">06</span><span class="protocol-card__rfc">RFC 2784 · 2890</span></div>
+          <h3>GRE tunnels</h3>
+          <p>Base 4-byte header, optional checksum, key and sequence, PPTP version 1, inner IPv4/IPv6/Ethernet and the MTU cost of encapsulation.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:1;--tone:var(--tone-a)"></i><i style="--span:1;--tone:var(--tone-b)"></i><i style="--span:1;--tone:var(--tone-c)"></i><i style="--span:1;--tone:var(--tone-d)"></i><i style="--span:12;--tone:var(--tone-e)"></i>
+            <i style="--span:16;--tone:var(--tone-f)"></i><i style="--span:32;--tone:var(--tone-g)"></i><i style="--span:32;--tone:var(--tone-h)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">internet / tunnel</span><span>4–16 B</span><span>IP 47</span><span>key · sequence</span></div>
+        </a>
+
+        <a class="protocol-card" href="ipsec.html" data-layer="internet">
+          <div class="protocol-card__top"><span class="protocol-card__num">07</span><span class="protocol-card__rfc">RFC 4302 · 4303 · 7296</span></div>
+          <h3>IPsec AH, ESP &amp; IKEv2</h3>
+          <p>Authenticated vs encrypted packets, SPI and sequence numbers, the encrypted ESP trailer, the IKEv2 header and payload chain, and why AH breaks under NAT.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:16;--tone:var(--tone-c)"></i>
+            <i style="--span:32;--tone:var(--tone-d)"></i><i style="--span:32;--tone:var(--tone-e)"></i><i style="--span:24;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">internet / security</span><span>AH 51 · ESP 50</span><span>IKEv2</span><span>ICV</span></div>
+        </a>
+
+        <a class="protocol-card" href="vxlan.html" data-layer="internet">
+          <div class="protocol-card__top"><span class="protocol-card__num">08</span><span class="protocol-card__rfc">RFC 7348 · 8926</span></div>
+          <h3>VXLAN &amp; Geneve</h3>
+          <p>24-bit VNI, the I bit, UDP 4789, inner Ethernet frames, Geneve options and the difference between an overlay segment and a VLAN.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:24;--tone:var(--tone-b)"></i><i style="--span:24;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i>
+            <i style="--span:16;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">overlay</span><span>8 B</span><span>VNI</span><span>UDP 4789</span></div>
+        </a>
+
+        <a class="protocol-card" href="wireguard.html" data-layer="internet">
+          <div class="protocol-card__top"><span class="protocol-card__num">09</span><span class="protocol-card__rfc">WireGuard protocol</span></div>
+          <h3>WireGuard messages</h3>
+          <p>Four message types, 148-byte handshake initiation, 92-byte response, cookie reply and transport data with a 64-bit counter and opaque ciphertext.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:32;--tone:var(--tone-a)"></i><i style="--span:32;--tone:var(--tone-b)"></i><i style="--span:32;--tone:var(--tone-c)"></i>
+            <i style="--span:32;--tone:var(--tone-d)"></i><i style="--span:16;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">internet / VPN</span><span>4 types</span><span>UDP 51820</span><span>Noise</span></div>
+        </a>
+
         <a class="protocol-card" href="tcp.html" data-layer="transport">
-          <div class="protocol-card__top"><span class="protocol-card__num">04</span><span class="protocol-card__rfc">RFC 9293</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">10</span><span class="protocol-card__rfc">RFC 9293</span></div>
           <h3>TCP flags &amp; TLVs</h3>
           <p>Eight control bits, the option kind registry, MSS, window scale, SACK and timestamps — plus scan recipes.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -174,7 +296,7 @@
 
 
         <a class="protocol-card" href="udp.html" data-layer="transport">
-          <div class="protocol-card__top"><span class="protocol-card__num">05</span><span class="protocol-card__rfc">RFC 768</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">11</span><span class="protocol-card__rfc">RFC 768</span></div>
           <h3>UDP datagrams</h3>
           <p>Ports, length, checksum, IPv4 and IPv6 pseudo-headers, service lookup and a decoded port-to-port flow.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -186,7 +308,7 @@
         </a>
 
         <a class="protocol-card" href="quic.html" data-layer="transport">
-          <div class="protocol-card__top"><span class="protocol-card__num">06</span><span class="protocol-card__rfc">RFC 9000</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">12</span><span class="protocol-card__rfc">RFC 9000</span></div>
           <h3>QUIC frames</h3>
           <p>Long and short headers, the 2-bit varint prefix, STREAM/ACK/CRYPTO frames and a frame-level codec.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -196,8 +318,19 @@
           <div class="protocol-card__meta"><span class="layer">transport · TLS</span><span>varint</span><span>21 frame types</span><span>UDP</span></div>
         </a>
 
+        <a class="protocol-card" href="sctp.html" data-layer="transport">
+          <div class="protocol-card__top"><span class="protocol-card__num">13</span><span class="protocol-card__rfc">RFC 9260</span></div>
+          <h3>SCTP chunks &amp; streams</h3>
+          <p>Common header, verification tag, CRC-32c, DATA/INIT/SACK chunks, multiple streams per association and the padding rule that trips parsers.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:16;--tone:var(--tone-a)"></i><i style="--span:16;--tone:var(--tone-b)"></i><i style="--span:32;--tone:var(--tone-c)"></i>
+            <i style="--span:8;--tone:var(--tone-d)"></i><i style="--span:8;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">transport</span><span>12 B + chunks</span><span>CRC-32c</span><span>IP 132</span></div>
+        </a>
+
         <a class="protocol-card" href="bgp.html" data-layer="application">
-          <div class="protocol-card__top"><span class="protocol-card__num">07</span><span class="protocol-card__rfc">RFC 4271</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">14</span><span class="protocol-card__rfc">RFC 4271</span></div>
           <h3>BGP path attributes</h3>
           <p>Optional/transitive/partial flags, extended lengths, AS_PATH segments, communities and MP_REACH_NLRI.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -208,7 +341,7 @@
         </a>
 
         <a class="protocol-card" href="dns.html" data-layer="application">
-          <div class="protocol-card__top"><span class="protocol-card__num">08</span><span class="protocol-card__rfc">RFC 1035</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">15</span><span class="protocol-card__rfc">RFC 1035</span></div>
           <h3>DNS records &amp; flags</h3>
           <p>Header flags, questions, resource records, name-compression pointers, EDNS(0) and a query/response codec.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -219,7 +352,7 @@
         </a>
 
         <a class="protocol-card" href="dhcp.html" data-layer="application">
-          <div class="protocol-card__top"><span class="protocol-card__num">09</span><span class="protocol-card__rfc">RFC 2131 · 2132</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">16</span><span class="protocol-card__rfc">RFC 2131 · 2132</span></div>
           <h3>DHCP leases &amp; options</h3>
           <p>BOOTP header, broadcast flag, message types, lease timers, option overload, relay agent information and a message codec.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -230,8 +363,19 @@
           <div class="protocol-card__meta"><span class="layer">application</span><span>236 B + options</span><span>UDP 67/68</span><span>TLVs</span></div>
         </a>
 
+        <a class="protocol-card" href="dhcpv6.html" data-layer="application">
+          <div class="protocol-card__top"><span class="protocol-card__num">17</span><span class="protocol-card__rfc">RFC 8415</span></div>
+          <h3>DHCPv6</h3>
+          <p>Four-byte messages, 16-bit options, DUIDs, IA_NA and IA_PD, IA Address/Prefix, ORO, DNS options and relay-forward — not DHCPv4 with a new port.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:24;--tone:var(--tone-b)"></i><i style="--span:16;--tone:var(--tone-c)"></i><i style="--span:16;--tone:var(--tone-d)"></i>
+            <i style="--span:32;--tone:var(--tone-e)"></i><i style="--span:32;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">application</span><span>4 B header</span><span>DUID</span><span>UDP 546/547</span></div>
+        </a>
+
         <a class="protocol-card" href="http.html" data-layer="application">
-          <div class="protocol-card__top"><span class="protocol-card__num">10</span><span class="protocol-card__rfc">RFC 9110 · 9113</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">18</span><span class="protocol-card__rfc">RFC 9110 · 9113</span></div>
           <h3>HTTP requests &amp; frames</h3>
           <p>Request and status lines, header fields, Content-Length and chunked framing, HTTP/2 frames and HPACK header compression.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -242,8 +386,19 @@
           <div class="protocol-card__meta"><span class="layer">application</span><span>text + binary</span><span>chunked</span><span>HPACK</span></div>
         </a>
 
+        <a class="protocol-card" href="http3.html" data-layer="application">
+          <div class="protocol-card__top"><span class="protocol-card__num">19</span><span class="protocol-card__rfc">RFC 9114 · 9204</span></div>
+          <h3>HTTP/3 &amp; QPACK</h3>
+          <p>Frames on QUIC streams, varint type and length, SETTINGS identifiers, unidirectional stream types and the static QPACK table.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:16;--tone:var(--tone-c)"></i>
+            <i style="--span:8;--tone:var(--tone-d)"></i><i style="--span:8;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">application</span><span>varint</span><span>QPACK</span><span>QUIC</span></div>
+        </a>
+
         <a class="protocol-card" href="tls.html" data-layer="application">
-          <div class="protocol-card__top"><span class="protocol-card__num">11</span><span class="protocol-card__rfc">RFC 8446</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">20</span><span class="protocol-card__rfc">RFC 8446</span></div>
           <h3>TLS 1.3 records &amp; hello</h3>
           <p>Record layer, ClientHello and ServerHello, extensions, the HKDF key schedule, alerts and the encrypted boundary.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -255,8 +410,30 @@
         </a>
 
 
+        <a class="protocol-card" href="websocket.html" data-layer="application">
+          <div class="protocol-card__top"><span class="protocol-card__num">21</span><span class="protocol-card__rfc">RFC 6455</span></div>
+          <h3>WebSocket frames</h3>
+          <p>HTTP Upgrade, Sec-WebSocket-Key/Accept, FIN/RSV/opcode bits, masking, extended lengths, control frames and close codes.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:1;--tone:var(--tone-a)"></i><i style="--span:1;--tone:var(--tone-b)"></i><i style="--span:1;--tone:var(--tone-c)"></i><i style="--span:1;--tone:var(--tone-d)"></i><i style="--span:4;--tone:var(--tone-e)"></i><i style="--span:1;--tone:var(--tone-f)"></i><i style="--span:7;--tone:var(--tone-g)"></i>
+            <i style="--span:16;--tone:var(--tone-h)"></i><i style="--span:32;--tone:var(--tone-i)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">application</span><span>2 B + length</span><span>mask</span><span>RFC 6455</span></div>
+        </a>
+
+        <a class="protocol-card" href="ntp.html" data-layer="application">
+          <div class="protocol-card__top"><span class="protocol-card__num">22</span><span class="protocol-card__rfc">RFC 5905</span></div>
+          <h3>NTPv4 timestamps</h3>
+          <p>48-byte header, leap/version/mode, stratum, poll, precision, root delay and four 64-bit timestamps with the 1900 epoch.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:2;--tone:var(--tone-a)"></i><i style="--span:3;--tone:var(--tone-b)"></i><i style="--span:3;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i><i style="--span:8;--tone:var(--tone-e)"></i><i style="--span:8;--tone:var(--tone-f)"></i>
+            <i style="--span:32;--tone:var(--tone-g)"></i><i style="--span:32;--tone:var(--tone-h)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">application</span><span>48 B</span><span>UDP 123</span><span>1900 epoch</span></div>
+        </a>
+
         <a class="protocol-card" href="ethernet.html" data-layer="link">
-          <div class="protocol-card__top"><span class="protocol-card__num">12</span><span class="protocol-card__rfc">IEEE 802.3</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">23</span><span class="protocol-card__rfc">IEEE 802.3</span></div>
           <h3>Ethernet II frames</h3>
           <p>Destination and source MACs, EtherType, 802.1Q VLAN tags, padding and the CRC-32 frame check sequence.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -269,7 +446,7 @@
         </a>
 
         <a class="protocol-card" href="arp.html" data-layer="link">
-          <div class="protocol-card__top"><span class="protocol-card__num">13</span><span class="protocol-card__rfc">RFC 826</span></div>
+          <div class="protocol-card__top"><span class="protocol-card__num">24</span><span class="protocol-card__rfc">RFC 826</span></div>
           <h3>ARP</h3>
           <p>IPv4-to-MAC resolution, request/reply opcodes, ARP probes, gratuitous ARP and Ethernet padding.</p>
           <div class="protocol-card__bits" aria-hidden="true">
@@ -280,16 +457,99 @@
           <div class="protocol-card__meta"><span class="layer">link · resolution</span><span>28 B message</span><span>opcodes</span><span>EtherType 0x0806</span></div>
         </a>
 
-        <a class="protocol-card" href="workbench.html" data-layer="tools">
-          <div class="protocol-card__top"><span class="protocol-card__num">+</span><span class="protocol-card__rfc">PCAP · PCAPNG</span></div>
+        <a class="protocol-card" href="lldp.html" data-layer="link">
+          <div class="protocol-card__top"><span class="protocol-card__num">25</span><span class="protocol-card__rfc">IEEE 802.1AB</span></div>
+          <h3>LLDP neighbours</h3>
+          <p>Chassis/port IDs, TTL, system name, capabilities, management addresses and organizationally specific VLAN TLVs in EtherType 0x88CC.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:7;--tone:var(--tone-a)"></i><i style="--span:9;--tone:var(--tone-b)"></i>
+            <i style="--span:8;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i><i style="--span:16;--tone:var(--tone-e)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">link / discovery</span><span>TLVs</span><span>0x88CC</span><span>one-way</span></div>
+        </a>
+
+      </div>
+    </section>
+
+    <section class="home-section" id="tools">
+      <div class="home-section__head">
+        <div>
+          <p class="kicker">// cross-layer tools</p>
+          <h2>Perform network calculations locally.</h2>
+        </div>
+        <p>local execution · no upload · no account</p>
+      </div>
+      <div class="protocol-grid" id="tool-grid">
+        <a class="protocol-card protocol-card--tool" href="workbench.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">T1</span><span class="protocol-card__rfc">PCAP · PCAPNG</span></div>
           <h3>Packet workbench</h3>
-          <p>Open a capture in the browser: virtualized packet list, filters, IP/TCP reassembly, expert findings, TLS 1.3 key-log decryption, HAR/report export and field-level detail. Parsed locally, never uploaded.</p>
+          <p>Open a capture: virtualized packet list, filters, IP/TCP reassembly, expert findings, TLS 1.3 key-log decryption, HAR/report export and field-level detail. Parsed locally.</p>
           <div class="protocol-card__bits" aria-hidden="true">
             <i style="--span:12;--tone:var(--tone-a)"></i><i style="--span:20;--tone:var(--tone-b)"></i>
             <i style="--span:24;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i>
             <i style="--span:16;--tone:var(--tone-e)"></i><i style="--span:16;--tone:var(--tone-f)"></i>
           </div>
           <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>pcap / pcapng</span><span>local-only</span><span>streams</span></div>
+        </a>
+
+        <a class="protocol-card protocol-card--tool" href="subnet.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">T2</span><span class="protocol-card__rfc">IPv4 · IPv6</span></div>
+          <h3>Subnet calculator</h3>
+          <p>Network, mask, wildcard, range, usable hosts, binary view, equal-prefix splitting and a VLSM planner that allocates largest-first.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:8;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>CIDR</span><span>VLSM</span><span>BigInt IPv6</span></div>
+        </a>
+
+        <a class="protocol-card protocol-card--tool" href="checksum.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">T3</span><span class="protocol-card__rfc">RFC 1071 · CRC</span></div>
+          <h3>Checksum &amp; CRC laboratory</h3>
+          <p>Internet checksum, CRC-32, CRC-32c, FNV-1a 32/64, Adler-32, LRC, XOR and an Internet-checksum verifier for real header bytes.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:16;--tone:var(--tone-a)"></i><i style="--span:16;--tone:var(--tone-b)"></i><i style="--span:32;--tone:var(--tone-c)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>CRC-32c</span><span>FNV</span><span>verify</span></div>
+        </a>
+
+        <a class="protocol-card protocol-card--tool" href="ports.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">T4</span><span class="protocol-card__rfc">IANA · TCP/UDP</span></div>
+          <h3>Port registry</h3>
+          <p>Search more than 100 services by port, name or description, filter by protocol and range, and open the corresponding protocol page where one exists.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:16;--tone:var(--tone-a)"></i><i style="--span:16;--tone:var(--tone-b)"></i><i style="--span:8;--tone:var(--tone-c)"></i><i style="--span:24;--tone:var(--tone-d)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>well-known</span><span>registered</span><span>dynamic</span></div>
+        </a>
+
+        <a class="protocol-card protocol-card--tool" href="glossary.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">T5</span><span class="protocol-card__rfc">TERMS · ACRONYMS</span></div>
+          <h3>Glossary</h3>
+          <p>Short definitions for the words around the wire, filterable by topic and linked back to the page that shows the bytes.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:12;--tone:var(--tone-a)"></i><i style="--span:12;--tone:var(--tone-b)"></i><i style="--span:8;--tone:var(--tone-c)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>search</span><span>topics</span><span>RFC-linked</span></div>
+        </a>
+
+        <a class="protocol-card protocol-card--tool" href="learn.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">T6</span><span class="protocol-card__rfc">GUIDED · PROGRESS</span></div>
+          <h3>Learning paths</h3>
+          <p>Six ordered paths from “read a capture” to “verify the checksum”, with a local checklist and links to every stop.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:8;--tone:var(--tone-a)"></i><i style="--span:8;--tone:var(--tone-b)"></i><i style="--span:8;--tone:var(--tone-c)"></i><i style="--span:8;--tone:var(--tone-d)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>6 paths</span><span>local progress</span><span>no account</span></div>
+        </a>
+
+        <a class="protocol-card protocol-card--tool" href="quiz.html" data-layer="tools">
+          <div class="protocol-card__top"><span class="protocol-card__num">T7</span><span class="protocol-card__rfc">PRACTICE · OFFLINE</span></div>
+          <h3>Packet quiz</h3>
+          <p>Offsets, flags, header sizes, protocol numbers, ports and common decoder errors, with an explanation and a reference for every answer.</p>
+          <div class="protocol-card__bits" aria-hidden="true">
+            <i style="--span:1;--tone:var(--tone-a)"></i><i style="--span:1;--tone:var(--tone-b)"></i><i style="--span:2;--tone:var(--tone-c)"></i><i style="--span:28;--tone:var(--tone-d)"></i>
+          </div>
+          <div class="protocol-card__meta"><span class="layer">cross-layer</span><span>keyboard</span><span>explanations</span><span>offline</span></div>
         </a>
       </div>
     </section>
@@ -298,16 +558,16 @@
       <div class="home-section__head">
         <div>
           <p class="kicker">// field index</p>
-          <h2>Find a field without opening five PDFs.</h2>
+          <h2>Locate a field definition without consulting multiple documents.</h2>
         </div>
-        <p>try “SACK”, “fragment”, “varint”, “0x94”</p>
+        <p>examples: “SACK”, “fragment”, “varint”, “0x94”</p>
       </div>
       <form class="home-search" data-home-search role="search" onsubmit="return false">
         <div class="home-search__row">
-          <input type="search" placeholder="Search 100+ fields, flags, option kinds and RFCs…" aria-label="Search the field index" autocomplete="off" spellcheck="false">
+          <input type="search" placeholder="Search 300+ fields, flags, option kinds and RFCs…" aria-label="Search the field index" autocomplete="off" spellcheck="false">
           <button class="btn" type="button" data-search-open>Open full search <span aria-hidden="true">/</span></button>
         </div>
-        <div class="home-search__meta"><span>index: ipv4 · icmp · ipv6 · tcp · udp · dns · dhcp · http · tls · quic · bgp · ethernet · arp · workbench</span><span>fuzzy search across every page</span></div>
+        <div class="home-search__meta"><span>index: ipv4 · icmpv6 · ospf · tcp · udp · sctp · dns · dhcpv6 · http3 · tls · quic · bgp · gre · vxlan · wireguard · ipsec · ntp · websocket · lldp · tools</span><span>fuzzy search across every page</span></div>
         <ul class="home-search__results"></ul>
       </form>
     </section>

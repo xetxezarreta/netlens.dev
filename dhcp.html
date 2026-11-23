@@ -47,9 +47,9 @@
     <div class="page-head">
       <h1>DHCP <span class="on">// RFC 2131</span></h1>
       <p class="lead">
-        DHCP gives a host an IPv4 address and the configuration that goes with it: routes,
-        DNS servers, a lease lifetime and more. The packet is a BOOTP header followed by a
-        magic cookie and a list of type-length-value options.
+        DHCP assigns an IPv4 address to a host together with associated configuration:
+        routes, DNS servers, lease lifetimes and related parameters. The packet consists of
+        a BOOTP header followed by a magic cookie and a list of type-length-value options.
       </p>
       <div class="badges">
         <span class="badge badge--accent"><b>RFC 2131</b> · DHCPv4</span>
@@ -104,7 +104,7 @@
             <tr><td><b>secs</b></td><td class="num">8</td><td class="num">2 B</td><td>Seconds elapsed since the client began address acquisition.</td><td>RFC 2131 §2</td></tr>
             <tr><td><b>flags</b></td><td class="num">10</td><td class="num">2 B</td><td>Broadcast bit (0x8000); remaining bits reserved and zero.</td><td>RFC 2131 §2 · RFC 2132 §2</td></tr>
             <tr><td><b>ciaddr</b></td><td class="num">12</td><td class="num">4 B</td><td>Client IP address, filled in by a client that already has one.</td><td>RFC 2131 §2</td></tr>
-            <tr><td><b>yiaddr</b></td><td class="num">16</td><td class="num">4 B</td><td>“Your” IP address offered by the server.</td><td>RFC 2131 §2</td></tr>
+            <tr><td><b>yiaddr</b></td><td class="num">16</td><td class="num">4 B</td><td>Client IP address offered by the server.</td><td>RFC 2131 §2</td></tr>
             <tr><td><b>siaddr</b></td><td class="num">20</td><td class="num">4 B</td><td>Next server address for bootstrap; often the DHCP server or TFTP server.</td><td>RFC 2131 §2</td></tr>
             <tr><td><b>giaddr</b></td><td class="num">24</td><td class="num">4 B</td><td>Relay agent address; zero when no relay is involved.</td><td>RFC 2131 §2</td></tr>
             <tr><td><b>chaddr</b></td><td class="num">28</td><td class="num">16 B</td><td>Client hardware address, padded to 16 bytes.</td><td>RFC 2131 §2</td></tr>
@@ -181,7 +181,7 @@
         <span class="section__hint">five frames · discover → offer → request → ack</span>
       </div>
       <p>
-        DHCP is easiest to understand as a four-message exchange. The client starts with no
+        DHCP is most easily understood as a four-message exchange. The client starts with no
         address at all, so the first two messages are broadcast; the server's replies are
         normally unicast back to the client's MAC. The lease table follows what the client knows
         at each step.
@@ -431,10 +431,10 @@
               <button class="btn btn--ghost" type="button" id="dhcp-enc-export">Download JSON</button>
             </div>
             <div class="callout" style="margin:0">
-              <div class="callout__title">this is the DHCP message, not the UDP wrapper</div>
+              <div class="callout__title">This is the DHCP message, not the UDP wrapper</div>
               <p>The output starts at the BOOTP <code>op</code> byte and includes the magic cookie
-              and option area. The decoder accepts raw DHCP, UDP, IPv4 or Ethernet input, so you
-              can wrap these bytes in UDP/68→67 or UDP/67→68 for a lab test.</p>
+              and option area. The decoder accepts raw DHCP, UDP, IPv4 or Ethernet input, so
+              these bytes can be wrapped in UDP 68→67 or UDP 67→68 for a laboratory test.</p>
             </div>
           </div>
         </div>

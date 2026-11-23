@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Networking glossary — terms, acronyms &amp; protocol vocabulary · netlens.dev</title>
+<meta name="description" content="A searchable networking glossary: addressing, transport, routing, IPv6, security, tunneling, web protocols and operations terms, linked to the field guide pages.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">tools</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#tools">all tools</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#glossary">glossary</a></li>
+        <li><a href="#how">usage</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Concise definitions, not tutorials.</b> Each entry is a starting point; the protocol page and RFC provide the detail.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#tools">tools</a><span class="sep">/</span><span>glossary</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Glossary <span class="on">// terminology used in packet analysis</span></h1>
+      <p class="lead">
+        Acronyms and terms that appear in captures, RFCs and incident calls. Search by
+        name or definition, or filter by topic. Definitions are deliberately concise and
+        refer to the corresponding protocol page when one exists.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent">searchable</span>
+        <span class="badge">RFC-linked</span>
+        <span class="badge">offline</span>
+      </div>
+      <div class="stackbar" data-stack="glossary"></div>
+    </div>
+
+    <section class="section" id="glossary">
+      <div class="section__head">
+        <h2><span class="num">01</span>Glossary</h2>
+        <span class="section__hint">type to filter</span>
+      </div>
+      <div class="registry-toolbar">
+        <input type="search" id="glossary-search" placeholder="search a term or definition…" aria-label="Search the glossary" autocomplete="off" spellcheck="false">
+        <select id="glossary-tag" aria-label="Filter by topic"><option value="all">all topics</option></select>
+        <span class="registry-count" id="glossary-count" role="status" aria-live="polite">—</span>
+      </div>
+      <div id="glossary-result" class="glossary-grid"></div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="section__head">
+        <h2><span class="num">02</span>Usage</h2>
+        <span class="section__hint">from word to packet</span>
+      </div>
+      <p>
+        If a capture shows an unfamiliar field, search the glossary for the protocol and
+        then open its page. If the glossary and the RFC disagree, the RFC wins. If the
+        glossary and a vendor document disagree, check which version and extension the
+        vendor implements.
+      </p>
+      <div class="callout callout--tip">
+        <div class="callout__title">A definition is a summary</div>
+        <p>“Reliable” in TCP means acknowledged and ordered, not guaranteed. “Encrypted”
+        in TLS refers to the record layer, not the metadata. One-line definitions should be
+        treated as pointers rather than proofs.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/glossary-data.js"></script>
+<script src="js/glossary.js"></script>
+</body>
+</html>

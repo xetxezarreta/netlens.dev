@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checksum &amp; CRC laboratory — Internet, CRC32, CRC32c, FNV, Adler · netlens.dev</title>
+<meta name="description" content="Offline checksum laboratory: RFC 1071 Internet checksum, CRC-32, CRC-32c (SCTP), FNV-1a 32/64, Adler-32, LRC and XOR, with hexadecimal and text input, verification and copyable results.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">tools</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#tools">all tools</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#lab">checksum laboratory</a></li>
+        <li><a href="#verify">verify</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>Offline:</b> hashing runs in this tab. No input is uploaded. CRC-32c is the Castagnoli polynomial used by SCTP, not Ethernet's CRC-32.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#tools">tools</a><span class="sep">/</span><span>checksum</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>Checksum &amp; CRC laboratory <span class="on">// input bytes and derived checksums</span></h1>
+      <p class="lead">
+        Compute the checksum families used in packet headers and file formats. Internet checksum for IPv4, TCP, UDP and ICMP; CRC-32 for Ethernet and
+        zlib; CRC-32c for SCTP and iSCSI; FNV and Adler for hash tables and zlib streams.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent">offline</span>
+        <span class="badge">RFC 1071</span>
+        <span class="badge">CRC-32</span>
+        <span class="badge">CRC-32c</span>
+        <span class="badge">FNV-1a</span>
+      </div>
+      <div class="stackbar" data-stack="checksum"></div>
+    </div>
+
+    <section class="section" id="lab">
+      <div class="section__head">
+        <h2><span class="num">01</span>Checksum laboratory</h2>
+        <span class="section__hint">hex or UTF-8 text</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__head"><h3>input</h3><span>all algorithms at once</span></div>
+        <div class="tool-card__body">
+          <div class="tool-row">
+            <input type="text" id="checksum-input" value="45 00 00 28 00 01 00 00 40 01 00 00 c0 00 02 01 c0 00 02 02" spellcheck="false" aria-label="Bytes as hex or text">
+            <select id="checksum-mode" aria-label="Input mode"><option value="hex">hex</option><option value="text">text</option></select>
+            <button class="btn btn--primary" type="button" id="checksum-run">Compute</button>
+          </div>
+          <div class="presets">
+            <button type="button" data-checksum="123456789">“123456789”</button>
+            <button type="button" data-checksum="00 01 f2 03 f4 f5 f6 f7">RFC 1071 sample</button>
+            <button type="button" data-checksum="45 00 00 28 00 01 00 00 40 01 00 00 c0 00 02 01 c0 00 02 02">IPv4 header</button>
+            <button type="button" data-checksum="de ad be ef">sample bytes</button>
+          </div>
+          <div class="codec-status" id="checksum-status" role="status" aria-live="polite">Enter bytes and press Compute.</div>
+          <div id="checksum-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="verify">
+      <div class="section__head">
+        <h2><span class="num">02</span>Verify an Internet checksum</h2>
+        <span class="section__hint">RFC 1071 one's complement</span>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__head"><h3>verify</h3><span>bytes that include the checksum field</span></div>
+        <div class="tool-card__body">
+          <div class="tool-row">
+            <input type="text" id="checksum-verify-input" class="hex-input" value="" spellcheck="false" aria-label="Bytes including checksum">
+            <button class="btn btn--primary" type="button" id="checksum-verify">Verify</button>
+          </div>
+          <div class="codec-status" id="checksum-verify-status" role="status" aria-live="polite">Paste the covered bytes with the checksum field included.</div>
+          <div id="checksum-verify-result"></div>
+          <p class="form-note">For IPv4, TCP, UDP and ICMP the one's-complement sum over the covered bytes, with the checksum included, must be <code>0xFFFF</code>. The UDP checksum also covers an IP pseudo-header; paste the pseudo-header followed by the UDP datagram to verify it.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">03</span>Notes</h2>
+        <span class="section__hint">which checksum where</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>Internet checksum is not a CRC.</strong> It is a one's-complement sum, cheap in software and weak against structured errors.</li>
+        <li><strong>CRC-32 is not CRC-32c.</strong> Ethernet, PNG and zlib use the IEEE polynomial; SCTP, iSCSI and Btrfs use Castagnoli. The table and the polynomial differ.</li>
+        <li><strong>FNV-1a is a hash, not an error check.</strong> It is efficient and straightforward, but it is not collision-resistant.</li>
+        <li><strong>Adler-32 is used by zlib.</strong> It is weaker than CRC-32 but cheaper on some CPUs.</li>
+        <li><strong>A checksum is not authentication.</strong> It can be recomputed by any party. A MAC or digital signature is required for integrity against an active attacker.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/checksum-codec.js"></script>
+<script src="js/checksum.js"></script>
+</body>
+</html>

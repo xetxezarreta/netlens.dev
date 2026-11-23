@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPsec AH, ESP &amp; IKEv2 — bit diagrams, encoder, decoder · netlens.dev</title>
+<meta name="description" content="IPsec packet layouts: AH (RFC 4302), ESP (RFC 4303) and the IKEv2 header (RFC 7296), SPI, sequence numbers, ICV, encrypted payload boundaries, an encoder and a decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#ah">AH</a></li>
+        <li><a href="#esp">ESP</a></li>
+        <li><a href="#ikev2">IKEv2</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>IPsec</b> is a family, not one header. AH is protocol <b>51</b>, ESP is <b>50</b>, and IKEv2 is UDP <b>500/4500</b>. ESP hides the inner protocol type until it is decrypted.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>ipsec</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>IPsec <span class="on">// AH, ESP &amp; IKEv2</span></h1>
+      <p class="lead">
+        IPsec protects IP packets at the network layer. AH authenticates the packet and
+        the outer IP header; ESP encrypts and authenticates the payload. IKEv2 negotiates
+        the security associations. This page distinguishes the fields observable in a
+        capture from those available only to the endpoints after decryption.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 4303</b> · ESP</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc4302" target="_blank" rel="noopener">RFC 4302 · AH</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc7296" target="_blank" rel="noopener">RFC 7296 · IKEv2</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc8221" target="_blank" rel="noopener">RFC 8221 · algorithms</a>
+        <span class="badge">protocol 51 / 50</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> internet / security</span>
+        <span><b>AH</b> 12 B + ICV</span>
+        <span><b>ESP</b> 8 B + ciphertext + ICV</span>
+        <span><b>IKEv2</b> UDP 500/4500</span>
+      </div>
+      <div class="stackbar" data-stack="ipsec"></div>
+      <ul class="toc">
+        <li><a href="#ah">AH</a></li>
+        <li><a href="#esp">ESP</a></li>
+        <li><a href="#ikev2">IKEv2</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="ah">
+      <div class="section__head">
+        <h2><span class="num">01</span>Authentication Header</h2>
+        <span class="section__hint">protocol 51 · integrity, no confidentiality</span>
+      </div>
+      <p>
+        AH authenticates the immutable parts of the IP header, the AH header and the
+        payload. It does not encrypt. The <strong>Payload Length</strong> counts the AH
+        header in 32-bit words minus two, and the <strong>ICV</strong> length depends on the
+        negotiated algorithm (often 12 or 16 bytes).
+      </p>
+      <div id="ah-diagram"></div>
+      <div class="field-detail" id="ah-inspector"></div>
+      <div id="ah-fields"></div>
+      <div class="callout callout--warn">
+        <div class="callout__title">AH and NAT do not mix</div>
+        <p>AH covers the outer IP addresses. A NAT rewrites them, so the ICV no longer
+        verifies. This is why NAT traversal uses ESP and UDP encapsulation, not AH.</p>
+      </div>
+    </section>
+
+    <section class="section" id="esp">
+      <div class="section__head">
+        <h2><span class="num">02</span>Encapsulating Security Payload</h2>
+        <span class="section__hint">protocol 50 · encryption + integrity</span>
+      </div>
+      <p>
+        ESP starts with an 8-byte header and ends with a trailer and an ICV. Everything
+        between them is ciphertext. In transport mode the original IP header stays outside;
+        in tunnel mode a new outer IP header is added and the entire original packet is
+        inside.
+      </p>
+      <div id="esp-lane"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Field</th><th>Visibility</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>SPI</td><td>cleartext</td><td>Security association identifier; the receiver uses it to select keys and algorithms</td></tr>
+            <tr><td>Sequence</td><td>cleartext</td><td>Anti-replay counter; it is not encrypted</td></tr>
+            <tr><td>Ciphertext</td><td>opaque</td><td>Encrypted payload plus padding, pad length and next header</td></tr>
+            <tr><td>ICV</td><td>opaque without keys</td><td>Integrity check value over the ESP packet; algorithm-specific length</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <div class="callout__title">The inner protocol type is not visible</div>
+        <p>The Next Header field is inside the encrypted trailer. Without keys, a capture
+        shows only “ESP”. TCP or UDP must not be inferred from the outer packet.</p>
+      </div>
+    </section>
+
+    <section class="section" id="ikev2">
+      <div class="section__head">
+        <h2><span class="num">03</span>IKEv2 header</h2>
+        <span class="section__hint">UDP 500 / 4500</span>
+      </div>
+      <p>
+        IKEv2 is the control protocol that creates IPsec SAs. The header is 28 bytes and is
+        followed by a chain of payloads. The initiator and responder SPIs are eight bytes
+        each. The I flag marks the original initiator; the R flag marks a response.
+      </p>
+      <div id="ike-lane"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Exchange</th><th>Type</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>IKE_SA_INIT</td><td><code>34</code></td><td>Negotiate algorithms, exchange nonces and Diffie-Hellman public values</td></tr>
+            <tr><td>IKE_AUTH</td><td><code>35</code></td><td>Authenticate identities and create the first child SA</td></tr>
+            <tr><td>CREATE_CHILD_SA</td><td><code>36</code></td><td>Create or rekey child SAs</td></tr>
+            <tr><td>INFORMATIONAL</td><td><code>37</code></td><td>Delete, notify, configure</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Structural encoder</h2>
+        <span class="section__hint">AH, ESP layout or IKEv2 header</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build an IPsec structure</h3><span class="tag" id="ipsec-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="ipsec-encode-form" onsubmit="return false">
+              <div class="field-grid">
+                <div class="form-field"><label for="ipsec-enc-mode">structure</label><select id="ipsec-enc-mode"><option value="ah">AH · protocol 51</option><option value="esp">ESP · protocol 50</option><option value="ike">IKEv2 header</option></select></div>
+                <div class="form-field"><label for="ipsec-enc-spi">SPI</label><input type="text" id="ipsec-enc-spi" value="0x1000" spellcheck="false"></div>
+                <div class="form-field"><label for="ipsec-enc-seq">sequence</label><input type="text" id="ipsec-enc-seq" value="1" spellcheck="false"></div>
+                <div class="form-field"><label for="ipsec-enc-next">next header / payload</label><input type="text" id="ipsec-enc-next" value="6" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="ipsec-enc-icv">ICV <span class="units">hex · optional</span></label><input type="text" id="ipsec-enc-icv" class="hex-input" value="00 00 00 00 00 00 00 00 00 00 00 00" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="ipsec-enc-payload">payload / plaintext <span class="units">hex</span></label><input type="text" id="ipsec-enc-payload" class="hex-input" value="de ad be ef" spellcheck="false"></div>
+                <div class="form-field"><label for="ipsec-enc-exchange">IKE exchange</label><select id="ipsec-enc-exchange"><option value="34">34 · IKE_SA_INIT</option><option value="35">35 · IKE_AUTH</option><option value="36">36 · CREATE_CHILD_SA</option><option value="37">37 · INFORMATIONAL</option></select></div>
+                <div class="form-field"><label for="ipsec-enc-ike-payload">IKE payload type</label><input type="number" id="ipsec-enc-ike-payload" value="33" min="0" max="255" inputmode="numeric"></div>
+              </div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="ipsec-build">Build</button><button class="btn btn--ghost" type="button" id="ipsec-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="ipsec-export">JSON</button></div>
+              <p class="form-note">The encoder does not encrypt or authenticate. ESP plaintext is shown in the ciphertext slot for layout study only.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">IPsec</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="ipsec-encode-status" role="status" aria-live="polite">Choose a structure and press Build.</div>
+            <div class="output"><div class="row-between"><div class="output__label">structure hex</div><button class="copy-btn" type="button" data-copy-target="#ipsec-enc-output">copy</button></div><pre id="ipsec-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="ipsec-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">AH, ESP or IKEv2</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 4302 · 4303 · 7296</span></div>
+        <div class="codec-panel__body">
+          <div class="field-grid">
+            <div class="form-field"><label for="ipsec-decode-mode">structure</label><select id="ipsec-decode-mode"><option value="ah">AH</option><option value="esp">ESP</option><option value="ike">IKEv2</option></select></div>
+            <div class="form-field span-2"><label for="ipsec-decode-input">hex input</label><textarea id="ipsec-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          </div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="ipsec-decode">Decode</button><button class="btn btn--ghost" type="button" id="ipsec-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="ipsec-decode-clear">Clear</button></div>
+          <div class="codec-status" id="ipsec-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="ipsec-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">what a capture can establish</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>ESP conceals the inner packet.</strong> The SPI, sequence and outer addresses are visible. Ports, inner addresses and payload are not visible without keys.</li>
+        <li><strong>AH authenticates more than ESP.</strong> AH covers outer IP fields; ESP does not. AH therefore breaks under NAT.</li>
+        <li><strong>Transport mode vs tunnel mode.</strong> Transport mode keeps the original IP header; tunnel mode adds a new one. A capture may show either.</li>
+        <li><strong>IKEv2 is not ESP.</strong> It runs over UDP 500, or 4500 when NAT traversal is in use. The first IKE_SA_INIT messages are unencrypted; later exchanges use SK payloads.</li>
+        <li><strong>Sequence numbers are per SA.</strong> They provide anti-replay. A capture cannot tell whether a receiver accepted a replay without the SA state.</li>
+        <li><strong>Algorithms are negotiated, not encoded in the packet.</strong> The SPI selects the SA; the SA holds the algorithms and keys.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4302" target="_blank" rel="noopener">RFC 4302</a><span>AH</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4303" target="_blank" rel="noopener">RFC 4303</a><span>ESP</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc7296" target="_blank" rel="noopener">RFC 7296</a><span>IKEv2</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8221" target="_blank" rel="noopener">RFC 8221</a><span>algorithm requirements</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3948" target="_blank" rel="noopener">RFC 3948</a><span>UDP encapsulation</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="lldp.html">LLDP discovery -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ipsec-codec.js"></script>
+<script src="js/ipsec.js"></script>
+</body>
+</html>

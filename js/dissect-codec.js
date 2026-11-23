@@ -11,7 +11,7 @@
   const ETHERTYPES = {
     0x0800: "IPv4", 0x0806: "ARP", 0x8100: "802.1Q", 0x86dd: "IPv6",
     0x88a8: "802.1ad", 0x8847: "MPLS", 0x8863: "PPPoE Discovery",
-    0x8864: "PPPoE Session", 0x8035: "RARP", 0x809b: "AppleTalk"
+    0x8864: "PPPoE Session", 0x88cc: "LLDP", 0x8035: "RARP", 0x809b: "AppleTalk"
   };
 
   const IP_PROTOCOLS = {
@@ -461,6 +461,54 @@
       const tunnel = decodeVxlan(parsed.payload, offset + 8, state, depth + 1, geneve);
       if (tunnel) return result.concat(tunnel);
     }
+    if (parsed.dstPort === 123 || parsed.srcPort === 123) {
+      if (global.NTPCodec) {
+        try {
+          const ntp = global.NTPCodec.decodeNtp(parsed.payload);
+          ntp.warnings.forEach((warning) => pushWarning(state, "NTP: " + warning));
+          result.push(layer({
+            proto: "ntp", name: "NTP", offset: offset + 8, length: parsed.payload.length,
+            summary: "NTPv" + ntp.version + " · " + ntp.modeName + " · stratum " + ntp.stratum + " · " + (ntp.transmit ? ntp.transmit.date.toISOString() : "zero transmit"),
+            fields: [field("Mode", ntp.mode + " · " + ntp.modeName), field("Stratum", ntp.stratum), field("Reference ID", ntp.referenceId), field("Transmit", ntp.transmit ? ntp.transmit.date.toISOString() : "zero")],
+            warnings: ntp.warnings.slice(), depth: depth + 1, href: "ntp.html", meta: { ntp }
+          }));
+          return result;
+        } catch (err) { pushWarning(state, "NTP: " + err.message); }
+      }
+    }
+    if (parsed.dstPort === 546 || parsed.dstPort === 547 || parsed.srcPort === 546 || parsed.srcPort === 547) {
+      if (global.DHCPv6Codec) {
+        try {
+          const dhcp6 = global.DHCPv6Codec.decodeDhcpv6(parsed.payload);
+          dhcp6.warnings.forEach((warning) => pushWarning(state, "DHCPv6: " + warning));
+          const fields = [field("Message", dhcp6.type + " · " + dhcp6.typeName)];
+          if (dhcp6.transactionId != null) fields.push(field("Transaction ID", "0x" + PH.hex(dhcp6.transactionId, 6)));
+          fields.push(field("Options", dhcp6.options ? dhcp6.options.length : 0));
+          if (dhcp6.clientId) fields.push(field("Client DUID", dhcp6.clientId.name));
+          result.push(layer({
+            proto: "dhcpv6", name: "DHCPv6", offset: offset + 8, length: parsed.payload.length,
+            summary: dhcp6.typeName + " · " + (dhcp6.options ? dhcp6.options.length : 0) + " option(s)",
+            fields, warnings: dhcp6.warnings.slice(), depth: depth + 1, href: "dhcpv6.html", meta: { dhcp6 }
+          }));
+          return result;
+        } catch (err) { pushWarning(state, "DHCPv6: " + err.message); }
+      }
+    }
+    if (parsed.dstPort === 51820 || parsed.srcPort === 51820) {
+      if (global.WireGuardCodec) {
+        try {
+          const wg = global.WireGuardCodec.decodeWireguard(parsed.payload);
+          wg.warnings.forEach((warning) => pushWarning(state, "WireGuard: " + warning));
+          result.push(layer({
+            proto: "wireguard", name: "WireGuard", offset: offset + 8, length: parsed.payload.length,
+            summary: wg.typeName + " · " + (wg.receiverIndex != null ? "receiver " + wg.receiverIndex : wg.senderIndex != null ? "sender " + wg.senderIndex : "") + " · " + parsed.payload.length + " B",
+            fields: (wg.fields || []).map(([name, value]) => field(name, value)),
+            warnings: wg.warnings.slice(), depth: depth + 1, href: "wireguard.html", meta: { wg }
+          }));
+          return result;
+        } catch (err) { pushWarning(state, "WireGuard: " + err.message); }
+      }
+    }
     if (state.headersOnly) return result;
     const app = applicationLayer(parsed.payload, offset + 8, state, depth + 1, {
       dhcp: parsed.srcPort === 67 || parsed.dstPort === 67 || parsed.srcPort === 68 || parsed.dstPort === 68,
@@ -495,7 +543,7 @@
   function decodeIcmpv6(bytes, offset, state, depth) {
     if (!bytes || bytes.length < 4) {
       return [layer({ proto: "icmpv6", name: "ICMPv6", offset, length: bytes ? bytes.length : 0,
-        summary: "ICMPv6 · truncated", fields: [], warnings: ["ICMPv6 needs at least 4 bytes"], depth, href: "ipv6.html" })];
+        summary: "ICMPv6 · truncated", fields: [], warnings: ["ICMPv6 needs at least 4 bytes"], depth, href: "icmpv6.html" })];
     }
     const codec = global.IPv6Codec;
     const names = codec ? codec.ICMPV6_TYPES : {};
@@ -510,7 +558,7 @@
     return [layer({
       proto: "icmpv6", name: "ICMPv6", offset, length: bytes.length,
       summary: "ICMPv6 " + (names[type] || "type " + type) + " · " + bytes.length + " B",
-      fields, warnings: [], depth, href: "ipv6.html"
+      fields, warnings: [], depth, href: "icmpv6.html"
     })];
   }
 
@@ -528,26 +576,99 @@
       catch (err) { return [layer({ proto: "icmp", name: "ICMP", offset, length: bytes.length, summary: "ICMP decode failed", fields: [], warnings: [err.message], depth, href: "icmp.html", error: err.message })]; }
     }
     if (nextHeader === 58 && family === 6) {
+      if (global.ICMPv6Codec) {
+        try {
+          const parsed = global.ICMPv6Codec.decodeIcmpv6(bytes, {});
+          parsed.warnings.forEach((warning) => pushWarning(state, "ICMPv6: " + warning));
+          const fields = [field("Type", parsed.type + " · " + parsed.typeName), field("Code", parsed.code + (parsed.codeName ? " · " + parsed.codeName : "")), field("Checksum", "0x" + PH.hex(parsed.checksum, 4))];
+          if (parsed.details && parsed.details.target) fields.push(field("Target", parsed.details.target));
+          if (parsed.details && parsed.details.options) fields.push(field("ND options", parsed.details.options.length));
+          return [layer({
+            proto: "icmpv6", name: "ICMPv6", offset, length: bytes.length,
+            summary: "ICMPv6 " + parsed.typeName + (parsed.codeName ? " · " + parsed.codeName : "") + " · " + bytes.length + " B",
+            fields, warnings: parsed.warnings.slice(), depth, href: "icmpv6.html", meta: { parsed }
+          })];
+        } catch (err) { pushWarning(state, "ICMPv6: " + err.message); }
+      }
       return decodeIcmpv6(bytes, offset, state, depth);
     }
     const note = nameForProtocol(nextHeader);
+    if (nextHeader === 89) {
+      if (global.OSPFCodec) {
+        try {
+          const parsed = global.OSPFCodec.decodeOspf(bytes);
+          parsed.warnings.forEach((warning) => pushWarning(state, "OSPF: " + warning));
+          const fields = [
+            field("Type", parsed.type + " · " + parsed.typeName),
+            field("Router ID", parsed.routerId),
+            field("Area ID", parsed.areaId),
+            field("Checksum", "0x" + PH.hex(parsed.checksum, 4) + " · " + parsed.checksumState),
+            field("Auth", parsed.authTypeName)
+          ];
+          if (parsed.hello) fields.push(field("Hello", parsed.hello.helloInterval + " s / dead " + parsed.hello.deadInterval + " s · " + parsed.hello.neighbors.length + " neighbour(s)"));
+          if (parsed.update) fields.push(field("LSAs", parsed.update.count));
+          return [layer({
+            proto: "ospf", name: "OSPF", offset, length: bytes.length,
+            summary: "OSPFv2 " + parsed.typeName + " · area " + parsed.areaId + " · router " + parsed.routerId,
+            fields, warnings: parsed.warnings.slice(), depth, href: "ospf.html", meta: { parsed }
+          })];
+        } catch (err) { pushWarning(state, "OSPF: " + err.message); }
+      }
+    }
     if (nextHeader === 50 || nextHeader === 51) {
+      let parsed = null;
+      try {
+        if (global.IPsecCodec) parsed = nextHeader === 51 ? global.IPsecCodec.decodeAh(bytes) : global.IPsecCodec.decodeEsp(bytes);
+      } catch (err) { pushWarning(state, "IPsec: " + err.message); }
       return [layer({
         proto: "ipsec", name: nameForProtocol(nextHeader), offset, length: bytes.length,
-        summary: nameForProtocol(nextHeader) + " · encrypted or authenticated payload",
-        fields: [field("Next header", nextHeader + " · " + nameForProtocol(nextHeader)), field("Length", bytes.length + " B")],
-        warnings: [], depth
+        summary: nameForProtocol(nextHeader) + " · " + (nextHeader === 51 ? "authenticated" : "encrypted") + " · " + bytes.length + " B",
+        fields: parsed ? [
+          field("SPI", "0x" + PH.hex(parsed.spi, 8)),
+          field("Sequence", parsed.sequence),
+          field(nextHeader === 51 ? "Next header" : "Payload", nextHeader === 51 ? parsed.nextHeaderName : parsed.ciphertextLength + " B opaque")
+        ] : [field("Next header", nextHeader + " · " + nameForProtocol(nextHeader)), field("Length", bytes.length + " B")],
+        warnings: parsed && parsed.warnings ? parsed.warnings.slice() : [], depth, href: "ipsec.html", meta: { parsed }
       })];
     }
     if (nextHeader === 132) {
       return decodeSctp(bytes, offset, state, depth);
     }
     if (nextHeader === 47) {
+      if (global.GRECodec) {
+        try {
+          const parsed = global.GRECodec.decodeGre(bytes);
+          parsed.warnings.forEach((warning) => pushWarning(state, "GRE: " + warning));
+          const fields = [
+            field("Protocol", "0x" + PH.hex(parsed.protocol, 4) + " · " + parsed.protocolName),
+            field("Header", parsed.headerLength + " B"),
+            field("Checksum", parsed.checksum == null ? "absent" : "0x" + PH.hex(parsed.checksum, 4) + " · " + parsed.checksumState)
+          ];
+          if (parsed.key != null) fields.push(field("Key", parsed.key));
+          if (parsed.sequence != null) fields.push(field("Sequence", parsed.sequence));
+          const greLayer = layer({
+            proto: "gre", name: "GRE", offset, length: parsed.headerLength,
+            summary: "GREv" + parsed.version + " · " + parsed.protocolName + " · " + parsed.payload.length + " B payload",
+            fields, warnings: parsed.warnings.slice(), depth, href: "gre.html", meta: { parsed }
+          });
+          const innerOffset = offset + parsed.headerLength;
+          const innerBytes = bytes.subarray(parsed.headerLength);
+          const shift = (items) => {
+            items.forEach((item) => { item.offset += innerOffset; item.depth += 1; });
+            return items;
+          };
+          if (parsed.protocol === 0x0800) return [greLayer].concat(shift(decodeIpv4(innerBytes, 0, state, 4)));
+          if (parsed.protocol === 0x86dd) return [greLayer].concat(shift(decodeIpv6(innerBytes, 0, state)));
+          if (parsed.protocol === 0x6558) return [greLayer].concat(shift(decodeEthernet(innerBytes, state)));
+          const payloadLayer = unknownPayload(innerBytes, innerOffset, state, depth + 1, parsed.protocolName);
+          return payloadLayer ? [greLayer, payloadLayer] : [greLayer];
+        } catch (err) { pushWarning(state, "GRE: " + err.message); }
+      }
       return [layer({
         proto: "gre", name: "GRE", offset, length: bytes.length,
         summary: "GRE tunnel payload · " + bytes.length + " B",
         fields: [field("Flags/version", "0x" + PH.hex(bytes[0] || 0, 2) + " " + PH.hex(bytes[1] || 0, 2)), field("Protocol", "0x" + PH.hex(PH.u16be(bytes, 2), 4))],
-        warnings: [], depth
+        warnings: [], depth, href: "gre.html"
       })];
     }
     if (nextHeader === 59 || bytes.length === 0) return [];
@@ -737,7 +858,7 @@
           proto: "geneve", name: "Geneve", offset, length: headerLength,
           summary: "VNI " + vni + " · protocol 0x" + PH.hex(protocol, 4),
           fields: [field("VNI", vni), field("Protocol", "0x" + PH.hex(protocol, 4)), field("Options", optLength + " B")],
-          warnings: [], depth, href: ""
+          warnings: [], depth, href: "vxlan.html"
         })];
       }
     } else {
@@ -752,38 +873,41 @@
       offset, length: headerLength,
       summary: "VNI " + vni + " · inner Ethernet · " + innerBytes.length + " B",
       fields: [field("VNI", vni), field("Header", headerLength + " B")],
-      warnings: [], depth, href: ""
+      warnings: [], depth, href: "vxlan.html"
     });
     return [tunnel].concat(inner);
   }
 
   function decodeSctp(bytes, offset, state, depth) {
-    if (bytes.length < 12) return [layer({ proto: "sctp", name: "SCTP", offset, length: bytes.length, summary: "SCTP · truncated", fields: [], warnings: ["SCTP needs at least 12 bytes"], depth, href: "" })];
+    if (bytes.length < 12) return [layer({ proto: "sctp", name: "SCTP", offset, length: bytes.length, summary: "SCTP · truncated", fields: [], warnings: ["SCTP needs at least 12 bytes"], depth, href: "sctp.html" })];
+    if (global.SCTPCodec) {
+      try {
+        const parsed = global.SCTPCodec.decodeSctp(bytes);
+        parsed.warnings.forEach((warning) => pushWarning(state, "SCTP: " + warning));
+        return [layer({
+          proto: "sctp", name: "SCTP", offset, length: bytes.length,
+          summary: parsed.srcPort + " → " + parsed.dstPort + " · tag 0x" + PH.hex(parsed.verificationTag, 8) + " · " + parsed.chunks.length + " chunk(s) · CRC32c " + parsed.checksumState,
+          fields: [
+            field("Source port", parsed.srcPort + " · " + serviceLabel(parsed.srcPort), "", { abbrev: "sctp.srcport", offset, length: 2, type: "uint16", raw: parsed.srcPort }),
+            field("Destination port", parsed.dstPort + " · " + serviceLabel(parsed.dstPort), "", { abbrev: "sctp.dstport", offset: offset + 2, length: 2, type: "uint16", raw: parsed.dstPort }),
+            field("Verification tag", "0x" + PH.hex(parsed.verificationTag, 8), "", { abbrev: "sctp.verification_tag", offset: offset + 4, length: 4, type: "uint32", raw: parsed.verificationTag }),
+            field("Checksum", "0x" + PH.hex(parsed.checksum, 8) + " · " + parsed.checksumState, "", { abbrev: "sctp.checksum", offset: offset + 8, length: 4, type: "uint32", raw: parsed.checksum, severity: parsed.checksumState === "invalid" ? "warn" : "" }),
+            field("Chunks", parsed.chunks.length + " · " + parsed.chunks.map((chunk) => chunk.name).join(", "))
+          ],
+          warnings: parsed.warnings.slice(), depth, href: "sctp.html", meta: { parsed }
+        })];
+      } catch (err) {
+        pushWarning(state, "SCTP: " + err.message);
+      }
+    }
     const src = PH.u16be(bytes, 0);
     const dst = PH.u16be(bytes, 2);
     const tag = PH.u32be(bytes, 4);
-    const checksum = PH.u32be(bytes, 8);
-    const chunks = [];
-    let pos = 12;
-    let guard = 0;
-    while (pos + 4 <= bytes.length && guard++ < 64) {
-      const type = bytes[pos];
-      const flags = bytes[pos + 1];
-      const length = PH.u16be(bytes, pos + 2);
-      if (length < 4 || pos + length > bytes.length) break;
-      chunks.push({ type, flags, length });
-      pos += (length + 3) & ~3;
-    }
     return [layer({
       proto: "sctp", name: "SCTP", offset, length: bytes.length,
-      summary: src + " → " + dst + " · tag 0x" + PH.hex(tag, 8) + " · " + chunks.length + " chunk(s)",
-      fields: [
-        field("Source port", src), field("Destination port", dst),
-        field("Verification tag", "0x" + PH.hex(tag, 8)),
-        field("Checksum", "0x" + PH.hex(checksum, 8)),
-        field("Chunks", chunks.length + " · " + chunks.map((chunk) => "type " + chunk.type).join(", "))
-      ],
-      warnings: [], depth, href: ""
+      summary: src + " → " + dst + " · tag 0x" + PH.hex(tag, 8),
+      fields: [field("Source port", src), field("Destination port", dst), field("Verification tag", "0x" + PH.hex(tag, 8))],
+      warnings: [], depth, href: "sctp.html"
     })];
   }
 
@@ -937,6 +1061,25 @@
       next = decodeMpls(eth, frameBytes, state);
     } else if (eth.etherType === 0x8863 || eth.etherType === 0x8864) {
       next = decodePppoe(eth, frameBytes, state);
+    } else if (eth.etherType === 0x88cc && global.LLDPCodec) {
+      try {
+        const lldp = global.LLDPCodec.decodeLldp(eth.payload);
+        lldp.warnings.forEach((warning) => pushWarning(state, "LLDP: " + warning));
+        next = [layer({
+          proto: "lldp", name: "LLDP", offset: payloadOffset, length: eth.payload.length,
+          summary: "LLDP · " + lldp.tlvs.length + " TLV(s)" + (lldp.systemName ? " · " + lldp.systemName : "") + (lldp.ttl != null ? " · TTL " + lldp.ttl + " s" : ""),
+          fields: [
+            field("Chassis", lldp.chassis && lldp.chassis.address ? lldp.chassis.address : "—"),
+            field("Port", lldp.port && lldp.port.address ? lldp.port.address : "—"),
+            field("TTL", lldp.ttl == null ? "—" : lldp.ttl + " s"),
+            field("System name", lldp.systemName || "—"),
+            field("TLVs", lldp.tlvs.length)
+          ],
+          warnings: lldp.warnings.slice(), depth: 1, href: "lldp.html", meta: { lldp }
+        })];
+      } catch (err) {
+        next = [layer({ proto: "lldp", name: "LLDP", offset: payloadOffset, length: eth.payload.length, summary: "LLDP decode failed", fields: [], warnings: [err.message], depth: 1, href: "lldp.html", error: err.message })];
+      }
     } else {
       const payload = unknownPayload(eth.payload, payloadOffset, state, 1, eth.etherTypeName);
       next = payload ? [payload] : [];

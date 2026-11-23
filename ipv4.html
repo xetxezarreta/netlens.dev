@@ -46,9 +46,9 @@
     <div class="page-head">
       <h1>IPv4 header <span class="on">// RFC 791</span></h1>
       <p class="lead">
-        The twenty-byte baseline that still carries most of the internet. The header is a
-        fixed set of fields followed by an optional TLV list; everything else is payload.
-        Hover any block to get its bit range, allowed values and the clause that defines it.
+        The 20-byte IPv4 header remains the most widely deployed network-layer header. It is
+        a fixed set of fields followed by an optional TLV list; everything else is payload.
+        Select any block to display its bit range, allowed values and the defining RFC clause.
       </p>
       <div class="badges">
         <span class="badge badge--accent"><b>RFC 791</b> · IPv4</span>
@@ -78,7 +78,8 @@
     <section class="section" id="layout">
       <div class="section__head">
         <h2><span class="num">01</span>Header layout</h2>
-        <span class="section__hint">click a field to pin it · esc clears</span>
+        <span class="section__hint">select a field to pin it; Escape clears the selection</span>
+
       </div>
       <p>
         The first five 32-bit words are mandatory. <strong>IHL</strong> counts 32-bit words,
@@ -105,7 +106,7 @@
       </div>
       <p>
         Three flag bits and a 13-bit offset decide whether a packet is a complete datagram,
-        the first fragment, a middle fragment, or the last one. Toggle them to see the raw
+        the first fragment, a middle fragment or the last one. Toggle them to display the raw
         16-bit word and the byte range each offset addresses.
       </p>
 
@@ -114,7 +115,7 @@
         <div class="flag-box__body">
           <div class="flag-grid">
             <label class="flag-toggle"><input type="checkbox" id="frag-reserved"><span><span class="bitno">bit 48</span><b>R</b><small>reserved</small></span></label>
-            <label class="flag-toggle"><input type="checkbox" id="frag-df" checked><span><span class="bitno">bit 49</span><b>DF</b><small>don't frag</small></span></label>
+            <label class="flag-toggle"><input type="checkbox" id="frag-df" checked><span><span class="bitno">bit 49</span><b>DF</b><small>do not fragment</small></span></label>
             <label class="flag-toggle"><input type="checkbox" id="frag-mf"><span><span class="bitno">bit 50</span><b>MF</b><small>more frags</small></span></label>
           </div>
           <div class="field-grid field-grid--three" style="margin-top:12px">
@@ -246,7 +247,7 @@
         <h2><span class="num">04</span>Encoder</h2>
         <span class="section__hint">checksum computed automatically</span>
       </div>
-      <p>Fill in the fields and build a valid header. Options are padded to a 4-byte boundary; the resulting hex is ready for a lab tool or a packet builder.</p>
+      <p>Fill in the fields and build a valid header. Options are padded to a 4-byte boundary; the resulting hexadecimal output is suitable for a laboratory tool or packet builder.</p>
 
       <div class="codec">
         <div class="codec-panel">
@@ -285,7 +286,7 @@
                 </div>
               </div>
               <div class="inline-checks" style="margin-top:10px">
-                <label><input type="checkbox" id="enc-df" checked> DF · don't fragment</label>
+                <label><input type="checkbox" id="enc-df" checked> DF · do not fragment</label>
                 <label><input type="checkbox" id="enc-mf"> MF · more fragments</label>
                 <label><input type="checkbox" id="enc-reserved"> reserved bit</label>
               </div>
@@ -293,7 +294,7 @@
                 <button class="btn btn--primary" type="button" id="ipv4-build">Build header</button>
                 <button class="btn btn--ghost" type="button" id="ipv4-load-example">Load example</button>
               </div>
-              <p class="form-note">The checksum is computed over the final header, including options. Reserved bits are kept visible so you can deliberately build malformed test traffic.</p>
+              <p class="form-note">The checksum is computed over the final header, including options. Reserved bits remain visible so that malformed test traffic can be constructed deliberately.</p>
             </form>
           </div>
         </div>
@@ -311,7 +312,7 @@
               <div class="callout__title">what the encoder will not do</div>
               <p>It does not add a transport header, compute TCP/UDP checksums, or choose a path MTU.
               It only makes the IPv4 header self-consistent. Payload length is a promise encoded in
-              <code>Total Length</code>; the actual payload is yours to append.</p>
+              <code>Total Length</code>; the payload is appended separately.</p>
             </div>
           </div>
         </div>
@@ -365,7 +366,7 @@
         <li><strong>Fragment offsets count 8-byte units.</strong> Reassembly uses the offset, the MF flag and identification; the last fragment clears MF. Overlapping fragments are a classic evasion technique.</li>
         <li><strong>Options are part of the header.</strong> The checksum includes them; middleboxes that rewrite options must update it. Padding to 4 bytes is mandatory.</li>
         <li><strong>TTL is decremented on every router.</strong> A value of 0 at a router yields <a href="icmp.html">ICMP Time Exceeded</a>; initial values are convention (64, 128, 255), not protocol constants.</li>
-        <li><strong>Protocol 41 is IPv6-in-IPv4.</strong> It is not “IPv6 itself”; the inner header starts after the IPv4 header. See the <a href="ipv6.html">IPv6 explorer</a>. Protocol 6 and 17 are TCP and UDP.</li>
+        <li><strong>Protocol 41 is IPv6-in-IPv4.</strong> It is not “IPv6 itself”; the inner header begins after the IPv4 header. The <a href="ipv6.html">IPv6 explorer</a> provides the corresponding layout. Protocol 6 and 17 are TCP and UDP.</li>
       </ul>
 
       <h2 class="mt-24">References</h2>

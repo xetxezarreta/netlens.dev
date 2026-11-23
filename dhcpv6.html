@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DHCPv6 messages &amp; options — bit diagram, encoder, decoder · netlens.dev</title>
+<meta name="description" content="DHCPv6 (RFC 8415) message header, transaction ID, option TLVs, IA_NA, IA_PD, IA Address, DUID, ORO, DNS servers, domain search, relay messages, encoder and decoder.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">skip to content</a>
+
+<header class="site-header" data-site-header>
+  <noscript><div class="site-header__inner"><a class="brand" href="index.html" aria-label="netlens.dev home"><span class="brand__box"><span class="prompt">$</span> netlens.dev</span></a></div></noscript>
+</header>
+
+<div class="shell page-shell">
+  <aside class="rail" aria-label="Page navigation">
+    <div class="rail__group">
+      <p class="rail__label">protocols</p>
+      <div data-rail-protocols><noscript><ul><li><a href="index.html#protocols">all protocols</a></li></ul></noscript></div>
+    </div>
+    <div class="rail__group">
+      <p class="rail__label">on this page</p>
+      <ul>
+        <li><a href="#layout">message layout</a></li>
+        <li><a href="#types">message types</a></li>
+        <li><a href="#options">options</a></li>
+        <li><a href="#encode">encoder</a></li>
+        <li><a href="#decode">decoder</a></li>
+        <li><a href="#notes">wire notes</a></li>
+      </ul>
+    </div>
+    <p class="rail__note"><b>DHCPv6</b> is a distinct protocol from DHCPv4. It uses UDP <b>546/547</b>, a 4-byte message header, 16-bit option codes and DUIDs. DHCPv6 does not use the DHCPv4 magic cookie or BOOTP header.</p>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="index.html">~</a><span class="sep">/</span><a href="index.html#protocols">protocols</a><span class="sep">/</span><span>dhcpv6</span>
+    </nav>
+
+    <div class="page-head">
+      <h1>DHCPv6 <span class="on">// addresses, prefixes &amp; options</span></h1>
+      <p class="lead">
+        DHCPv6 configures IPv6 addresses and other parameters. It is a different protocol
+        from DHCPv4: a four-byte message header, 16-bit option codes, DUIDs, IA_NA and
+        IA_PD containers, and a relay message format. SLAAC can provide addresses without
+        it; DHCPv6 is still common for DNS, prefixes and managed networks.
+      </p>
+      <div class="badges">
+        <span class="badge badge--accent"><b>RFC 8415</b> · DHCPv6</span>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3315" target="_blank" rel="noopener">RFC 3315 · historic</a>
+        <a class="badge" href="https://www.rfc-editor.org/rfc/rfc3646" target="_blank" rel="noopener">RFC 3646 · DNS options</a>
+        <span class="badge">UDP 546/547</span>
+      </div>
+      <div class="page-meta">
+        <span><b>layer</b> application</span>
+        <span><b>header</b> 4 B</span>
+        <span><b>transport</b> UDP 546 ↔ 547</span>
+        <span><b>options</b> 16-bit code + 16-bit length</span>
+      </div>
+      <div class="stackbar" data-stack="dhcpv6"></div>
+      <ul class="toc">
+        <li><a href="#layout">layout</a></li>
+        <li><a href="#types">types</a></li>
+        <li><a href="#options">options</a></li>
+        <li><a href="#encode">encode</a></li>
+        <li><a href="#decode">decode</a></li>
+        <li><a href="#notes">notes</a></li>
+      </ul>
+    </div>
+
+    <section class="section" id="layout">
+      <div class="section__head">
+        <h2><span class="num">01</span>Message layout</h2>
+        <span class="section__hint">4 bytes + options</span>
+      </div>
+      <p>
+        The first byte is the <strong>Message Type</strong>. The next three bytes are the
+        <strong>Transaction ID</strong>, chosen by the client and echoed by the server.
+        Everything after that is a sequence of options. Relay messages use a different
+        header: hop count, link address and peer address, followed by options.
+      </p>
+      <div id="dhcpv6-diagram"></div>
+      <div class="field-detail" id="dhcpv6-inspector"></div>
+      <div id="dhcpv6-fields"></div>
+      <div class="callout">
+        <div class="callout__title">No magic cookie, no BOOTP header</div>
+        <p>DHCPv4 has a 236-byte BOOTP header and a <code>0x63825363</code> magic cookie.
+        DHCPv6 has neither. A parser that expects the DHCPv4 cookie will not find it.</p>
+      </div>
+    </section>
+
+    <section class="section" id="types">
+      <div class="section__head">
+        <h2><span class="num">02</span>Message types</h2>
+        <span class="section__hint">1–13</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Message</th><th>Direction</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>SOLICIT</b></td><td>client → server</td><td>Find servers and request address/prefix options</td></tr>
+            <tr><td><code>2</code></td><td><b>ADVERTISE</b></td><td>server → client</td><td>Offer addresses, prefixes and configuration</td></tr>
+            <tr><td><code>3</code></td><td><b>REQUEST</b></td><td>client → server</td><td>Ask for the offered resources</td></tr>
+            <tr><td><code>4</code></td><td><b>CONFIRM</b></td><td>client → server</td><td>Check whether addresses are still valid on the link</td></tr>
+            <tr><td><code>5</code></td><td><b>RENEW</b></td><td>client → server</td><td>Extend lifetimes with the original server</td></tr>
+            <tr><td><code>6</code></td><td><b>REBIND</b></td><td>client → server</td><td>Extend lifetimes with any server</td></tr>
+            <tr><td><code>7</code></td><td><b>REPLY</b></td><td>server → client</td><td>Commit, deny or provide configuration</td></tr>
+            <tr><td><code>8</code></td><td><b>RELEASE</b></td><td>client → server</td><td>Release addresses/prefixes</td></tr>
+            <tr><td><code>9</code></td><td><b>DECLINE</b></td><td>client → server</td><td>Report a duplicate address</td></tr>
+            <tr><td><code>10</code></td><td><b>RECONFIGURE</b></td><td>server → client</td><td>Tell the client to reacquire configuration</td></tr>
+            <tr><td><code>11</code></td><td><b>INFORMATION-REQUEST</b></td><td>client → server</td><td>Ask for configuration only, no address</td></tr>
+            <tr><td><code>12</code></td><td><b>RELAY-FORW</b></td><td>relay → server</td><td>Forward a client message with relay information</td></tr>
+            <tr><td><code>13</code></td><td><b>RELAY-REPL</b></td><td>server → relay</td><td>Send the reply back through the relay</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="options">
+      <div class="section__head">
+        <h2><span class="num">03</span>Options</h2>
+        <span class="section__hint">code 16 · length 16 · value</span>
+      </div>
+      <div id="dhcpv6-option-lane"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Code</th><th>Option</th><th>Value</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><b>Client Identifier</b></td><td>DUID</td><td>RFC 8415 §21.2</td></tr>
+            <tr><td><code>2</code></td><td><b>Server Identifier</b></td><td>DUID</td><td>RFC 8415 §21.3</td></tr>
+            <tr><td><code>3</code></td><td><b>IA_NA</b></td><td>IAID, T1, T2, nested IA Address options</td><td>RFC 8415 §21.4</td></tr>
+            <tr><td><code>4</code></td><td><b>IA_TA</b></td><td>IAID, nested IA Address options</td><td>RFC 8415 §21.5</td></tr>
+            <tr><td><code>5</code></td><td><b>IA Address</b></td><td>address, preferred, valid, nested options</td><td>RFC 8415 §21.6</td></tr>
+            <tr><td><code>6</code></td><td><b>Option Request</b></td><td>list of 16-bit option codes</td><td>RFC 8415 §21.7</td></tr>
+            <tr><td><code>7</code></td><td><b>Preference</b></td><td>0–255</td><td>RFC 8415 §21.8</td></tr>
+            <tr><td><code>8</code></td><td><b>Elapsed Time</b></td><td>hundredths of a second</td><td>RFC 8415 §21.9</td></tr>
+            <tr><td><code>9</code></td><td><b>Relay Message</b></td><td>nested DHCPv6 message</td><td>RFC 8415 §21.10</td></tr>
+            <tr><td><code>13</code></td><td><b>Status Code</b></td><td>status 16 + UTF-8 message</td><td>RFC 8415 §21.13</td></tr>
+            <tr><td><code>14</code></td><td><b>Rapid Commit</b></td><td>empty</td><td>RFC 8415 §21.14</td></tr>
+            <tr><td><code>23</code></td><td><b>DNS Servers</b></td><td>list of IPv6 addresses</td><td>RFC 3646 §3</td></tr>
+            <tr><td><code>24</code></td><td><b>Domain Search List</b></td><td>DNS wire-format names</td><td>RFC 3646 §4</td></tr>
+            <tr><td><code>25</code></td><td><b>IA_PD</b></td><td>IAID, T1, T2, nested IA Prefix options</td><td>RFC 8415 §21.21</td></tr>
+            <tr><td><code>26</code></td><td><b>IA Prefix</b></td><td>preferred, valid, prefix length, prefix</td><td>RFC 8415 §21.22</td></tr>
+            <tr><td><code>39</code></td><td><b>Client FQDN</b></td><td>flags + DNS name</td><td>RFC 4704</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="encode">
+      <div class="section__head">
+        <h2><span class="num">04</span>Encoder</h2>
+        <span class="section__hint">SOLICIT or REPLY with common options</span>
+      </div>
+      <div class="codec">
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>build a DHCPv6 message</h3><span class="tag" id="dhcpv6-enc-tag">waiting</span></div>
+          <div class="codec-panel__body">
+            <form id="dhcpv6-encode-form" onsubmit="return false">
+              <div class="field-grid field-grid--three">
+                <div class="form-field"><label for="dhcpv6-enc-type">message type</label><select id="dhcpv6-enc-type"><option value="1">1 · SOLICIT</option><option value="2">2 · ADVERTISE</option><option value="3">3 · REQUEST</option><option value="7">7 · REPLY</option><option value="11">11 · INFORMATION-REQUEST</option></select></div>
+                <div class="form-field"><label for="dhcpv6-enc-xid">transaction ID</label><input type="text" id="dhcpv6-enc-xid" value="0x123456" spellcheck="false"></div>
+                <div class="form-field"><label for="dhcpv6-enc-duid">client DUID <span class="units">MAC</span></label><input type="text" id="dhcpv6-enc-duid" value="02:00:00:00:00:01" spellcheck="false"></div>
+                <div class="form-field"><label for="dhcpv6-enc-server-duid">server DUID <span class="units">MAC</span></label><input type="text" id="dhcpv6-enc-server-duid" value="02:00:00:00:00:02" spellcheck="false"></div>
+                <div class="form-field"><label for="dhcpv6-enc-iaid">IAID</label><input type="text" id="dhcpv6-enc-iaid" value="1" spellcheck="false"></div>
+                <div class="form-field"><label for="dhcpv6-enc-address">IA address</label><input type="text" id="dhcpv6-enc-address" value="2001:db8::100" spellcheck="false"></div>
+                <div class="form-field"><label for="dhcpv6-enc-preferred">preferred lifetime <span class="units">s</span></label><input type="number" id="dhcpv6-enc-preferred" value="3600" min="0" max="4294967295" inputmode="numeric"></div>
+                <div class="form-field"><label for="dhcpv6-enc-valid">valid lifetime <span class="units">s</span></label><input type="number" id="dhcpv6-enc-valid" value="7200" min="0" max="4294967295" inputmode="numeric"></div>
+                <div class="form-field"><label for="dhcpv6-enc-dns">DNS server</label><input type="text" id="dhcpv6-enc-dns" value="2001:db8::53" spellcheck="false"></div>
+                <div class="form-field span-2"><label for="dhcpv6-enc-domain">search domain</label><input type="text" id="dhcpv6-enc-domain" value="example.com" spellcheck="false"></div>
+              </div>
+              <div class="inline-checks" style="margin-top:10px"><label><input type="checkbox" id="dhcpv6-enc-ia" checked> include IA_NA + IAADDR</label><label><input type="checkbox" id="dhcpv6-enc-oro" checked> request DNS/domain options</label><label><input type="checkbox" id="dhcpv6-enc-rapid"> rapid commit</label><label><input type="checkbox" id="dhcpv6-enc-status"> status success</label></div>
+              <div class="btn-row" style="margin-top:12px"><button class="btn btn--primary" type="button" id="dhcpv6-build">Build message</button><button class="btn btn--ghost" type="button" id="dhcpv6-permalink">Permalink</button><button class="btn btn--ghost" type="button" id="dhcpv6-export">JSON</button></div>
+              <p class="form-note">DUIDs are built as DUID-LL (type 3) from the supplied MAC. The encoder does not implement relay forwarding or authentication.</p>
+            </form>
+          </div>
+        </div>
+        <div class="codec-panel">
+          <div class="codec-panel__head"><h3>wire output</h3><span class="tag">DHCPv6</span></div>
+          <div class="codec-panel__body">
+            <div class="codec-status" id="dhcpv6-encode-status" role="status" aria-live="polite">Set the fields and press Build message.</div>
+            <div class="output"><div class="row-between"><div class="output__label">message hex</div><button class="copy-btn" type="button" data-copy-target="#dhcpv6-enc-output">copy</button></div><pre id="dhcpv6-enc-output" class="placeholder">no bytes built yet</pre></div>
+            <div class="decode-summary" id="dhcpv6-enc-summary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decode">
+      <div class="section__head">
+        <h2><span class="num">05</span>Decoder</h2>
+        <span class="section__hint">message or relay</span>
+      </div>
+      <div class="codec-panel codec-panel--wide">
+        <div class="codec-panel__head"><h3>parse bytes</h3><span class="tag">RFC 8415</span></div>
+        <div class="codec-panel__body">
+          <div class="form-field"><label for="dhcpv6-decode-input">hex input <span class="units">DHCPv6 message</span></label><textarea id="dhcpv6-decode-input" class="hex-input" rows="5" spellcheck="false"></textarea></div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="dhcpv6-decode">Decode</button><button class="btn btn--ghost" type="button" id="dhcpv6-decode-example">Load example</button><button class="btn btn--ghost" type="button" id="dhcpv6-decode-clear">Clear</button></div>
+          <div class="codec-status" id="dhcpv6-decode-status" role="status" aria-live="polite">No input decoded yet.</div>
+          <div id="dhcpv6-decode-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notes">
+      <div class="section__head">
+        <h2><span class="num">06</span>Wire notes</h2>
+        <span class="section__hint">comparison with DHCPv4</span>
+      </div>
+      <ul class="dashed">
+        <li><strong>UDP 546/547.</strong> Clients listen on 546, servers and relays on 547. The client's source port is 546; the destination is 547.</li>
+        <li><strong>Multicast first.</strong> Clients send to <code>ff02::1:2</code> (all DHCP servers and relay agents) on the local link unless a unicast server address is known.</li>
+        <li><strong>DUIDs are not MAC addresses.</strong> DUID-LL wraps a link-layer address, but DUID-LLT, DUID-EN and DUID-UUID exist. Treat the whole DUID as opaque identity.</li>
+        <li><strong>IA_NA and IA_PD are containers.</strong> The actual addresses and prefixes live in nested IA Address / IA Prefix options. A message can carry several IAs.</li>
+        <li><strong>T1 and T2 are relative timers.</strong> They are seconds from the time the client receives the message, not absolute times.</li>
+        <li><strong>SLAAC and DHCPv6 can coexist.</strong> RA M/O flags decide whether the host uses DHCPv6 for addresses, other configuration, both or neither.</li>
+      </ul>
+      <h2 class="mt-24">References</h2>
+      <ul class="rfc-list">
+        <li><a href="https://www.rfc-editor.org/rfc/rfc8415" target="_blank" rel="noopener">RFC 8415</a><span>DHCPv6</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3646" target="_blank" rel="noopener">RFC 3646</a><span>DNS options</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4704" target="_blank" rel="noopener">RFC 4704</a><span>Client FQDN</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc3315" target="_blank" rel="noopener">RFC 3315</a><span>DHCPv6 (historic)</span></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc4862" target="_blank" rel="noopener">RFC 4862</a><span>SLAAC</span></li>
+      </ul>
+      <div class="next-protocol"><span>next protocol</span><a href="http3.html">HTTP/3 -&gt;</a></div>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer" data-site-footer>
+  <noscript><div class="site-footer__inner"><div><span class="foot-brand">netlens.dev</span> · wire formats, bit by bit</div><div class="foot-links"><a href="index.html">home</a></div></div></noscript>
+</footer>
+
+<script src="js/search-index.js"></script>
+<script src="js/protocol-meta.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ipv6-codec.js"></script>
+<script src="js/dhcpv6-codec.js"></script>
+<script src="js/dhcpv6.js"></script>
+</body>
+</html>
